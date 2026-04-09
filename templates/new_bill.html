@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+
+{% block title %}New Bill — SHUBHAM NX{% endblock %}
+{% block page_title %}New Bill{% endblock %}
+
+{% block content %}
+{% include '_bill_form.html' %}
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/bill.js') }}"></script>
+{% endblock %}

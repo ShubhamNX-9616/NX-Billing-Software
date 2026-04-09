@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}SHUBHAM NX Billing{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/bill.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/print.css') }}" />
+</head>
+<body>
+
+  <!-- ====== Sidebar ====== -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="shop-name">SHUBHAM NX</div>
+      <div class="shop-sub">Krishna Chowk, New Sangvi</div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <a href="/"
+         class="nav-link {% if request.path == '/' %}active{% endif %}">
+        <span class="nav-icon">&#9632;</span>
+        Dashboard
+      </a>
+      <a href="/new-bill"
+         class="nav-link {% if request.path == '/new-bill' %}active{% endif %}">
+        <span class="nav-icon">&#43;</span>
+        New Bill
+      </a>
+      <a href="/bill-history"
+         class="nav-link {% if request.path.startswith('/bill') and request.path != '/new-bill' %}active{% endif %}">
+        <span class="nav-icon">&#128196;</span>
+        Bill History
+      </a>
+      <a href="/customers"
+         class="nav-link {% if request.path.startswith('/customers') %}active{% endif %}">
+        <span class="nav-icon">&#128100;</span>
+        Customers
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      Pune &mdash; 411061<br>
+      +91 98501 23566
+    </div>
+  </aside>
+
+  <!-- ====== Main content ====== -->
+  <div class="main-content">
+    <div class="topbar">
+      <div class="topbar-title">{% block page_title %}{% endblock %}</div>
+      <div class="topbar-actions">{% block topbar_actions %}{% endblock %}</div>
+    </div>
+
+    <div class="page-body">
+      {% block content %}{% endblock %}
+    </div>
+  </div>
+
+  <!-- ====== Mobile bottom navigation ====== -->
+  <nav class="mobile-bottom-nav">
+    <a href="/" class="mob-nav-item" data-page="dashboard">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="3" y="3" width="7" height="7" rx="1"/>
+        <rect x="14" y="3" width="7" height="7" rx="1"/>
+        <rect x="3" y="14" width="7" height="7" rx="1"/>
+        <rect x="14" y="14" width="7" height="7" rx="1"/>
+      </svg>
+      <span>Dashboard</span>
+    </a>
+    <a href="/new-bill" class="mob-nav-item" data-page="new-bill">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <line x1="12" y1="5" x2="12" y2="19"/>
+        <line x1="5" y1="12" x2="19" y2="12"/>
+      </svg>
+      <span>New Bill</span>
+    </a>
+    <a href="/bill-history" class="mob-nav-item" data-page="history">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <line x1="4" y1="6" x2="20" y2="6"/>
+        <line x1="4" y1="12" x2="20" y2="12"/>
+        <line x1="4" y1="18" x2="20" y2="18"/>
+      </svg>
+      <span>History</span>
+    </a>
+    <a href="/customers" class="mob-nav-item" data-page="customers">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+        <circle cx="12" cy="7" r="4"/>
+      </svg>
+      <span>Customers</span>
+    </a>
+  </nav>
+
+  <script>
+    // Mark active bottom nav item based on current URL
+    (function () {
+      var path = window.location.pathname;
+      var map = {
+        'dashboard': path === '/',
+        'new-bill':  path === '/new-bill',
+        'history':   path.startsWith('/bill'),
+        'customers': path.startsWith('/customers'),
+      };
+      document.querySelectorAll('.mob-nav-item').forEach(function (el) {
+        if (map[el.dataset.page]) el.classList.add('active');
+      });
+    })();
+  </script>
+
+  {% block extra_js %}{% endblock %}
+</body>
+</html>

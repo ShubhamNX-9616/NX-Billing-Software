@@ -1,0 +1,185 @@
+/* ============================================================
+   BASE.CSS — Reset, variables, typography, utilities
+   ============================================================ */
+
+:root {
+  --primary:       #1a56db;
+  --primary-dark:  #1e429f;
+  --success:       #057a55;
+  --danger:        #e02424;
+  --warning:       #c27803;
+  --bg:            #f9fafb;
+  --surface:       #ffffff;
+  --border:        #e5e7eb;
+  --text:          #111827;
+  --text-muted:    #6b7280;
+  --text-light:    #9ca3af;
+  --radius:        8px;
+  --radius-lg:     12px;
+  --font:          'Segoe UI', system-ui, sans-serif;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+a {
+  color: var(--primary);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* ---- Utility: text color ---- */
+.text-muted   { color: var(--text-muted); }
+.text-success { color: var(--success); }
+.text-danger  { color: var(--danger); }
+.text-warning { color: var(--warning); }
+.text-right   { text-align: right; }
+.text-center  { text-align: center; }
+
+/* ---- Utility: font weight ---- */
+.fw-500 { font-weight: 500; }
+.fw-600 { font-weight: 600; }
+.fw-700 { font-weight: 700; }
+
+/* ---- Utility: margin-top ---- */
+.mt-1 { margin-top:  4px; }
+.mt-2 { margin-top:  8px; }
+.mt-3 { margin-top: 16px; }
+.mt-4 { margin-top: 24px; }
+
+/* ---- Utility: margin-bottom ---- */
+.mb-1 { margin-bottom:  4px; }
+.mb-2 { margin-bottom:  8px; }
+.mb-3 { margin-bottom: 16px; }
+.mb-4 { margin-bottom: 24px; }
+
+/* ---- Utility: gap helpers ---- */
+.flex         { display: flex; }
+.flex-center  { display: flex; align-items: center; }
+.flex-between { display: flex; align-items: center; justify-content: space-between; }
+.gap-1        { gap:  4px; }
+.gap-2        { gap:  8px; }
+.gap-3        { gap: 16px; }
+
+/* ---- Customer info grid (desktop: 4 cols) ---- */
+.customer-info-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+/* ============================================================
+   RESPONSIVE — Mobile utilities (max-width: 768px)
+   ============================================================ */
+@media (max-width: 768px) {
+  /* Summary cards: 2 columns on mobile instead of 4 */
+  .summary-grid {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 10px !important;
+  }
+
+  /* Hide low-priority table columns on mobile */
+  .col-date,
+  .col-payment,
+  .col-mobile,
+  .col-items {
+    display: none;
+  }
+
+  /* Bill history search bar: stack inputs vertically */
+  .history-search-bar {
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
+  }
+
+  /* Search + Clear buttons: side by side, each 50% */
+  .history-search-btn-wrap {
+    display: flex;
+  }
+  .history-search-btn-wrap .btn {
+    flex: 1;
+  }
+
+  /* Hide low-priority customer list columns on mobile */
+  .col-bills,
+  .col-lastdate {
+    display: none;
+  }
+
+  /* Customer info grid: 2×2 on mobile */
+  .customer-info-grid {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 10px !important;
+  }
+
+  /* Customer search bar: full-width input */
+  .customer-search-bar {
+    flex-wrap: wrap;
+  }
+  .customer-search-bar .input {
+    max-width: 100% !important;
+    flex: 1 1 100%;
+  }
+
+  /* Prevent iOS font size change on orientation */
+  body { -webkit-text-size-adjust: 100%; }
+
+  /* Prevent double-tap zoom on buttons */
+  button, a, input, select {
+    touch-action: manipulation;
+  }
+
+  /* ---- Analytics dashboard ---- */
+
+  /* Period tabs: full-width row, each button takes equal 1/3 */
+  #period-tabs {
+    width: 100%;
+  }
+  #period-tabs .btn {
+    flex: 1;
+    text-align: center;
+    justify-content: center;
+    padding-left: 4px;
+    padding-right: 4px;
+  }
+
+  /* Chart wrapper: reduce height on mobile */
+  #chart-wrap {
+    height: 250px !important;
+  }
+
+  /* Chart loading spinner area: match reduced height */
+  #chart-loading {
+    height: 250px;
+  }
+
+  /* Ensure 16px font on inputs to prevent iOS zoom */
+  input[type="text"],
+  input[type="number"],
+  input[type="tel"],
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+
+  /* Better tap highlight */
+  * { -webkit-tap-highlight-color: rgba(26, 86, 219, 0.1); }
+
+  /* Headings smaller on mobile */
+  h1 { font-size: 20px; }
+  h2 { font-size: 17px; }
+}

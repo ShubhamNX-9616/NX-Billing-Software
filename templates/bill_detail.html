@@ -1,0 +1,382 @@
+{% extends "base.html" %}
+
+{% block title %}Bill Detail — SHUBHAM NX{% endblock %}
+{% block page_title %}Bill Detail{% endblock %}
+
+{% block topbar_actions %}
+  <a href="/bill-history" class="btn btn-secondary no-print">&#8592; Back to History</a>
+  <a href="/edit-bill/{{ bill_id }}" class="btn btn-secondary no-print">&#9998; Edit Bill</a>
+  <button type="button" class="btn btn-danger no-print" onclick="openDetailDeleteModal()">
+    &#128465; Delete
+  </button>
+  <button type="button" class="btn btn-primary no-print" onclick="window.print()">
+    &#128438; Print / Save PDF
+  </button>
+{% endblock %}
+
+{% block content %}
+
+<!-- Loading state -->
+<div id="detail-loading" class="loading-row">
+  <div class="spinner spinner-lg"></div> Loading bill…
+</div>
+
+<!-- Error state -->
+<div id="detail-error" class="alert alert-danger" style="display:none;"></div>
+
+<!-- ====== Invoice Print Area ====== -->
+<div id="invoice-print-area" class="invoice-print-area" style="display:none;">
+
+  <!-- Screen-only action bar -->
+  <div class="no-print invoice-action-bar">
+    <div class="invoice-action-info">
+      <span id="screen-bill-number"
+            style="font-size:18px;font-weight:700;color:var(--primary);"></span>
+      <span id="screen-payment-badge" style="margin-left:8px;"></span>
+    </div>
+    <div class="invoice-action-buttons">
+      <span class="invoice-hint">
+        &#128161; Print &rarr; Save as PDF to download
+      </span>
+      <a href="/bill-history" class="btn btn-secondary btn-block-mobile">&#8592; Back</a>
+      <a href="/edit-bill/{{ bill_id }}" class="btn btn-secondary btn-block-mobile">&#9998; Edit Bill</a>
+      <button type="button" class="btn btn-danger btn-block-mobile no-print"
+              onclick="openDetailDeleteModal()">&#128465; Delete</button>
+      <button type="button" class="btn btn-primary btn-block-mobile"
+              onclick="window.print()">&#128438; Print / Save PDF</button>
+    </div>
+  </div>
+
+  <!-- ====== INVOICE (prints) ====== -->
+  <div class="card" id="invoice-card"
+       style="max-width:760px;margin:0 auto;padding:28px 32px;">
+
+    <!-- Shop Header -->
+    <div class="inv-header">
+      <div class="inv-shop-name">SHUBHAM NX</div>
+      <div class="inv-shop-address">Krishna Chowk, New Sangvi, Pune &mdash; 411061</div>
+      <div class="inv-shop-phones">+91 9850123566 &nbsp;|&nbsp; +91 9284630254</div>
+    </div>
+
+    <hr class="inv-divider" style="border:none;border-top:2px solid var(--border);margin:12px 0;" />
+
+    <!-- Bill info + Customer info -->
+    <div class="inv-meta" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:12px;">
+      <div class="inv-meta-block">
+        <h4 style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;
+                   color:var(--text-muted);margin-bottom:6px;">Customer</h4>
+        <div class="inv-meta-row">
+          <span class="inv-meta-label" style="color:var(--text-muted);min-width:70px;">Name</span>
+          <span class="inv-meta-value fw-600" id="inv-customer-name">—</span>
+        </div>
+        <div class="inv-meta-row">
+          <span class="inv-meta-label" style="color:var(--text-muted);min-width:70px;">Mobile</span>
+          <span class="inv-meta-value" id="inv-customer-mobile">—</span>
+        </div>
+      </div>
+      <div class="inv-meta-block" style="text-align:right;">
+        <h4 style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;
+                   color:var(--text-muted);margin-bottom:6px;">Bill Info</h4>
+        <div class="inv-meta-row" style="justify-content:flex-end;">
+          <span class="inv-meta-label" style="color:var(--text-muted);min-width:70px;text-align:right;">Bill No</span>
+          <span class="inv-meta-value fw-700" style="margin-left:8px;color:var(--primary);"
+                id="inv-bill-number">—</span>
+        </div>
+        <div class="inv-meta-row" style="justify-content:flex-end;">
+          <span class="inv-meta-label" style="color:var(--text-muted);min-width:70px;text-align:right;">Date</span>
+          <span class="inv-meta-value" style="margin-left:8px;" id="inv-bill-date">—</span>
+        </div>
+      </div>
+    </div>
+
+    <hr class="inv-divider-thin" style="border:none;border-top:1px solid var(--border);margin:8px 0 14px;" />
+
+    <!-- Items Table -->
+    <table class="inv-items-table" style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:14px;">
+      <thead>
+        <tr style="background:var(--bg);">
+          <th style="padding:7px 8px;border:1px solid var(--border);font-size:11.5px;font-weight:700;
+                     text-transform:uppercase;color:var(--text-muted);">#</th>
+          <th style="padding:7px 8px;border:1px solid var(--border);font-size:11.5px;font-weight:700;
+                     text-transform:uppercase;color:var(--text-muted);">Description</th>
+          <th style="padding:7px 8px;border:1px solid var(--border);font-size:11.5px;font-weight:700;
+                     text-transform:uppercase;color:var(--text-muted);text-align:right;">Qty</th>
+          <th style="padding:7px 8px;border:1px solid var(--border);font-size:11.5px;font-weight:700;
+                     text-transform:uppercase;color:var(--text-muted);text-align:center;">Unit</th>
+          <th style="padding:7px 8px;border:1px solid var(--border);font-size:11.5px;font-weight:700;
+                     text-transform:uppercase;color:var(--text-muted);text-align:right;">MRP</th>
+          <th style="padding:7px 8px;border:1px solid var(--border);font-size:11.5px;font-weight:700;
+                     text-transform:uppercase;color:var(--text-muted);text-align:center;">Disc%</th>
+          <th style="padding:7px 8px;border:1px solid var(--border);font-size:11.5px;font-weight:700;
+                     text-transform:uppercase;color:var(--text-muted);text-align:right;">Rate/unit</th>
+          <th style="padding:7px 8px;border:1px solid var(--border);font-size:11.5px;font-weight:700;
+                     text-transform:uppercase;color:var(--text-muted);text-align:right;">Amount</th>
+        </tr>
+      </thead>
+      <tbody id="inv-items-body">
+        <!-- injected by JS -->
+      </tbody>
+    </table>
+
+    <!-- Summary (right-aligned) -->
+    <div style="display:flex;justify-content:flex-end;margin-bottom:16px;">
+      <div style="width:260px;">
+        <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13.5px;">
+          <span style="color:var(--text-muted);">Subtotal</span>
+          <span id="inv-subtotal">—</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13.5px;">
+          <span style="color:var(--text-muted);">Total Discount</span>
+          <span id="inv-discount" style="color:var(--danger);">—</span>
+        </div>
+        <div style="border-top:1px solid var(--border);margin:6px 0;"></div>
+        <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:16px;font-weight:700;">
+          <span>Final Payable</span>
+          <span id="inv-final">—</span>
+        </div>
+        <div id="inv-advance-row" style="display:none;justify-content:space-between;padding:3px 0;font-size:13px;">
+          <span style="color:var(--text-muted);">Advance Paid</span>
+          <span id="inv-advance">—</span>
+        </div>
+        <div id="inv-remaining-row" style="display:none;justify-content:space-between;padding:3px 0;font-size:13.5px;font-weight:600;">
+          <span id="inv-remaining-label">Balance Due</span>
+          <span id="inv-remaining">—</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:3px 0;font-size:12.5px;color:var(--success);">
+          <span>You saved</span>
+          <span id="inv-savings">—</span>
+        </div>
+      </div>
+    </div>
+
+    <hr class="inv-divider-thin" style="border:none;border-top:1px solid var(--border);margin:4px 0 12px;" />
+
+    <!-- Payment Details -->
+    <div style="margin-bottom:20px;">
+      <div style="font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;
+                  color:var(--text-muted);margin-bottom:6px;">Payment</div>
+      <div id="inv-payments" style="display:flex;gap:16px;flex-wrap:wrap;font-size:13.5px;">
+        <!-- injected by JS -->
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div style="text-align:center;padding-top:12px;border-top:1px solid var(--border);">
+      <div style="font-size:14px;font-weight:600;color:var(--text);">
+        Thank you for shopping at SHUBHAM NX!
+      </div>
+      <div style="font-size:11.5px;color:var(--text-muted);margin-top:4px;">
+        This is a computer-generated bill.
+      </div>
+    </div>
+
+  </div><!-- /invoice-card -->
+</div><!-- /invoice-print-area -->
+
+<!-- Delete Confirmation Modal -->
+<div class="modal-overlay hidden no-print" id="detail-delete-modal">
+  <div class="modal-box">
+    <div class="modal-header" style="background:#fee2e2;border-radius:var(--radius-lg) var(--radius-lg) 0 0;">
+      <h3 style="color:var(--danger);">&#128465; Delete Bill &mdash; <span id="detail-delete-bill-num"></span></h3>
+      <button class="modal-close" onclick="closeDetailDeleteModal()">&#215;</button>
+    </div>
+    <div class="modal-body">
+      <div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:var(--radius);padding:14px 16px;margin-bottom:8px;">
+        <p style="font-weight:700;color:var(--danger);margin-bottom:8px;font-size:14px;">
+          &#9888;&#65039; WARNING: This action cannot be undone.
+        </p>
+        <p style="font-size:13.5px;color:#991b1b;line-height:1.8;margin:0;">
+          This bill will be permanently deleted.<br>
+          All bills after this one will be renumbered.<br>
+          For example: SHN-0004 will become SHN-0003,<br>
+          SHN-0005 will become SHN-0004, and so on.<br>
+          Any printed bills given to customers with those<br>
+          numbers will no longer match.
+        </p>
+      </div>
+      <div id="detail-delete-error" class="text-danger mt-2" style="font-size:13px;min-height:18px;"></div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary" onclick="closeDetailDeleteModal()">Cancel</button>
+      <button type="button" class="btn btn-danger" id="btn-detail-confirm-delete"
+              onclick="confirmDetailDelete()">
+        Yes, Delete and Renumber
+      </button>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  const BILL_ID = {{ bill_id }};
+
+  /* ---- Formatters ---- */
+  function fmt(amount) {
+    return Number(amount || 0).toLocaleString('en-IN', {
+      style: 'currency', currency: 'INR',
+      minimumFractionDigits: 2, maximumFractionDigits: 2,
+    });
+  }
+
+  function fmtDate(iso) {
+    if (!iso) return '—';
+    const [y, m, d] = iso.split('-');
+    return `${d}/${m}/${y}`;
+  }
+
+  function paymentBadgeHTML(mode) {
+    const map = { Cash:'badge-success', Card:'badge-info', UPI:'badge-warning', Combination:'badge-neutral' };
+    return `<span class="badge ${map[mode] || 'badge-neutral'}">${mode}</span>`;
+  }
+
+  /* ---- Render ---- */
+  function renderBill(bill) {
+    // Screen bar
+    document.getElementById('screen-bill-number').textContent = bill.bill_number;
+    document.getElementById('screen-payment-badge').innerHTML = paymentBadgeHTML(bill.payment_mode_type);
+
+    // Header fields
+    document.getElementById('inv-bill-number').textContent    = bill.bill_number;
+    document.getElementById('inv-bill-date').textContent      = fmtDate(bill.bill_date);
+    document.getElementById('inv-customer-name').textContent  = bill.customer_name_snapshot;
+    document.getElementById('inv-customer-mobile').textContent = bill.customer_mobile_snapshot;
+
+    // Items table
+    const tbody = document.getElementById('inv-items-body');
+    tbody.innerHTML = bill.items.map((item, i) => {
+      const desc = `${item.cloth_type} &mdash; ${item.company_name}`;
+      const quality = item.quality_number
+        ? `<br><span style="font-size:11px;color:var(--text-muted);">Quality: ${item.quality_number}</span>`
+        : '';
+      const discDisplay = item.discount_percent > 0
+        ? `${Number(item.discount_percent).toFixed(1)}%`
+        : '—';
+      const rowBg = i % 2 === 1 ? 'background:#fafafa;' : '';
+      return `
+        <tr style="${rowBg}">
+          <td style="padding:7px 8px;border:1px solid var(--border);text-align:center;
+                     color:var(--text-muted);font-size:12px;">${i + 1}</td>
+          <td style="padding:7px 8px;border:1px solid var(--border);">${desc}${quality}</td>
+          <td style="padding:7px 8px;border:1px solid var(--border);text-align:right;">${Number(item.quantity).toLocaleString('en-IN')}</td>
+          <td style="padding:7px 8px;border:1px solid var(--border);text-align:center;color:var(--text-muted);">${item.unit_label}</td>
+          <td style="padding:7px 8px;border:1px solid var(--border);text-align:right;">${fmt(item.mrp)}</td>
+          <td style="padding:7px 8px;border:1px solid var(--border);text-align:center;color:var(--text-muted);">${discDisplay}</td>
+          <td style="padding:7px 8px;border:1px solid var(--border);text-align:right;color:var(--text-muted);">${item.rate_after_disc > 0 ? fmt(item.rate_after_disc) : '—'}</td>
+          <td style="padding:7px 8px;border:1px solid var(--border);text-align:right;font-weight:600;">${fmt(item.final_amount)}</td>
+        </tr>
+      `;
+    }).join('');
+
+    // Totals
+    document.getElementById('inv-subtotal').textContent  = fmt(bill.subtotal);
+    document.getElementById('inv-discount').textContent  = `−${fmt(bill.total_discount)}`;
+    document.getElementById('inv-final').textContent     = fmt(bill.final_total);
+    document.getElementById('inv-savings').textContent   = fmt(bill.total_savings);
+
+    // Advance paid / remaining
+    const advancePaid = bill.advance_paid || 0;
+    const remaining   = bill.remaining   || 0;
+    const advRow = document.getElementById('inv-advance-row');
+    const remRow = document.getElementById('inv-remaining-row');
+
+    if (advancePaid > 0) {
+      document.getElementById('inv-advance').textContent = fmt(advancePaid);
+      advRow.style.display = 'flex';
+    } else {
+      advRow.style.display = 'none';
+    }
+
+    if (remaining > 0) {
+      document.getElementById('inv-remaining-label').textContent = 'Balance Due';
+      document.getElementById('inv-remaining').innerHTML         = `<span style="color:var(--danger);">${fmt(remaining)}</span>`;
+      remRow.style.display = 'flex';
+    } else if (advancePaid > 0) {
+      document.getElementById('inv-remaining-label').textContent = '';
+      document.getElementById('inv-remaining').innerHTML         = '<span class="badge badge-success">PAID IN FULL</span>';
+      remRow.style.display = 'flex';
+    } else {
+      remRow.style.display = 'none';
+    }
+
+    // Payments
+    const paymentsEl = document.getElementById('inv-payments');
+    if (bill.payments && bill.payments.length) {
+      paymentsEl.innerHTML = bill.payments.map(p =>
+        `<span style="background:var(--bg);border:1px solid var(--border);border-radius:6px;
+                      padding:4px 12px;font-size:13px;">
+           <strong>${p.payment_method}</strong>: ${fmt(p.amount)}
+         </span>`
+      ).join('');
+    } else {
+      paymentsEl.innerHTML = `<span class="text-muted">—</span>`;
+    }
+
+    // Show invoice
+    document.getElementById('detail-loading').style.display     = 'none';
+    document.getElementById('invoice-print-area').style.display = 'block';
+
+    // Auto-print if ?print=1
+    if (new URLSearchParams(window.location.search).get('print') === '1') {
+      setTimeout(() => window.print(), 800);
+    }
+  }
+
+  /* ---- Fetch ---- */
+  async function loadBill() {
+    try {
+      const res = await fetch(`/api/bills/${BILL_ID}`);
+      if (res.status === 404) throw new Error('Bill not found.');
+      if (!res.ok)            throw new Error('Failed to load bill.');
+      const bill = await res.json();
+      renderBill(bill);
+    } catch (err) {
+      document.getElementById('detail-loading').style.display = 'none';
+      const errEl = document.getElementById('detail-error');
+      errEl.textContent  = err.message;
+      errEl.style.display = 'block';
+    }
+  }
+
+  /* ---- Delete ---- */
+  function openDetailDeleteModal() {
+    const billNumEl = document.getElementById('screen-bill-number');
+    const label     = billNumEl ? billNumEl.textContent : 'this bill';
+    document.getElementById('detail-delete-bill-num').textContent = label;
+    document.getElementById('detail-delete-error').textContent    = '';
+    document.getElementById('btn-detail-confirm-delete').disabled    = false;
+    document.getElementById('btn-detail-confirm-delete').textContent = 'Yes, Delete and Renumber';
+    document.getElementById('detail-delete-modal').classList.remove('hidden');
+  }
+
+  function closeDetailDeleteModal() {
+    document.getElementById('detail-delete-modal').classList.add('hidden');
+  }
+
+  async function confirmDetailDelete() {
+    const btn = document.getElementById('btn-detail-confirm-delete');
+    btn.disabled    = true;
+    btn.textContent = 'Deleting\u2026';
+    document.getElementById('detail-delete-error').textContent = '';
+
+    try {
+      const res  = await fetch(`/api/bills/${BILL_ID}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Delete failed.');
+      // Redirect to history after brief success moment
+      window.location.href = '/bill-history';
+    } catch (err) {
+      document.getElementById('detail-delete-error').textContent = err.message;
+      btn.disabled    = false;
+      btn.textContent = 'Yes, Delete and Renumber';
+    }
+  }
+
+  document.getElementById('detail-delete-modal').addEventListener('click', function (e) {
+    if (e.target === this) closeDetailDeleteModal();
+  });
+
+  document.addEventListener('DOMContentLoaded', loadBill);
+</script>
+{% endblock %}

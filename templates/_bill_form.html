@@ -1,0 +1,237 @@
+<!-- ====== Bill Info Bar ====== -->
+<div class="card mb-3">
+  <div class="bill-info-row" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;align-items:end;">
+    <div>
+      <label>Bill Number</label>
+      <input type="text" id="bill-number" class="input" readonly
+             style="background:var(--bg);font-weight:600;letter-spacing:.5px;"
+             placeholder="Loading…" />
+    </div>
+    <div>
+      <label>Bill Date</label>
+      <input type="date" id="bill-date" class="input" />
+    </div>
+    <div></div>
+  </div>
+</div>
+
+<!-- ====== Customer Section ====== -->
+<div class="card mb-3">
+  <div class="card-header">
+    <span class="card-title">Customer Details</span>
+    <span id="customer-status" style="font-size:13px;"></span>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+    <div>
+      <label>Mobile Number <span class="text-danger">*</span></label>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input type="text" id="customer-mobile" class="input"
+               placeholder="10-digit mobile number" maxlength="15" />
+        <div id="mobile-spinner" class="spinner" style="display:none;flex-shrink:0;"></div>
+      </div>
+      <div id="mobile-error" class="text-danger" style="font-size:12px;margin-top:4px;"></div>
+    </div>
+    <div>
+      <label>Customer Name <span class="text-danger">*</span></label>
+      <input type="text" id="customer-name" class="input"
+             placeholder="Enter or auto-filled from mobile" />
+      <div id="name-error" class="text-danger" style="font-size:12px;margin-top:4px;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ====== Items Table ====== -->
+<div class="card mb-3 items-section">
+  <div class="card-header">
+    <span class="card-title">Bill Items</span>
+    <span id="items-error" class="text-danger" style="font-size:13px;"></span>
+  </div>
+
+  <div id="items-table-wrapper">
+      <div class="items-table-wrap">
+        <table class="items-table">
+          <thead>
+            <tr>
+              <th style="width:32px;">#</th>
+              <th class="col-cloth">Cloth Type</th>
+              <th class="col-company">Company</th>
+              <th class="col-quality">Quality No.</th>
+              <th class="col-qty">Qty</th>
+              <th class="col-unit">Unit</th>
+              <th class="col-mrp">MRP (₹)</th>
+              <th class="col-disc">Disc%</th>
+              <th class="col-total text-right">Rate after disc<br><span style="font-size:10px;font-weight:400;color:var(--text-muted);">per unit after disc</span></th>
+              <th class="col-total text-right">Amount</th>
+              <th class="col-action"></th>
+            </tr>
+          </thead>
+          <tbody id="items-body">
+            <!-- rows injected by JS -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="items-cards-wrapper">
+      <!-- JS will render item cards here on mobile -->
+    </div>
+
+    <div style="margin-top:10px;">
+      <button type="button" class="btn btn-secondary btn-sm btn-block-mobile" id="btn-add-item">
+        &#43; Add Item
+      </button>
+    </div>
+</div>
+
+<!-- ====== Summary + Payment ====== -->
+<div class="bill-summary-layout" style="display:grid;grid-template-columns:1fr 340px;gap:20px;align-items:start;">
+
+  <!-- Payment section -->
+  <div class="card payment-section">
+    <div class="card-header">
+      <span class="card-title">Payment Method</span>
+    </div>
+
+    <!-- Mode tabs -->
+    <div class="payment-mode-tabs" id="payment-tabs">
+      <button type="button" class="payment-mode-tab active" data-mode="Cash">Cash</button>
+      <button type="button" class="payment-mode-tab" data-mode="Card">Card</button>
+      <button type="button" class="payment-mode-tab" data-mode="UPI">UPI</button>
+      <button type="button" class="payment-mode-tab" data-mode="Combination">Combination</button>
+    </div>
+
+    <!-- Single payment -->
+    <div id="payment-single-wrap" class="payment-single">
+      <label id="single-payment-label">Cash Amount (₹)</label>
+      <input type="number" id="payment-single-amount" class="input"
+             style="max-width:200px;" readonly />
+    </div>
+
+    <!-- Combination payment -->
+    <div id="payment-combo-wrap" style="display:none;">
+      <div style="font-size:12.5px;color:var(--text-muted);margin-bottom:10px;">
+        Select at least 2 methods. Last selected amount is auto-calculated.
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;" id="combo-rows">
+        <!-- Cash -->
+        <div class="flex-center gap-2" id="combo-row-Cash">
+          <input type="checkbox" id="combo-chk-Cash" value="Cash" onchange="onComboCheckChange()" />
+          <label for="combo-chk-Cash" style="margin:0;min-width:60px;">Cash</label>
+          <input type="number" id="combo-amt-Cash" class="input" style="max-width:160px;"
+                 placeholder="0.00" min="0" step="0.01"
+                 oninput="onComboAmtInput('Cash')" disabled />
+        </div>
+        <!-- Card -->
+        <div class="flex-center gap-2" id="combo-row-Card">
+          <input type="checkbox" id="combo-chk-Card" value="Card" onchange="onComboCheckChange()" />
+          <label for="combo-chk-Card" style="margin:0;min-width:60px;">Card</label>
+          <input type="number" id="combo-amt-Card" class="input" style="max-width:160px;"
+                 placeholder="0.00" min="0" step="0.01"
+                 oninput="onComboAmtInput('Card')" disabled />
+        </div>
+        <!-- UPI -->
+        <div class="flex-center gap-2" id="combo-row-UPI">
+          <input type="checkbox" id="combo-chk-UPI" value="UPI" onchange="onComboCheckChange()" />
+          <label for="combo-chk-UPI" style="margin:0;min-width:60px;">UPI</label>
+          <input type="number" id="combo-amt-UPI" class="input" style="max-width:160px;"
+                 placeholder="0.00" min="0" step="0.01"
+                 oninput="onComboAmtInput('UPI')" disabled />
+        </div>
+      </div>
+      <div id="combo-remaining" class="payment-remaining mt-2"></div>
+    </div>
+
+    <div id="payment-error" class="text-danger mt-2" style="font-size:13px;"></div>
+  </div>
+
+  <!-- Bill summary -->
+  <div class="bill-summary-box">
+    <div class="bill-totals">
+      <div class="bill-totals-row">
+        <span class="text-muted">Subtotal</span>
+        <span id="sum-subtotal">₹0.00</span>
+      </div>
+      <div class="bill-totals-row">
+        <span class="text-muted">Total Discount</span>
+        <span id="sum-discount" class="text-danger">−₹0.00</span>
+      </div>
+      <div class="bill-totals-row divider final">
+        <span>Final Payable</span>
+        <span id="sum-final">₹0.00</span>
+      </div>
+      <div class="bill-totals-row" style="margin-top:6px;align-items:center;">
+        <span class="text-muted" style="font-size:13px;">Advance Paid (₹)</span>
+        <input type="number" id="advance-paid" class="input"
+               min="0" step="0.01" placeholder="0.00"
+               style="width:120px;text-align:right;padding:4px 8px;"
+               oninput="updateSummary()" />
+      </div>
+      <div class="bill-totals-row">
+        <span class="text-muted">Remaining Balance</span>
+        <span id="remaining-balance" style="font-weight:600;">₹0.00</span>
+      </div>
+      <div id="advance-error" class="text-danger" style="font-size:12px;text-align:right;min-height:16px;"></div>
+      <div class="bill-totals-row savings">
+        <span>You Save</span>
+        <span id="sum-savings">₹0.00</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ====== Save / Print bar ====== -->
+<div class="bill-submit-bar">
+  <div id="save-error" class="text-danger" style="font-size:13px;align-self:center;"></div>
+  <div id="save-success" class="text-success" style="font-size:13px;align-self:center;display:none;"></div>
+  <button type="button" class="btn btn-secondary btn-block-mobile" id="btn-print" disabled
+          onclick="doPrint()">
+    &#128438; Print / PDF
+  </button>
+  <button type="button" class="btn btn-primary btn-block-mobile" id="btn-save"
+          onclick="saveBill()">
+    &#10003; Save Bill
+  </button>
+</div>
+
+<!-- ====== Add Cloth Type Modal ====== -->
+<div class="modal-overlay hidden" id="add-cloth-type-modal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3>Add New Cloth Type</h3>
+      <button class="modal-close" onclick="closeAddClothTypeModal()">&#215;</button>
+    </div>
+    <div class="modal-body">
+      <label>Cloth Type Name</label>
+      <input type="text" id="add-cloth-type-name" class="input" placeholder="e.g. Embroidery" />
+      <div style="font-size:12px;color:var(--text-muted);margin-top:6px;">
+        This cloth type will have a company dropdown.
+      </div>
+      <div id="add-cloth-type-error" class="text-danger mt-2" style="font-size:13px;"></div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary" onclick="closeAddClothTypeModal()">Cancel</button>
+      <button type="button" class="btn btn-primary" id="btn-add-cloth-type-save"
+              onclick="saveNewClothType()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ====== Add Company Modal ====== -->
+<div class="modal-overlay hidden" id="add-company-modal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3 id="add-company-title">Add Company</h3>
+      <button class="modal-close" onclick="closeAddCompanyModal()">&#215;</button>
+    </div>
+    <div class="modal-body">
+      <label>Company Name</label>
+      <input type="text" id="add-company-name" class="input" placeholder="e.g. Siyaram Gold" />
+      <div id="add-company-error" class="text-danger mt-2" style="font-size:13px;"></div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary" onclick="closeAddCompanyModal()">Cancel</button>
+      <button type="button" class="btn btn-primary" id="btn-add-company-save"
+              onclick="saveNewCompany()">Save Company</button>
+    </div>
+  </div>
+</div>

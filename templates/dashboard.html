@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard — SHUBHAM NX{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block topbar_actions %}
+  <a href="/new-bill" class="btn btn-primary">&#43; New Bill</a>
+{% endblock %}
+
+{% block content %}
+
+<!-- Section 1: Summary Cards -->
+<div class="summary-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px;">
+  <div class="card">
+    <div class="text-muted" style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;">Total Bills</div>
+    <div style="font-size:28px;font-weight:700;" id="val-total-bills">—</div>
+  </div>
+  <div class="card">
+    <div class="text-muted" style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;">Total Customers</div>
+    <div style="font-size:28px;font-weight:700;" id="val-total-customers">—</div>
+  </div>
+  <div class="card">
+    <div class="text-muted" style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;">Today's Sales</div>
+    <div style="font-size:22px;font-weight:700;" id="val-today-sales">—</div>
+    <div style="font-size:12px;color:var(--text-muted);margin-top:3px;" id="val-today-bills-count"></div>
+  </div>
+  <div class="card">
+    <div class="text-muted" style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;">This Month's Sales</div>
+    <div style="font-size:22px;font-weight:700;" id="val-month-sales">—</div>
+  </div>
+</div>
+
+<!-- Section 2 & 3: Period Tabs + Chart -->
+<div class="card" style="margin-bottom:24px;">
+  <div class="card-header">
+    <span class="card-title" id="chart-title">Monthly Sales Breakdown</span>
+    <div style="display:flex;gap:6px;">
+      <button class="btn btn-sm btn-secondary" id="tab-daily"   onclick="switchPeriod('daily')">Daily</button>
+      <button class="btn btn-sm btn-primary"   id="tab-monthly" onclick="switchPeriod('monthly')">Monthly</button>
+      <button class="btn btn-sm btn-secondary" id="tab-yearly"  onclick="switchPeriod('yearly')">Yearly</button>
+    </div>
+  </div>
+
+  <!-- Chart loading -->
+  <div id="chart-loading" style="display:none;align-items:center;justify-content:center;height:300px;">
+    <div class="spinner spinner-lg"></div>
+  </div>
+
+  <!-- Chart canvas -->
+  <div id="chart-wrap" style="position:relative;height:300px;padding:8px 0;">
+    <canvas id="sales-chart"></canvas>
+  </div>
+</div>
+
+<!-- Section 4: Payment Method Cards -->
+<div class="summary-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px;">
+  <div class="card">
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
+      <span style="width:10px;height:10px;border-radius:50%;background:#10b981;flex-shrink:0;"></span>
+      <span class="text-muted" style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;">Cash Sales</span>
+    </div>
+    <div style="font-size:20px;font-weight:700;color:#10b981;" id="pcard-cash-amount">—</div>
+    <div style="font-size:12px;color:var(--text-muted);margin-top:3px;" id="pcard-cash-pct"></div>
+  </div>
+  <div class="card">
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
+      <span style="width:10px;height:10px;border-radius:50%;background:#3b82f6;flex-shrink:0;"></span>
+      <span class="text-muted" style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;">Card Sales</span>
+    </div>
+    <div style="font-size:20px;font-weight:700;color:#3b82f6;" id="pcard-card-amount">—</div>
+    <div style="font-size:12px;color:var(--text-muted);margin-top:3px;" id="pcard-card-pct"></div>
+  </div>
+  <div class="card">
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
+      <span style="width:10px;height:10px;border-radius:50%;background:#8b5cf6;flex-shrink:0;"></span>
+      <span class="text-muted" style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;">UPI Sales</span>
+    </div>
+    <div style="font-size:20px;font-weight:700;color:#8b5cf6;" id="pcard-upi-amount">—</div>
+    <div style="font-size:12px;color:var(--text-muted);margin-top:3px;" id="pcard-upi-pct"></div>
+  </div>
+  <div class="card">
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
+      <span style="width:10px;height:10px;border-radius:50%;background:#f59e0b;flex-shrink:0;"></span>
+      <span class="text-muted" style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;">Combination</span>
+    </div>
+    <div style="font-size:20px;font-weight:700;color:#f59e0b;" id="pcard-combo-amount">—</div>
+    <div style="font-size:12px;color:var(--text-muted);margin-top:3px;" id="pcard-combo-pct"></div>
+  </div>
+</div>
+
+<!-- Section 5: Recent Bills -->
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">Recent Bills</span>
+    <a href="/bill-history" class="btn btn-secondary btn-sm">View All</a>
+  </div>
+
+  <div id="recent-bills-loading" class="loading-row">
+    <div class="spinner"></div> Loading bills…
+  </div>
+
+  <div id="recent-bills-empty" class="empty-state" style="display:none;">
+    <div class="empty-state-icon">&#128196;</div>
+    <div>No bills yet. <a href="/new-bill">Create your first bill</a></div>
+  </div>
+
+  <div id="recent-bills-table-wrap" class="table-scroll-wrapper" style="display:none;">
+    <table class="table table-clickable">
+      <thead>
+        <tr>
+          <th>Bill No</th>
+          <th>Customer</th>
+          <th class="col-date">Date</th>
+          <th class="text-right">Amount</th>
+          <th class="col-payment">Payment</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="recent-bills-body"></tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% endblock %}

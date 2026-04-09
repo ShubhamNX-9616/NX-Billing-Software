@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block title %}Customer Detail — SHUBHAM NX{% endblock %}
+{% block page_title %}Customer Detail{% endblock %}
+
+{% block topbar_actions %}
+  <a href="/customers" class="btn btn-secondary">&#8592; All Customers</a>
+  <a href="/new-bill" class="btn btn-primary">&#43; New Bill</a>
+{% endblock %}
+
+{% block content %}
+
+<!-- Loading -->
+<div id="cd-loading" class="loading-row">
+  <div class="spinner spinner-lg"></div> Loading customer…
+</div>
+
+<!-- Error -->
+<div id="cd-error" class="alert alert-danger" style="display:none;"></div>
+
+<!-- Content (hidden until loaded) -->
+<div id="cd-content" style="display:none;">
+
+  <!-- Customer info card -->
+  <div class="card mb-3">
+    <div class="customer-info-grid">
+      <div>
+        <div class="text-muted" style="font-size:11.5px;font-weight:600;text-transform:uppercase;
+             letter-spacing:.4px;margin-bottom:4px;">Name</div>
+        <div id="cd-name" style="font-size:20px;font-weight:700;"></div>
+      </div>
+      <div>
+        <div class="text-muted" style="font-size:11.5px;font-weight:600;text-transform:uppercase;
+             letter-spacing:.4px;margin-bottom:4px;">Mobile</div>
+        <div id="cd-mobile" style="font-size:16px;font-weight:500;"></div>
+      </div>
+      <div>
+        <div class="text-muted" style="font-size:11.5px;font-weight:600;text-transform:uppercase;
+             letter-spacing:.4px;margin-bottom:4px;">Total Bills</div>
+        <div id="cd-bill-count" style="font-size:26px;font-weight:700;"></div>
+      </div>
+      <div>
+        <div class="text-muted" style="font-size:11.5px;font-weight:600;text-transform:uppercase;
+             letter-spacing:.4px;margin-bottom:4px;">Total Spent</div>
+        <div id="cd-total-spent" style="font-size:20px;font-weight:700;color:var(--primary);"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bills history -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Bill History</span>
+    </div>
+
+    <div id="cd-bills-empty" class="empty-state" style="display:none;">
+      <div class="empty-state-icon">&#128196;</div>
+      <div>No bills for this customer yet.</div>
+      <div class="mt-2">
+        <a href="/new-bill" class="btn btn-primary btn-sm">&#43; Create Bill</a>
+      </div>
+    </div>
+
+    <div id="cd-bills-wrap" class="table-scroll-wrapper" style="display:none;">
+      <table class="table table-clickable">
+        <thead>
+          <tr>
+            <th>Bill No</th>
+            <th class="col-date">Date</th>
+            <th class="text-right col-items">Items</th>
+            <th class="text-right">Amount</th>
+            <th class="col-payment">Payment</th>
+            <th style="text-align:center;">Action</th>
+          </tr>
+        </thead>
+        <tbody id="cd-bills-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div><!-- /cd-content -->
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  const CUSTOMER_ID = {{ customer_id }};
+</script>
+<script src="{{ url_for('static', filename='js/customers.js') }}"></script>
+{% endblock %}

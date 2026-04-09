@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}Customers — SHUBHAM NX{% endblock %}
+{% block page_title %}Customers{% endblock %}
+
+{% block topbar_actions %}
+  <a href="/new-bill" class="btn btn-primary">&#43; New Bill</a>
+{% endblock %}
+
+{% block content %}
+
+<!-- Search bar -->
+<div class="customer-search-bar" style="display:flex;gap:10px;align-items:center;margin-bottom:16px;">
+  <input type="text" id="customer-search" class="input"
+         placeholder="Search by name or mobile…"
+         style="max-width:320px;"
+         oninput="filterCustomers()" />
+  <span id="customer-count" class="text-muted" style="font-size:13px;"></span>
+</div>
+
+<!-- Loading -->
+<div id="cust-loading" class="loading-row">
+  <div class="spinner"></div> Loading customers…
+</div>
+
+<!-- Empty state -->
+<div id="cust-empty" class="empty-state" style="display:none;">
+  <div class="empty-state-icon">&#128100;</div>
+  <div id="cust-empty-msg">No customers yet. Customers are created automatically when you save a bill.</div>
+</div>
+
+<!-- Table -->
+<div class="card" id="cust-table-wrap" style="display:none;">
+  <div class="table-scroll-wrapper">
+    <table class="table table-clickable">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Mobile</th>
+          <th class="text-right col-bills">Bills</th>
+          <th class="col-lastdate">Last Bill Date</th>
+          <th style="text-align:center;">Action</th>
+        </tr>
+      </thead>
+      <tbody id="cust-body"></tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/customers.js') }}"></script>
+{% endblock %}

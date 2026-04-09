@@ -1,0 +1,6 @@
+cloudflared.exe
+billing.db
+__pycache__/
+*.pyc
+.env
+*.db

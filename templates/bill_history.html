@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+
+{% block title %}Bill History — SHUBHAM NX{% endblock %}
+{% block page_title %}Bill History{% endblock %}
+
+{% block topbar_actions %}
+  <a href="/new-bill" class="btn btn-primary">&#43; New Bill</a>
+{% endblock %}
+
+{% block content %}
+
+<!-- ====== Search Bar ====== -->
+<div class="card mb-3">
+  <div class="history-search-bar" style="display:grid;grid-template-columns:1fr 1fr 1fr auto auto;gap:10px;align-items:flex-end;">
+    <div>
+      <label>Bill Number</label>
+      <input type="text" id="search-bill-number" class="input" placeholder="e.g. SHN-0001" />
+    </div>
+    <div>
+      <label>Customer Name</label>
+      <input type="text" id="search-name" class="input" placeholder="Search by name" />
+    </div>
+    <div>
+      <label>Mobile Number</label>
+      <input type="text" id="search-mobile" class="input" placeholder="10-digit mobile" />
+    </div>
+    <div class="history-search-btn-wrap">
+      <button type="button" class="btn btn-primary btn-block-mobile" id="btn-search" onclick="doSearch()">
+        &#128269; Search
+      </button>
+    </div>
+    <div class="history-search-btn-wrap">
+      <button type="button" class="btn btn-secondary btn-block-mobile" onclick="clearSearch()">
+        &#215; Clear
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ====== Results ====== -->
+<div class="card">
+  <div class="card-header">
+    <span class="card-title" id="results-title">All Bills</span>
+    <span id="results-count" class="text-muted" style="font-size:13px;"></span>
+  </div>
+
+  <!-- Loading -->
+  <div id="history-loading" class="loading-row">
+    <div class="spinner"></div> Loading bills…
+  </div>
+
+  <!-- Empty state -->
+  <div id="history-empty" class="empty-state" style="display:none;">
+    <div class="empty-state-icon">&#128196;</div>
+    <div id="history-empty-msg">No bills found.</div>
+    <div class="mt-2">
+      <a href="/new-bill" class="btn btn-primary btn-sm">&#43; Create First Bill</a>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div id="history-table-wrap" class="table-scroll-wrapper" style="display:none;">
+    <table class="table table-clickable">
+      <thead>
+        <tr>
+          <th>Bill No</th>
+          <th>Customer</th>
+          <th class="col-mobile">Mobile</th>
+          <th class="col-date">Date</th>
+          <th class="text-right col-items">Items</th>
+          <th class="text-right">Amount</th>
+          <th class="col-payment">Payment</th>
+          <th style="text-align:center;">Actions</th>
+        </tr>
+      </thead>
+      <tbody id="history-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ====== Delete Confirmation Modal ====== -->
+<div class="modal-overlay hidden" id="delete-modal">
+  <div class="modal-box">
+    <div class="modal-header" style="background:#fee2e2;border-radius:var(--radius-lg) var(--radius-lg) 0 0;">
+      <h3 style="color:var(--danger);">&#128465; Delete Bill &mdash; <span id="delete-modal-bill-num"></span></h3>
+      <button class="modal-close" onclick="closeDeleteModal()">&#215;</button>
+    </div>
+    <div class="modal-body">
+      <div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:var(--radius);padding:14px 16px;margin-bottom:8px;">
+        <p style="font-weight:700;color:var(--danger);margin-bottom:8px;font-size:14px;">
+          &#9888;&#65039; WARNING: This action cannot be undone.
+        </p>
+        <p style="font-size:13.5px;color:#991b1b;line-height:1.8;margin:0;">
+          Bill <strong id="delete-modal-warning-num"></strong> will be permanently deleted.<br>
+          All bills after this one will be renumbered.<br>
+          For example: SHN-0004 will become SHN-0003,<br>
+          SHN-0005 will become SHN-0004, and so on.<br>
+          Any printed bills given to customers with those<br>
+          numbers will no longer match.
+        </p>
+      </div>
+      <div id="delete-modal-error" class="text-danger mt-2" style="font-size:13px;min-height:18px;"></div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary" onclick="closeDeleteModal()">Cancel</button>
+      <button type="button" class="btn btn-danger" id="btn-confirm-delete" onclick="confirmDelete()">
+        Yes, Delete and Renumber
+      </button>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/history.js') }}"></script>
+{% endblock %}
