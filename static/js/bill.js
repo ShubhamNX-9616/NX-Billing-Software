@@ -626,7 +626,7 @@ function updateSummary() {
     }
   }
 
-  document.getElementById('sum-savings').textContent = fmt(totalDisc);
+  document.getElementById('sum-savings').textContent = fmt(round2(totalDisc + roundOff));
   document.getElementById('sum-final').textContent   = fmt(grossFinal);
 
   // Advance paid / remaining balance
