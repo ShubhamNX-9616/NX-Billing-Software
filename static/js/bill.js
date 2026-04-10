@@ -12,6 +12,7 @@ let savedBillId      = null;
 let currentMode      = 'Cash';
 let addCompanyCtx    = null;
 let addClothTypeCtx  = null;
+let salespersons     = [];
 let comboLastChanged = null;
 let clothTypes       = [];        // [{ id, type_name, has_company }, ...]
 let activeItemIds    = [];        // ordered list of live item IDs
@@ -60,11 +61,11 @@ function isMobile() {
 // ----------------------------------------------------------------
 document.addEventListener('DOMContentLoaded', async () => {
   if (EDIT_MODE) {
-    await loadClothTypes();
+    await Promise.all([loadClothTypes(), loadSalespersons()]);
     await prefillEditForm();
   } else {
     document.getElementById('bill-date').value = todayISO();
-    await Promise.all([loadNextBillNumber(), loadClothTypes()]);
+    await Promise.all([loadNextBillNumber(), loadClothTypes(), loadSalespersons()]);
     addItemRow();
   }
   setupMobileSearch();
@@ -85,6 +86,28 @@ async function loadClothTypes() {
       { type_name: 'Stitching', has_company: 0 },
     ];
   }
+}
+
+async function loadSalespersons() {
+  const select = document.getElementById('salesperson-name');
+  if (!select) return;
+  try {
+    const res = await fetch('/api/salespersons');
+    salespersons = await res.json();
+  } catch {
+    salespersons = [{ name: 'Self' }, { name: 'Geetesh' }];
+  }
+  renderSalespersonOptions('Self');
+}
+
+function renderSalespersonOptions(selectedName = '') {
+  const select = document.getElementById('salesperson-name');
+  if (!select) return;
+  const options = salespersons.map(sp =>
+    `<option value="${sp.name}"${sp.name === selectedName ? ' selected' : ''}>${sp.name}</option>`
+  ).join('');
+  select.innerHTML = `<option value="">-- Select --</option>${options}`;
+  if (selectedName) select.value = selectedName;
 }
 
 function buildClothOptions(selected) {
@@ -868,7 +891,7 @@ function setError(elId, msg) {
 }
 
 function clearErrors() {
-  ['mobile-error','name-error','items-error','payment-error','save-error','advance-error'].forEach(id => setError(id, ''));
+  ['mobile-error','name-error','salesperson-error','items-error','payment-error','save-error','advance-error'].forEach(id => setError(id, ''));
 }
 
 // ----------------------------------------------------------------
@@ -878,6 +901,7 @@ function collectBillData() {
   const mobile = normalizeMobile(document.getElementById('customer-mobile').value.trim());
   const name   = document.getElementById('customer-name').value.trim();
   const date   = document.getElementById('bill-date').value;
+  const salespersonName = document.getElementById('salesperson-name').value;
   const mode   = currentMode;
 
   const items = activeItemIds.map(id => ({
@@ -907,6 +931,7 @@ function collectBillData() {
   const remaining   = round2(getFinalTotal() - advancePaid);
 
   return { customer_name: name, customer_mobile: mobile, bill_date: date,
+           salesperson_name: salespersonName,
            payment_mode_type: mode, items, payments,
            advance_paid: Math.max(0, advancePaid),
            remaining:    Math.max(0, remaining) };
@@ -929,6 +954,10 @@ function validateBillData(data) {
   }
   if (!data.bill_date) {
     setError('save-error', 'Bill date is required.');
+    valid = false;
+  }
+  if (!data.salesperson_name) {
+    setError('salesperson-error', 'Sales person is required.');
     valid = false;
   }
 
@@ -995,6 +1024,7 @@ async function prefillEditForm() {
     // Bill info bar
     document.getElementById('bill-number').value = bill.bill_number;
     document.getElementById('bill-date').value   = bill.bill_date;
+    renderSalespersonOptions(bill.salesperson_name || 'Self');
 
     // Warning banner
     const bnEl = document.getElementById('edit-warning-bill-num');
@@ -1071,6 +1101,61 @@ function setPaymentMode(mode, payments) {
     syncComboAutoFill();
   }
 }
+
+function openAddSalespersonModal() {
+  document.getElementById('add-salesperson-name').value = '';
+  document.getElementById('add-salesperson-error').textContent = '';
+  document.getElementById('add-salesperson-modal').classList.remove('hidden');
+  document.getElementById('add-salesperson-name').focus();
+}
+
+function closeAddSalespersonModal() {
+  document.getElementById('add-salesperson-modal').classList.add('hidden');
+}
+
+async function saveNewSalesperson() {
+  const nameVal = document.getElementById('add-salesperson-name').value.trim();
+  const errEl = document.getElementById('add-salesperson-error');
+  const saveBtn = document.getElementById('btn-add-salesperson-save');
+
+  errEl.textContent = '';
+  if (!nameVal) {
+    errEl.textContent = 'Sales person name is required.';
+    return;
+  }
+
+  saveBtn.disabled = true;
+  saveBtn.textContent = 'Saving...';
+  try {
+    const res = await fetch('/api/salespersons', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: nameVal }),
+    });
+    const data = await res.json();
+    if (res.status === 409) {
+      errEl.textContent = 'Sales person already exists.';
+      return;
+    }
+    if (!res.ok) {
+      errEl.textContent = data.error || 'Failed to save sales person.';
+      return;
+    }
+    salespersons.push({ id: data.id, name: data.name });
+    salespersons.sort((a, b) => a.name.localeCompare(b.name));
+    renderSalespersonOptions(data.name);
+    closeAddSalespersonModal();
+  } catch (err) {
+    errEl.textContent = 'Network error: ' + err.message;
+  } finally {
+    saveBtn.disabled = false;
+    saveBtn.textContent = 'Save';
+  }
+}
+
+document.getElementById('add-salesperson-modal').addEventListener('click', function (e) {
+  if (e.target === this) closeAddSalespersonModal();
+});
 
 // ----------------------------------------------------------------
 // Save bill

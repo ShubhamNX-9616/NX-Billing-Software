@@ -33,7 +33,7 @@ def get_bills():
                 SELECT id, bill_number, customer_name_snapshot,
                        customer_mobile_snapshot, bill_date,
                        subtotal, total_discount, final_total, total_savings,
-                       payment_mode_type, advance_paid, remaining, created_at
+                       payment_mode_type, salesperson_name, advance_paid, remaining, created_at
                 FROM bills
                 WHERE bill_number LIKE ?
                    OR customer_name_snapshot LIKE ?
@@ -48,7 +48,7 @@ def get_bills():
                 SELECT id, bill_number, customer_name_snapshot,
                        customer_mobile_snapshot, bill_date,
                        subtotal, total_discount, final_total, total_savings,
-                       payment_mode_type, advance_paid, remaining, created_at
+                       payment_mode_type, salesperson_name, advance_paid, remaining, created_at
                 FROM bills
                 ORDER BY created_at DESC
                 """
@@ -89,7 +89,7 @@ def search_bills():
             SELECT id, bill_number, customer_name_snapshot,
                    customer_mobile_snapshot, bill_date,
                    subtotal, total_discount, final_total, total_savings,
-                   payment_mode_type, advance_paid, remaining, created_at
+                   payment_mode_type, salesperson_name, advance_paid, remaining, created_at
             FROM bills
             {where}
             ORDER BY created_at DESC
@@ -151,6 +151,7 @@ def create_bill():
         customer_mobile = (body.get("customer_mobile") or "").strip()
         bill_date = (body.get("bill_date") or "").strip()
         payment_mode_type = (body.get("payment_mode_type") or "").strip()
+        salesperson_name = (body.get("salesperson_name") or "").strip()
         items = body.get("items", [])
         payments = body.get("payments", [])
 
@@ -161,6 +162,8 @@ def create_bill():
             errors.append("customer_mobile is required")
         if not bill_date:
             errors.append("bill_date is required")
+        if not salesperson_name:
+            errors.append("salesperson_name is required")
         if payment_mode_type not in VALID_PAYMENT_MODES:
             errors.append(f"payment_mode_type must be one of {sorted(VALID_PAYMENT_MODES)}")
         if errors:
@@ -176,6 +179,13 @@ def create_bill():
             return jsonify({"error": "items array cannot be empty"}), 400
 
         db = get_db()
+        salesperson = db.execute(
+            "SELECT name FROM salespersons WHERE lower(name) = lower(?)",
+            (salesperson_name,),
+        ).fetchone()
+        if not salesperson:
+            return jsonify({"error": "Invalid sales person"}), 400
+        salesperson_name = salesperson["name"]
 
         # Fetch valid cloth types from DB
         valid_cloth_types = {
@@ -301,14 +311,14 @@ def create_bill():
                 bill_number, customer_id,
                 customer_name_snapshot, customer_mobile_snapshot,
                 bill_date, subtotal, total_discount, final_total,
-                total_savings, advance_paid, remaining, payment_mode_type
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                total_savings, advance_paid, remaining, salesperson_name, payment_mode_type
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 bill_number, customer_id,
                 customer_name, norm_mobile,
                 bill_date, subtotal, total_discount, final_total,
-                total_savings, advance_paid, remaining, payment_mode_type,
+                total_savings, advance_paid, remaining, salesperson_name, payment_mode_type,
             ),
         )
         bill_id = bill_cursor.lastrowid
@@ -353,6 +363,7 @@ def create_bill():
             "total_savings": total_savings,
             "advance_paid": advance_paid,
             "remaining": remaining,
+            "salesperson_name": salesperson_name,
             "payment_mode_type": payment_mode_type,
         }), 201
 
@@ -377,6 +388,7 @@ def update_bill(bill_id):
         customer_mobile   = (body.get("customer_mobile") or "").strip()
         bill_date         = (body.get("bill_date") or "").strip()
         payment_mode_type = (body.get("payment_mode_type") or "").strip()
+        salesperson_name  = (body.get("salesperson_name") or "").strip()
         items             = body.get("items", [])
         payments          = body.get("payments", [])
 
@@ -387,6 +399,8 @@ def update_bill(bill_id):
             errors.append("customer_mobile is required")
         if not bill_date:
             errors.append("bill_date is required")
+        if not salesperson_name:
+            errors.append("salesperson_name is required")
         if payment_mode_type not in VALID_PAYMENT_MODES:
             errors.append(f"payment_mode_type must be one of {sorted(VALID_PAYMENT_MODES)}")
         if errors:
@@ -400,6 +414,13 @@ def update_bill(bill_id):
             return jsonify({"error": "items array cannot be empty"}), 400
 
         db = get_db()
+        salesperson = db.execute(
+            "SELECT name FROM salespersons WHERE lower(name) = lower(?)",
+            (salesperson_name,),
+        ).fetchone()
+        if not salesperson:
+            return jsonify({"error": "Invalid sales person"}), 400
+        salesperson_name = salesperson["name"]
 
         # Check bill exists
         existing_bill = db.execute("SELECT * FROM bills WHERE id = ?", (bill_id,)).fetchone()
@@ -525,13 +546,14 @@ def update_bill(bill_id):
                 total_savings            = ?,
                 advance_paid             = ?,
                 remaining                = ?,
+                salesperson_name         = ?,
                 payment_mode_type        = ?,
                 updated_at               = datetime('now','localtime')
             WHERE id = ?
         """, (
             customer_id, customer_name, norm_mobile,
             bill_date, subtotal, total_discount, final_total,
-            total_savings, advance_paid, remaining, payment_mode_type,
+            total_savings, advance_paid, remaining, salesperson_name, payment_mode_type,
             bill_id,
         ))
 
@@ -575,6 +597,7 @@ def update_bill(bill_id):
             "total_savings":           total_savings,
             "advance_paid":            advance_paid,
             "remaining":               remaining,
+            "salesperson_name":        salesperson_name,
             "payment_mode_type":       payment_mode_type,
         }), 200
 
@@ -742,6 +765,31 @@ def get_analytics():
             date_filter = f"strftime('%Y', b.bill_date) >= '{buckets[0]}'"
             group_expr  = "strftime('%Y', b.bill_date)"
 
+        elif period == "custom":
+            from_date = (request.args.get("from") or "").strip()
+            to_date = (request.args.get("to") or "").strip()
+            if not from_date or not to_date:
+                return jsonify({"error": "from and to query params are required"}), 400
+
+            try:
+                start = datetime.strptime(from_date, "%Y-%m-%d").date()
+                end = datetime.strptime(to_date, "%Y-%m-%d").date()
+            except ValueError:
+                return jsonify({"error": "Dates must be in YYYY-MM-DD format"}), 400
+
+            if start > end:
+                return jsonify({"error": "from date cannot be after to date"}), 400
+
+            if (end - start).days > 366:
+                return jsonify({"error": "Custom date range cannot exceed 366 days"}), 400
+
+            buckets = [
+                (start + timedelta(days=i)).strftime("%Y-%m-%d")
+                for i in range((end - start).days + 1)
+            ]
+            date_filter = "b.bill_date BETWEEN ? AND ?"
+            group_expr  = "strftime('%Y-%m-%d', b.bill_date)"
+
         else:  # monthly (default)
             buckets = []
             for i in range(11, -1, -1):
@@ -752,6 +800,7 @@ def get_analytics():
             date_filter = f"strftime('%Y-%m', b.bill_date) >= '{buckets[0]}'"
             group_expr  = "strftime('%Y-%m', b.bill_date)"
 
+        params = (from_date, to_date) if period == "custom" else ()
         rows = db.execute(f"""
             SELECT
                 {group_expr}                                                              AS bucket,
@@ -774,7 +823,7 @@ def get_analytics():
               AND {date_filter}
             GROUP BY bucket
             ORDER BY bucket ASC
-        """).fetchall()
+        """, params).fetchall()
 
         data_map = {r["bucket"]: dict(r) for r in rows}
 
@@ -800,5 +849,72 @@ def get_analytics():
             })
 
         return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@bills_bp.route("/analytics/salespersons", methods=["GET"])
+def analytics_salespersons():
+    try:
+        period = request.args.get("period", "monthly")
+        db = get_db()
+        today = datetime.now().date()
+
+        if period == "daily":
+            start_date = (today - timedelta(days=29)).strftime("%Y-%m-%d")
+            end_date = today.strftime("%Y-%m-%d")
+            where_sql = "b.bill_date BETWEEN ? AND ?"
+            params = (start_date, end_date)
+        elif period == "yearly":
+            start_date = f"{today.year - 4:04d}-01-01"
+            end_date = today.strftime("%Y-%m-%d")
+            where_sql = "b.bill_date BETWEEN ? AND ?"
+            params = (start_date, end_date)
+        elif period == "custom":
+            from_date = (request.args.get("from") or "").strip()
+            to_date = (request.args.get("to") or "").strip()
+            if not from_date or not to_date:
+                return jsonify({"error": "from and to query params are required"}), 400
+            try:
+                start = datetime.strptime(from_date, "%Y-%m-%d").date()
+                end = datetime.strptime(to_date, "%Y-%m-%d").date()
+            except ValueError:
+                return jsonify({"error": "Dates must be in YYYY-MM-DD format"}), 400
+            if start > end:
+                return jsonify({"error": "from date cannot be after to date"}), 400
+            if (end - start).days > 366:
+                return jsonify({"error": "Custom date range cannot exceed 366 days"}), 400
+            where_sql = "b.bill_date BETWEEN ? AND ?"
+            params = (from_date, to_date)
+        else:
+            start_month = f"{today.year:04d}-{today.month:02d}"
+            total_m = today.year * 12 + (today.month - 1) - 11
+            start_year = total_m // 12
+            start_mon = (total_m % 12) + 1
+            where_sql = "strftime('%Y-%m', b.bill_date) BETWEEN ? AND ?"
+            params = (f"{start_year:04d}-{start_mon:02d}", start_month)
+
+        rows = db.execute(
+            f"""
+            SELECT
+                COALESCE(NULLIF(TRIM(b.salesperson_name), ''), 'Unassigned') AS salesperson_name,
+                COUNT(*) AS bill_count,
+                COALESCE(SUM(b.final_total), 0) AS total_sales
+            FROM bills b
+            WHERE b.status != 'cancelled'
+              AND {where_sql}
+            GROUP BY COALESCE(NULLIF(TRIM(b.salesperson_name), ''), 'Unassigned')
+            ORDER BY total_sales DESC, salesperson_name ASC
+            """,
+            params,
+        ).fetchall()
+        return jsonify([
+            {
+                "salesperson_name": row["salesperson_name"],
+                "bill_count": int(row["bill_count"] or 0),
+                "total_sales": round(float(row["total_sales"] or 0), 2),
+            }
+            for row in rows
+        ])
     except Exception as e:
         return jsonify({"error": str(e)}), 500

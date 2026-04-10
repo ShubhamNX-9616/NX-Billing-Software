@@ -43,6 +43,14 @@ def init_db():
                 UNIQUE(cloth_type, normalized_company_name)
             );
 
+            CREATE TABLE IF NOT EXISTS salespersons (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                name            TEXT NOT NULL,
+                normalized_name TEXT NOT NULL UNIQUE,
+                is_default      INTEGER DEFAULT 0,
+                created_at      TEXT DEFAULT (datetime('now','localtime'))
+            );
+
             CREATE TABLE IF NOT EXISTS bills (
                 id                       INTEGER PRIMARY KEY AUTOINCREMENT,
                 bill_number              TEXT NOT NULL UNIQUE,
@@ -56,6 +64,7 @@ def init_db():
                 total_savings            REAL NOT NULL DEFAULT 0,
                 advance_paid             REAL NOT NULL DEFAULT 0,
                 remaining                REAL NOT NULL DEFAULT 0,
+                salesperson_name         TEXT NOT NULL DEFAULT 'Self',
                 payment_mode_type        TEXT NOT NULL,
                 status                   TEXT NOT NULL DEFAULT 'active',
                 created_at               TEXT DEFAULT (datetime('now','localtime')),
@@ -105,8 +114,13 @@ def init_db():
             conn.execute("ALTER TABLE bills ADD COLUMN status TEXT NOT NULL DEFAULT 'active'")
         except Exception:
             pass
+        try:
+            conn.execute("ALTER TABLE bills ADD COLUMN salesperson_name TEXT NOT NULL DEFAULT 'Self'")
+        except Exception:
+            pass
         seed_cloth_types(conn)
         seed_companies(conn)
+        seed_salespersons(conn)
 
 
 def seed_cloth_types(conn):
@@ -151,6 +165,20 @@ def seed_companies(conn):
         VALUES (?, ?, ?, 1)
         """,
         [(ct, name, name.strip().lower()) for ct, name in defaults],
+    )
+
+
+def seed_salespersons(conn):
+    defaults = [
+        ("Self", "self"),
+        ("Geetesh", "geetesh"),
+    ]
+    conn.executemany(
+        """
+        INSERT OR IGNORE INTO salespersons (name, normalized_name, is_default)
+        VALUES (?, ?, 1)
+        """,
+        defaults,
     )
 
 

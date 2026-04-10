@@ -4,6 +4,7 @@ from routes.customers import customers_bp
 from routes.companies import companies_bp
 from routes.bills import bills_bp
 from routes.cloth_types import cloth_types_bp
+from routes.salespersons import salespersons_bp
 
 app = Flask(__name__)
 
@@ -12,6 +13,7 @@ app.register_blueprint(customers_bp, url_prefix="/api")
 app.register_blueprint(companies_bp, url_prefix="/api")
 app.register_blueprint(bills_bp, url_prefix="/api")
 app.register_blueprint(cloth_types_bp, url_prefix="/api")
+app.register_blueprint(salespersons_bp, url_prefix="/api")
 
 
 # Page routes

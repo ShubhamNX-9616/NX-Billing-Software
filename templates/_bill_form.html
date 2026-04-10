@@ -11,7 +11,16 @@
       <label>Bill Date</label>
       <input type="date" id="bill-date" class="input" />
     </div>
-    <div></div>
+    <div>
+      <label>Sales Person <span class="text-danger">*</span></label>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <select id="salesperson-name" class="input select" style="flex:1;">
+          <option value="">Loading...</option>
+        </select>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="openAddSalespersonModal()">+</button>
+      </div>
+      <div id="salesperson-error" class="text-danger" style="font-size:12px;margin-top:4px;"></div>
+    </div>
   </div>
 </div>
 
@@ -232,6 +241,26 @@
       <button type="button" class="btn btn-secondary" onclick="closeAddCompanyModal()">Cancel</button>
       <button type="button" class="btn btn-primary" id="btn-add-company-save"
               onclick="saveNewCompany()">Save Company</button>
+    </div>
+  </div>
+</div>
+
+<!-- ====== Add Sales Person Modal ====== -->
+<div class="modal-overlay hidden" id="add-salesperson-modal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3>Add Sales Person</h3>
+      <button class="modal-close" onclick="closeAddSalespersonModal()">&#215;</button>
+    </div>
+    <div class="modal-body">
+      <label>Sales Person Name</label>
+      <input type="text" id="add-salesperson-name" class="input" placeholder="e.g. Amit" />
+      <div id="add-salesperson-error" class="text-danger mt-2" style="font-size:13px;"></div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary" onclick="closeAddSalespersonModal()">Cancel</button>
+      <button type="button" class="btn btn-primary" id="btn-add-salesperson-save"
+              onclick="saveNewSalesperson()">Save</button>
     </div>
   </div>
 </div>

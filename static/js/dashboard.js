@@ -3,6 +3,7 @@
 // ---- State ----
 let salesChart = null;
 let currentPeriod = 'monthly';
+let customRange = { from: '', to: '' };
 
 // ---- Formatters ----
 function fmtCurrency(amount) {
@@ -46,10 +47,39 @@ const PERIOD_TITLES = {
   daily:   'Daily Sales \u2014 Last 30 Days',
   monthly: 'Monthly Sales \u2014 Last 12 Months',
   yearly:  'Yearly Sales \u2014 Last 5 Years',
+  custom:  'Sales \u2014 Custom Date Range',
 };
 
+function todayISO() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function shiftDays(dateStr, delta) {
+  const d = new Date(`${dateStr}T00:00:00`);
+  d.setDate(d.getDate() + delta);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function ensureCustomRangeDefaults() {
+  if (customRange.from && customRange.to) return;
+  const to = todayISO();
+  customRange = { from: shiftDays(to, -29), to };
+}
+
+function syncCustomRangeInputs() {
+  ensureCustomRangeDefaults();
+  document.getElementById('custom-date-from').value = customRange.from;
+  document.getElementById('custom-date-to').value = customRange.to;
+}
+
+function setCustomRangeVisibility(show) {
+  document.getElementById('custom-range-controls').style.display = show ? 'block' : 'none';
+  if (show) syncCustomRangeInputs();
+}
+
 function setActiveTab(period) {
-  ['daily', 'monthly', 'yearly'].forEach(p => {
+  ['daily', 'monthly', 'yearly', 'custom'].forEach(p => {
     const btn = document.getElementById(`tab-${p}`);
     if (p === period) {
       btn.classList.add('btn-primary');
@@ -60,6 +90,7 @@ function setActiveTab(period) {
     }
   });
   document.getElementById('chart-title').textContent = PERIOD_TITLES[period];
+  setCustomRangeVisibility(period === 'custom');
 }
 
 function buildChart(labels, cashData, cardData, upiData, comboData) {
@@ -142,6 +173,43 @@ function renderPaymentCards(data) {
   document.getElementById('pcard-combo-pct').textContent = `${pct(totalCombo, totalSales)} of period sales`;
 }
 
+function periodLabel(period) {
+  if (period === 'custom') {
+    ensureCustomRangeDefaults();
+    return `${customRange.from} to ${customRange.to}`;
+  }
+  if (period === 'daily') return 'Last 30 days';
+  if (period === 'yearly') return 'Last 5 years';
+  return 'Last 12 months';
+}
+
+function renderSalespersonTable(rows, period) {
+  const loading = document.getElementById('salesperson-loading');
+  const empty = document.getElementById('salesperson-empty');
+  const wrap = document.getElementById('salesperson-table-wrap');
+  const tbody = document.getElementById('salesperson-body');
+  const label = document.getElementById('salesperson-period-label');
+
+  loading.style.display = 'none';
+  label.textContent = periodLabel(period);
+
+  if (!rows.length) {
+    wrap.style.display = 'none';
+    empty.style.display = 'block';
+    return;
+  }
+
+  empty.style.display = 'none';
+  wrap.style.display = 'block';
+  tbody.innerHTML = rows.map(row => `
+    <tr>
+      <td><span class="fw-600">${row.salesperson_name}</span></td>
+      <td class="text-right">${row.bill_count}</td>
+      <td class="text-right fw-600">${fmtCurrency(row.total_sales)}</td>
+    </tr>
+  `).join('');
+}
+
 // ---- Section 5: Recent Bills ----
 function renderRecentBills(bills) {
   const loading = document.getElementById('recent-bills-loading');
@@ -175,19 +243,47 @@ function renderRecentBills(bills) {
 async function loadPeriodData(period) {
   const loading = document.getElementById('chart-loading');
   const wrap    = document.getElementById('chart-wrap');
+  const customRangeError = document.getElementById('custom-range-error');
+  const salespersonLoading = document.getElementById('salesperson-loading');
+  const salespersonWrap = document.getElementById('salesperson-table-wrap');
+  const salespersonEmpty = document.getElementById('salesperson-empty');
 
   loading.style.display = 'flex';
   wrap.style.display    = 'none';
+  customRangeError.textContent = '';
+  salespersonLoading.style.display = 'flex';
+  salespersonWrap.style.display = 'none';
+  salespersonEmpty.style.display = 'none';
 
   try {
-    const res = await fetch(`/api/analytics?period=${period}`);
-    if (!res.ok) throw new Error('API error');
+    let url = `/api/analytics?period=${period}`;
+    let salespersonUrl = `/api/analytics/salespersons?period=${period}`;
+    if (period === 'custom') {
+      ensureCustomRangeDefaults();
+      url += `&from=${encodeURIComponent(customRange.from)}&to=${encodeURIComponent(customRange.to)}`;
+      salespersonUrl += `&from=${encodeURIComponent(customRange.from)}&to=${encodeURIComponent(customRange.to)}`;
+    }
+
+    const [res, salespersonRes] = await Promise.all([
+      fetch(url),
+      fetch(salespersonUrl),
+    ]);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'API error');
+    }
+    if (!salespersonRes.ok) {
+      const err = await salespersonRes.json().catch(() => ({}));
+      throw new Error(err.error || 'Failed to load salesperson analytics');
+    }
     let data = await res.json();
+    const salespersonRows = await salespersonRes.json();
 
     // On mobile: trim visible buckets to avoid crowded axis
     const isMobile = window.innerWidth <= 768;
     if (isMobile && period === 'daily')   data = data.slice(-7);
     if (isMobile && period === 'monthly') data = data.slice(-6);
+    if (isMobile && period === 'custom' && data.length > 7) data = data.slice(-7);
 
     const labels    = data.map(d => d.label);
     const cashData  = data.map(d => d.cash);
@@ -197,8 +293,13 @@ async function loadPeriodData(period) {
 
     updateChart(labels, cashData, cardData, upiData, comboData);
     renderPaymentCards(data);
+    renderSalespersonTable(salespersonRows, period);
   } catch (err) {
     console.error('Analytics load error:', err);
+    if (period === 'custom') {
+      customRangeError.textContent = err.message;
+    }
+    salespersonLoading.style.display = 'none';
   } finally {
     loading.style.display = 'none';
     wrap.style.display    = 'block';
@@ -210,6 +311,27 @@ async function switchPeriod(period) {
   currentPeriod = period;
   setActiveTab(period);
   await loadPeriodData(period);
+}
+
+async function applyCustomRange() {
+  const from = document.getElementById('custom-date-from').value;
+  const to = document.getElementById('custom-date-to').value;
+  const errorEl = document.getElementById('custom-range-error');
+
+  errorEl.textContent = '';
+  if (!from || !to) {
+    errorEl.textContent = 'Select both from and to dates.';
+    return;
+  }
+  if (from > to) {
+    errorEl.textContent = 'From date cannot be after to date.';
+    return;
+  }
+
+  customRange = { from, to };
+  currentPeriod = 'custom';
+  setActiveTab('custom');
+  await loadPeriodData('custom');
 }
 
 // ---- Main load ----

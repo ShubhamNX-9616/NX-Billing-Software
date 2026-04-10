@@ -6,6 +6,9 @@
 {% block topbar_actions %}
   <a href="/bill-history" class="btn btn-secondary no-print">&#8592; Back to History</a>
   <a href="/edit-bill/{{ bill_id }}" class="btn btn-secondary no-print">&#9998; Edit Bill</a>
+  <button type="button" class="btn btn-secondary no-print" onclick="openWhatsAppForBill()">
+    WhatsApp
+  </button>
   <button type="button" class="btn btn-danger no-print" onclick="openDetailDeleteModal()">
     &#128465; Delete
   </button>
@@ -40,6 +43,8 @@
       </span>
       <a href="/bill-history" class="btn btn-secondary btn-block-mobile">&#8592; Back</a>
       <a href="/edit-bill/{{ bill_id }}" class="btn btn-secondary btn-block-mobile">&#9998; Edit Bill</a>
+      <button type="button" class="btn btn-secondary btn-block-mobile no-print"
+              onclick="openWhatsAppForBill()">WhatsApp</button>
       <button type="button" class="btn btn-danger btn-block-mobile no-print"
               onclick="openDetailDeleteModal()">&#128465; Delete</button>
       <button type="button" class="btn btn-primary btn-block-mobile"
@@ -85,6 +90,10 @@
         <div class="inv-meta-row" style="justify-content:flex-end;">
           <span class="inv-meta-label" style="color:var(--text-muted);min-width:70px;text-align:right;">Date</span>
           <span class="inv-meta-value" style="margin-left:8px;" id="inv-bill-date">—</span>
+        </div>
+        <div class="inv-meta-row" style="justify-content:flex-end;">
+          <span class="inv-meta-label" style="color:var(--text-muted);min-width:70px;text-align:right;">Sales</span>
+          <span class="inv-meta-value" style="margin-left:8px;" id="inv-salesperson-name">—</span>
         </div>
       </div>
     </div>
@@ -211,6 +220,7 @@
 {% block extra_js %}
 <script>
   const BILL_ID = {{ bill_id }};
+  let CURRENT_BILL = null;
 
   /* ---- Formatters ---- */
   function fmt(amount) {
@@ -231,8 +241,39 @@
     return `<span class="badge ${map[mode] || 'badge-neutral'}">${mode}</span>`;
   }
 
+  function normalizeWhatsAppNumber(raw) {
+    let digits = String(raw || '').replace(/\D/g, '');
+    if (!digits) return '';
+    if (digits.length === 10) return `91${digits}`;
+    if (digits.startsWith('91') && digits.length === 12) return digits;
+    return digits;
+  }
+
+  function openWhatsAppForBill() {
+    if (!CURRENT_BILL) return;
+    const mobile = normalizeWhatsAppNumber(CURRENT_BILL.customer_mobile_snapshot);
+    if (!mobile) {
+      alert('Customer mobile number is not available for WhatsApp.');
+      return;
+    }
+
+    const amount = Number(CURRENT_BILL.final_total || 0).toLocaleString('en-IN', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+    const text = [
+      `Namaste ${CURRENT_BILL.customer_name_snapshot || 'Customer'},`,
+      `Your bill ${CURRENT_BILL.bill_number} dated ${fmtDate(CURRENT_BILL.bill_date)} is ready.`,
+      `Amount: Rs. ${amount}`,
+      `Thank you for shopping at SHUBHAM NX.`,
+    ].join('\n');
+
+    window.open(`https://wa.me/${mobile}?text=${encodeURIComponent(text)}`, '_blank');
+  }
+
   /* ---- Render ---- */
   function renderBill(bill) {
+    CURRENT_BILL = bill;
     // Screen bar
     document.getElementById('screen-bill-number').textContent = bill.bill_number;
     document.getElementById('screen-payment-badge').innerHTML = paymentBadgeHTML(bill.payment_mode_type);
@@ -240,6 +281,7 @@
     // Header fields
     document.getElementById('inv-bill-number').textContent    = bill.bill_number;
     document.getElementById('inv-bill-date').textContent      = fmtDate(bill.bill_date);
+    document.getElementById('inv-salesperson-name').textContent = bill.salesperson_name || '—';
     document.getElementById('inv-customer-name').textContent  = bill.customer_name_snapshot;
     document.getElementById('inv-customer-mobile').textContent = bill.customer_mobile_snapshot;
 
