@@ -35,6 +35,13 @@ function round2(n) {
   return Math.round((n + Number.EPSILON) * 100) / 100;
 }
 
+function getRoundedTotals(amount) {
+  const grossFinal = round2(amount);
+  const netPayable = Math.floor(grossFinal);
+  const roundOff = round2(grossFinal - netPayable);
+  return { grossFinal, roundOff, netPayable };
+}
+
 function todayISO() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -358,9 +365,13 @@ function appendTableRow(id, vals = {}) {
     </td>
     <td>
       <input type="number" class="cell-input col-disc" id="disc-${id}"
-             min="0" max="100" step="0.01" placeholder="0"
-             value="${vals.discPct !== undefined ? vals.discPct : '0'}"
+             min="0" max="100" step="0.01" placeholder="%"
+             value="${vals.discPct !== undefined ? vals.discPct : ''}"
              oninput="recalcRow(${id})" />
+      <input type="number" class="cell-input col-disc" id="discamt-${id}"
+             min="0" step="0.01" placeholder="₹"
+             value="${vals.discAmt || ''}"
+             oninput="recalcRow(${id})" style="margin-top:3px;" />
     </td>
     <td class="item-line-total" id="rateafterdisc-${id}">₹0.00</td>
     <td class="item-line-total" id="finalamt-${id}">₹0.00</td>
@@ -448,17 +459,23 @@ function appendCard(id, vals = {}) {
     </div>
 
     <div class="item-card-field">
-      <span class="item-card-label">Discount %</span>
-      <input type="number" class="input" id="disc-${id}"
-             min="0" max="100" step="0.01" placeholder="0"
-             value="${vals.discPct !== undefined ? vals.discPct : '0'}"
-             oninput="recalcRow(${id})" />
+      <span class="item-card-label">Discount</span>
+      <div style="display:flex;gap:8px;">
+        <input type="number" class="input" id="disc-${id}"
+               min="0" max="100" step="0.01" placeholder="Disc %"
+               value="${vals.discPct !== undefined ? vals.discPct : ''}"
+               oninput="recalcRow(${id})" style="flex:1;" />
+        <input type="number" class="input" id="discamt-${id}"
+               min="0" step="0.01" placeholder="Disc ₹"
+               value="${vals.discAmt || ''}"
+               oninput="recalcRow(${id})" style="flex:1;" />
+      </div>
     </div>
 
     <div class="item-card-footer" style="flex-direction:column;gap:6px;">
       <div style="display:flex;gap:12px;flex-wrap:wrap;font-size:12.5px;">
         <span><span id="card-mrp-footer-lbl-${id}">${mrpFooterLabel}</span>: <strong id="card-mrp-${id}">₹0.00</strong></span>
-        <span>Disc: <strong id="card-disc-${id}">0%</strong></span>
+        <span>Disc: <strong id="card-disc-${id}">—</strong></span>
         <span>Rate: <strong id="card-rate-${id}">₹0.00</strong>/<span id="card-rate-unit-${id}">${unit}</span></span>
       </div>
       <div style="display:flex;justify-content:space-between;align-items:center;">
@@ -514,23 +531,38 @@ function updateCardNumbers() {
 // Row / card calculations — same input IDs in both layouts
 // ----------------------------------------------------------------
 function recalcRow(id) {
-  const mrp     = parseFloat(document.getElementById(`mrp-${id}`)?.value)  || 0;
-  const discPct = parseFloat(document.getElementById(`disc-${id}`)?.value) || 0;
-  const qty     = parseFloat(document.getElementById(`qty-${id}`)?.value)  || 0;
+  const mrp        = parseFloat(document.getElementById(`mrp-${id}`)?.value)     || 0;
+  const discPct    = parseFloat(document.getElementById(`disc-${id}`)?.value)    || 0;
+  const discAmtRaw = parseFloat(document.getElementById(`discamt-${id}`)?.value);
+  const qty        = parseFloat(document.getElementById(`qty-${id}`)?.value)     || 0;
 
-  const discPerUnit   = round2(mrp * discPct / 100);
-  const rateAfterDisc = round2(mrp - discPerUnit);
-  const finalAmt      = round2(rateAfterDisc * qty);
-  const lineTotal     = round2(mrp * qty);
-  const discAmt       = round2(lineTotal - finalAmt);
+  // Compute effective discount per unit
+  const discByPct     = round2(mrp * discPct / 100);
+  const hasDiscPct    = discPct > 0;
+  const hasDiscAmt    = !isNaN(discAmtRaw) && discAmtRaw > 0;
+  let discPerUnit;
+  if (hasDiscPct && hasDiscAmt) {
+    discPerUnit = Math.min(discByPct, discAmtRaw);  // both filled: use smaller discount
+  } else if (hasDiscAmt) {
+    discPerUnit = discAmtRaw;
+  } else {
+    discPerUnit = discByPct;
+  }
+  discPerUnit = round2(Math.min(discPerUnit, mrp));  // cap at MRP
 
-  itemDataStore[id] = { lineTotal, discPerUnit, rateAfterDisc, discAmt, finalAmt };
-  updateItemDisplay(id, mrp, discPct, rateAfterDisc, finalAmt);
+  const effectiveDiscPct = mrp > 0 ? round2(discPerUnit / mrp * 100) : 0;
+  const rateAfterDisc    = round2(mrp - discPerUnit);
+  const finalAmt         = round2(rateAfterDisc * qty);
+  const lineTotal        = round2(mrp * qty);
+  const discAmt          = round2(lineTotal - finalAmt);
+
+  itemDataStore[id] = { lineTotal, discPerUnit, rateAfterDisc, discAmt, finalAmt, effectiveDiscPct };
+  updateItemDisplay(id, mrp, discPerUnit, rateAfterDisc, finalAmt);
   updateSummary();
 }
 
 // Update display elements — tries both table and card element IDs
-function updateItemDisplay(id, mrp, discPct, rateAfterDisc, finalAmt) {
+function updateItemDisplay(id, mrp, discPerUnit, rateAfterDisc, finalAmt) {
   // Table display elements
   const rateEl  = document.getElementById(`rateafterdisc-${id}`);
   const finalEl = document.getElementById(`finalamt-${id}`);
@@ -543,7 +575,7 @@ function updateItemDisplay(id, mrp, discPct, rateAfterDisc, finalAmt) {
   const cardRateEl  = document.getElementById(`card-rate-${id}`);
   const cardFinalEl = document.getElementById(`card-finalamt-${id}`);
   if (cardMrpEl)   cardMrpEl.textContent   = fmt(mrp);
-  if (cardDiscEl)  cardDiscEl.textContent  = `${discPct}%`;
+  if (cardDiscEl)  cardDiscEl.textContent  = discPerUnit > 0 ? `−${fmt(discPerUnit)}` : '—';
   if (cardRateEl)  cardRateEl.textContent  = fmt(rateAfterDisc);
   if (cardFinalEl) cardFinalEl.textContent = fmt(finalAmt);
 
@@ -568,38 +600,43 @@ function updateItemDisplay(id, mrp, discPct, rateAfterDisc, finalAmt) {
 // Summary totals — reads from itemDataStore (layout-agnostic)
 // ----------------------------------------------------------------
 function updateSummary() {
-  let subtotal = 0, totalDisc = 0, finalTotal = 0;
+  let totalDisc = 0;
+  let grossFinal = 0;
 
   activeItemIds.forEach(id => {
     const d = itemDataStore[id] || {};
-    subtotal   += d.lineTotal || 0;
-    totalDisc  += d.discAmt   || 0;
-    finalTotal += d.finalAmt  || 0;
+    totalDisc += d.discAmt || 0;
+    grossFinal += d.finalAmt || 0;
   });
 
-  subtotal   = round2(subtotal);
   totalDisc  = round2(totalDisc);
-  finalTotal = round2(finalTotal);
+  grossFinal = round2(grossFinal);
 
-  document.getElementById('sum-subtotal').textContent = fmt(subtotal);
-  document.getElementById('sum-discount').textContent = `−${fmt(totalDisc)}`;
-  document.getElementById('sum-savings').textContent  = fmt(totalDisc);
-  document.getElementById('sum-final').textContent    = fmt(finalTotal);
+  const roundOff    = round2(parseFloat(document.getElementById('sum-roundoff')?.value) || 0);
+  const netPayable  = round2(grossFinal - roundOff);
+  const roErrEl     = document.getElementById('roundoff-error');
+
+  if (roErrEl) {
+    if (roundOff < 0) {
+      roErrEl.textContent = 'R/O cannot be negative.';
+    } else if (grossFinal > 0 && roundOff > grossFinal) {
+      roErrEl.textContent = 'R/O cannot exceed bill total.';
+    } else {
+      roErrEl.textContent = '';
+    }
+  }
+
+  document.getElementById('sum-savings').textContent = fmt(totalDisc);
+  document.getElementById('sum-final').textContent   = fmt(grossFinal);
 
   // Advance paid / remaining balance
   const advancePaid = round2(parseFloat(document.getElementById('advance-paid')?.value) || 0);
-  const remaining   = round2(finalTotal - advancePaid);
-  const remEl       = document.getElementById('remaining-balance');
   const advErrEl    = document.getElementById('advance-error');
 
-  if (remEl) {
-    remEl.textContent = fmt(Math.max(0, remaining));
-    remEl.style.color = remaining <= 0 ? 'var(--success)' : 'var(--danger)';
-  }
   if (advErrEl) {
     if (advancePaid < 0) {
       advErrEl.textContent = 'Advance cannot be negative.';
-    } else if (finalTotal > 0 && advancePaid > finalTotal) {
+    } else if (netPayable > 0 && advancePaid > netPayable) {
       advErrEl.textContent = 'Advance cannot exceed total payable.';
     } else {
       advErrEl.textContent = '';
@@ -607,14 +644,16 @@ function updateSummary() {
   }
 
   if (currentMode !== 'Combination') {
-    document.getElementById('payment-single-amount').value = finalTotal.toFixed(2);
+    document.getElementById('payment-single-amount').value = netPayable.toFixed(2);
   } else {
     syncComboAutoFill();
   }
 }
 
 function getFinalTotal() {
-  return round2(activeItemIds.reduce((s, id) => s + (itemDataStore[id]?.finalAmt || 0), 0));
+  const grossFinal = round2(activeItemIds.reduce((s, id) => s + (itemDataStore[id]?.finalAmt || 0), 0));
+  const roundOff   = round2(parseFloat(document.getElementById('sum-roundoff')?.value) || 0);
+  return round2(grossFinal - roundOff);
 }
 
 // ----------------------------------------------------------------
@@ -628,12 +667,13 @@ function handleResponsiveItemsLayout() {
   // Snapshot current input values (same IDs in both layouts)
   const snapshots = activeItemIds.map(id => ({
     id,
-    clothType:     document.getElementById(`cloth-${id}`)?.value   || 'Shirting',
-    companyName:   document.getElementById(`company-${id}`)?.value || '',
-    qualityNumber: document.getElementById(`quality-${id}`)?.value || '',
-    quantity:      document.getElementById(`qty-${id}`)?.value     || '',
-    mrp:           document.getElementById(`mrp-${id}`)?.value     || '',
-    discPct:       document.getElementById(`disc-${id}`)?.value    || '0',
+    clothType:     document.getElementById(`cloth-${id}`)?.value      || 'Shirting',
+    companyName:   document.getElementById(`company-${id}`)?.value    || '',
+    qualityNumber: document.getElementById(`quality-${id}`)?.value    || '',
+    quantity:      document.getElementById(`qty-${id}`)?.value        || '',
+    mrp:           document.getElementById(`mrp-${id}`)?.value        || '',
+    discPct:       document.getElementById(`disc-${id}`)?.value       || '',
+    discAmt:       document.getElementById(`discamt-${id}`)?.value    || '',
   }));
 
   // Clear both containers
@@ -891,7 +931,7 @@ function setError(elId, msg) {
 }
 
 function clearErrors() {
-  ['mobile-error','name-error','salesperson-error','items-error','payment-error','save-error','advance-error'].forEach(id => setError(id, ''));
+  ['mobile-error','name-error','salesperson-error','items-error','payment-error','save-error','advance-error','roundoff-error'].forEach(id => setError(id, ''));
 }
 
 // ----------------------------------------------------------------
@@ -905,13 +945,13 @@ function collectBillData() {
   const mode   = currentMode;
 
   const items = activeItemIds.map(id => ({
-    cloth_type:      document.getElementById(`cloth-${id}`).value,
-    company_name:    document.getElementById(`company-${id}`)?.value || '',
-    quality_number:  document.getElementById(`quality-${id}`).value.trim() || null,
-    quantity:        parseFloat(document.getElementById(`qty-${id}`).value)   || 0,
-    unit_label:      (document.getElementById(`unit-${id}`).textContent || 'm').trim(),
-    mrp:             parseFloat(document.getElementById(`mrp-${id}`).value)   || 0,
-    discount_percent: parseFloat(document.getElementById(`disc-${id}`).value) || 0,
+    cloth_type:       document.getElementById(`cloth-${id}`).value,
+    company_name:     document.getElementById(`company-${id}`)?.value || '',
+    quality_number:   document.getElementById(`quality-${id}`).value.trim() || null,
+    quantity:         parseFloat(document.getElementById(`qty-${id}`).value)   || 0,
+    unit_label:       (document.getElementById(`unit-${id}`).textContent || 'm').trim(),
+    mrp:              parseFloat(document.getElementById(`mrp-${id}`).value)   || 0,
+    discount_percent: itemDataStore[id]?.effectiveDiscPct || 0,
   }));
 
   const payments = [];
@@ -927,12 +967,14 @@ function collectBillData() {
                     amount: parseFloat(document.getElementById('payment-single-amount').value) || 0 });
   }
 
+  const roundOff    = round2(parseFloat(document.getElementById('sum-roundoff')?.value) || 0);
   const advancePaid = round2(parseFloat(document.getElementById('advance-paid')?.value) || 0);
   const remaining   = round2(getFinalTotal() - advancePaid);
 
   return { customer_name: name, customer_mobile: mobile, bill_date: date,
            salesperson_name: salespersonName,
            payment_mode_type: mode, items, payments,
+           round_off:    Math.max(0, roundOff),
            advance_paid: Math.max(0, advancePaid),
            remaining:    Math.max(0, remaining) };
 }
@@ -1045,6 +1087,10 @@ async function prefillEditForm() {
 
     // Payment mode and amounts
     setPaymentMode(bill.payment_mode_type, bill.payments || []);
+
+    // Round-off (user-entered)
+    const roEl = document.getElementById('sum-roundoff');
+    if (roEl) roEl.value = (bill.round_off || 0) > 0 ? Number(bill.round_off).toFixed(2) : '';
 
     // Advance paid
     const advEl = document.getElementById('advance-paid');

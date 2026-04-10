@@ -68,7 +68,7 @@
               <th class="col-qty">Qty</th>
               <th class="col-unit">Unit</th>
               <th class="col-mrp">MRP (₹)</th>
-              <th class="col-disc">Disc%</th>
+              <th class="col-disc">Disc<br><span style="font-size:10px;font-weight:400;color:var(--text-muted);">% / ₹</span></th>
               <th class="col-total text-right">Rate after disc<br><span style="font-size:10px;font-weight:400;color:var(--text-muted);">per unit after disc</span></th>
               <th class="col-total text-right">Amount</th>
               <th class="col-action"></th>
@@ -156,18 +156,18 @@
   <!-- Bill summary -->
   <div class="bill-summary-box">
     <div class="bill-totals">
-      <div class="bill-totals-row">
-        <span class="text-muted">Subtotal</span>
-        <span id="sum-subtotal">₹0.00</span>
-      </div>
-      <div class="bill-totals-row">
-        <span class="text-muted">Total Discount</span>
-        <span id="sum-discount" class="text-danger">−₹0.00</span>
-      </div>
       <div class="bill-totals-row divider final">
         <span>Final Payable</span>
         <span id="sum-final">₹0.00</span>
       </div>
+      <div class="bill-totals-row" style="align-items:center;">
+        <span class="text-muted" style="font-size:13px;">R/O (₹)</span>
+        <input type="number" id="sum-roundoff" class="input"
+               min="0" step="0.01" placeholder="0.00"
+               style="width:120px;text-align:right;padding:4px 8px;"
+               oninput="updateSummary()" />
+      </div>
+      <div id="roundoff-error" class="text-danger" style="font-size:12px;text-align:right;min-height:16px;"></div>
       <div class="bill-totals-row" style="margin-top:6px;align-items:center;">
         <span class="text-muted" style="font-size:13px;">Advance Paid (₹)</span>
         <input type="number" id="advance-paid" class="input"
@@ -175,13 +175,9 @@
                style="width:120px;text-align:right;padding:4px 8px;"
                oninput="updateSummary()" />
       </div>
-      <div class="bill-totals-row">
-        <span class="text-muted">Remaining Balance</span>
-        <span id="remaining-balance" style="font-weight:600;">₹0.00</span>
-      </div>
       <div id="advance-error" class="text-danger" style="font-size:12px;text-align:right;min-height:16px;"></div>
-      <div class="bill-totals-row savings">
-        <span>You Save</span>
+      <div class="bill-totals-row savings" style="font-size:15px;font-weight:800;">
+        <span>You saved</span>
         <span id="sum-savings">₹0.00</span>
       </div>
     </div>

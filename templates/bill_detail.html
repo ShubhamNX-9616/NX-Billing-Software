@@ -91,10 +91,6 @@
           <span class="inv-meta-label" style="color:var(--text-muted);min-width:70px;text-align:right;">Date</span>
           <span class="inv-meta-value" style="margin-left:8px;" id="inv-bill-date">—</span>
         </div>
-        <div class="inv-meta-row" style="justify-content:flex-end;">
-          <span class="inv-meta-label" style="color:var(--text-muted);min-width:70px;text-align:right;">Sales</span>
-          <span class="inv-meta-value" style="margin-left:8px;" id="inv-salesperson-name">—</span>
-        </div>
       </div>
     </div>
 
@@ -130,28 +126,19 @@
     <!-- Summary (right-aligned) -->
     <div style="display:flex;justify-content:flex-end;margin-bottom:16px;">
       <div style="width:260px;">
-        <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13.5px;">
-          <span style="color:var(--text-muted);">Subtotal</span>
-          <span id="inv-subtotal">—</span>
-        </div>
-        <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13.5px;">
-          <span style="color:var(--text-muted);">Total Discount</span>
-          <span id="inv-discount" style="color:var(--danger);">—</span>
-        </div>
-        <div style="border-top:1px solid var(--border);margin:6px 0;"></div>
         <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:16px;font-weight:700;">
           <span>Final Payable</span>
           <span id="inv-final">—</span>
         </div>
-        <div id="inv-advance-row" style="display:none;justify-content:space-between;padding:3px 0;font-size:13px;">
+        <div style="display:flex;justify-content:space-between;padding:3px 0;font-size:13.5px;">
+          <span style="color:var(--text-muted);">R/O</span>
+          <span id="inv-roundoff" style="color:var(--danger);">—</span>
+        </div>
+        <div id="inv-advance-row" style="display:flex;justify-content:space-between;padding:3px 0;font-size:13px;">
           <span style="color:var(--text-muted);">Advance Paid</span>
           <span id="inv-advance">—</span>
         </div>
-        <div id="inv-remaining-row" style="display:none;justify-content:space-between;padding:3px 0;font-size:13.5px;font-weight:600;">
-          <span id="inv-remaining-label">Balance Due</span>
-          <span id="inv-remaining">—</span>
-        </div>
-        <div style="display:flex;justify-content:space-between;padding:3px 0;font-size:12.5px;color:var(--success);">
+        <div style="display:flex;justify-content:space-between;padding:5px 0;font-size:14.5px;font-weight:800;color:var(--success);">
           <span>You saved</span>
           <span id="inv-savings">—</span>
         </div>
@@ -274,6 +261,12 @@
   /* ---- Render ---- */
   function renderBill(bill) {
     CURRENT_BILL = bill;
+    const grossFinalTotal = Number(
+      bill.gross_final_total
+      || bill.items.reduce((sum, item) => sum + Number(item.final_amount || 0), 0)
+    );
+    const roundOff = Number(bill.round_off || Math.max(0, grossFinalTotal - Number(bill.final_total || 0)));
+
     // Screen bar
     document.getElementById('screen-bill-number').textContent = bill.bill_number;
     document.getElementById('screen-payment-badge').innerHTML = paymentBadgeHTML(bill.payment_mode_type);
@@ -281,7 +274,6 @@
     // Header fields
     document.getElementById('inv-bill-number').textContent    = bill.bill_number;
     document.getElementById('inv-bill-date').textContent      = fmtDate(bill.bill_date);
-    document.getElementById('inv-salesperson-name').textContent = bill.salesperson_name || '—';
     document.getElementById('inv-customer-name').textContent  = bill.customer_name_snapshot;
     document.getElementById('inv-customer-mobile').textContent = bill.customer_mobile_snapshot;
 
@@ -312,35 +304,14 @@
     }).join('');
 
     // Totals
-    document.getElementById('inv-subtotal').textContent  = fmt(bill.subtotal);
-    document.getElementById('inv-discount').textContent  = `−${fmt(bill.total_discount)}`;
-    document.getElementById('inv-final').textContent     = fmt(bill.final_total);
+    document.getElementById('inv-final').textContent     = fmt(grossFinalTotal);
+    document.getElementById('inv-roundoff').textContent  = `−${fmt(roundOff)}`;
     document.getElementById('inv-savings').textContent   = fmt(bill.total_savings);
 
-    // Advance paid / remaining
     const advancePaid = bill.advance_paid || 0;
-    const remaining   = bill.remaining   || 0;
     const advRow = document.getElementById('inv-advance-row');
-    const remRow = document.getElementById('inv-remaining-row');
-
-    if (advancePaid > 0) {
-      document.getElementById('inv-advance').textContent = fmt(advancePaid);
-      advRow.style.display = 'flex';
-    } else {
-      advRow.style.display = 'none';
-    }
-
-    if (remaining > 0) {
-      document.getElementById('inv-remaining-label').textContent = 'Balance Due';
-      document.getElementById('inv-remaining').innerHTML         = `<span style="color:var(--danger);">${fmt(remaining)}</span>`;
-      remRow.style.display = 'flex';
-    } else if (advancePaid > 0) {
-      document.getElementById('inv-remaining-label').textContent = '';
-      document.getElementById('inv-remaining').innerHTML         = '<span class="badge badge-success">PAID IN FULL</span>';
-      remRow.style.display = 'flex';
-    } else {
-      remRow.style.display = 'none';
-    }
+    document.getElementById('inv-advance').textContent = fmt(advancePaid);
+    advRow.style.display = 'flex';
 
     // Payments
     const paymentsEl = document.getElementById('inv-payments');

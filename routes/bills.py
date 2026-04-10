@@ -1,3 +1,4 @@
+import math
 import re
 from datetime import datetime, timedelta
 from flask import Blueprint, jsonify, request
@@ -16,6 +17,13 @@ def normalize_mobile(raw):
     elif digits.startswith("0") and len(digits) == 11:
         digits = digits[1:]
     return digits
+
+
+def calculate_round_off(amount):
+    amount = round(float(amount or 0), 2)
+    rounded_payable = math.floor(amount)
+    round_off = round(amount - rounded_payable, 2)
+    return rounded_payable, round_off
 
 
 # ---------------------------------------------------------------------------
@@ -130,7 +138,12 @@ def get_bill(bill_id):
             (bill_id,),
         ).fetchall()
 
+        gross_final_total = round(sum(float(i["final_amount"] or 0) for i in items), 2)
+        round_off = round(gross_final_total - float(bill["final_total"] or 0), 2)
+
         result = dict(bill)
+        result["gross_final_total"] = gross_final_total
+        result["round_off"] = max(round_off, 0)
         result["items"] = [dict(i) for i in items]
         result["payments"] = [dict(p) for p in payments]
         return jsonify(result)
@@ -249,8 +262,18 @@ def create_bill():
 
         subtotal = round(sum(i["line_total"] for i in calculated_items), 2)
         total_discount = round(sum(i["discount_amount"] for i in calculated_items), 2)
-        final_total = round(sum(i["final_amount"] for i in calculated_items), 2)
+        gross_final_total = round(sum(i["final_amount"] for i in calculated_items), 2)
         total_savings = total_discount
+
+        try:
+            round_off = round(float(body.get("round_off", 0) or 0), 2)
+        except (TypeError, ValueError):
+            round_off = 0.0
+        if round_off < 0:
+            return jsonify({"error": "round_off cannot be negative"}), 400
+        if round_off > gross_final_total:
+            return jsonify({"error": "round_off cannot exceed bill total"}), 400
+        final_total = round(gross_final_total - round_off, 2)
 
         # 6. Validate payments sum == final_total
         if not payments or not isinstance(payments, list):
@@ -359,7 +382,9 @@ def create_bill():
             "bill_date": bill_date,
             "subtotal": subtotal,
             "total_discount": total_discount,
+            "gross_final_total": gross_final_total,
             "final_total": final_total,
+            "round_off": round_off,
             "total_savings": total_savings,
             "advance_paid": advance_paid,
             "remaining": remaining,
@@ -481,8 +506,18 @@ def update_bill(bill_id):
 
         subtotal       = round(sum(i["line_total"]      for i in calculated_items), 2)
         total_discount = round(sum(i["discount_amount"] for i in calculated_items), 2)
-        final_total    = round(sum(i["final_amount"]    for i in calculated_items), 2)
+        gross_final_total = round(sum(i["final_amount"] for i in calculated_items), 2)
         total_savings  = total_discount
+
+        try:
+            round_off = round(float(body.get("round_off", 0) or 0), 2)
+        except (TypeError, ValueError):
+            round_off = 0.0
+        if round_off < 0:
+            return jsonify({"error": "round_off cannot be negative"}), 400
+        if round_off > gross_final_total:
+            return jsonify({"error": "round_off cannot exceed bill total"}), 400
+        final_total = round(gross_final_total - round_off, 2)
 
         # 3. Validate payments sum == final_total
         if not payments or not isinstance(payments, list):
@@ -593,7 +628,9 @@ def update_bill(bill_id):
             "bill_date":               bill_date,
             "subtotal":                subtotal,
             "total_discount":          total_discount,
+            "gross_final_total":       gross_final_total,
             "final_total":             final_total,
+            "round_off":               round_off,
             "total_savings":           total_savings,
             "advance_paid":            advance_paid,
             "remaining":               remaining,
