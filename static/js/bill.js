@@ -626,8 +626,10 @@ function updateSummary() {
     }
   }
 
-  document.getElementById('sum-savings').textContent = fmt(round2(totalDisc + roundOff));
-  document.getElementById('sum-final').textContent   = fmt(grossFinal);
+  document.getElementById('sum-savings').textContent     = fmt(round2(totalDisc + roundOff));
+  document.getElementById('sum-final').textContent       = fmt(grossFinal);
+  const fpEl = document.getElementById('sum-finalpayable');
+  if (fpEl) fpEl.textContent = fmt(netPayable);
 
   // Advance paid / remaining balance
   const advancePaid = round2(parseFloat(document.getElementById('advance-paid')?.value) || 0);

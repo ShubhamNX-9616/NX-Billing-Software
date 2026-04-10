@@ -122,6 +122,30 @@ def init_db():
         seed_companies(conn)
         seed_salespersons(conn)
 
+        # Migrate: enable company dropdown for Stitching
+        conn.execute(
+            "UPDATE cloth_types SET has_company = 1 WHERE normalized_name = 'stitching'"
+        )
+
+        # Migrate: add Stitching garment types if missing
+        stitching_items = [
+            ("Stitching", "Pant",    "pant"),
+            ("Stitching", "Shirt",   "shirt"),
+            ("Stitching", "Suit",    "suit"),
+            ("Stitching", "Blazer",  "blazer"),
+            ("Stitching", "Kurta",   "kurta"),
+            ("Stitching", "Pyjama",  "pyjama"),
+            ("Stitching", "Jacket",  "jacket"),
+        ]
+        conn.executemany(
+            """
+            INSERT OR IGNORE INTO companies
+                (cloth_type, company_name, normalized_company_name, is_default)
+            VALUES (?, ?, ?, 1)
+            """,
+            stitching_items,
+        )
+
 
 def seed_cloth_types(conn):
     row = conn.execute("SELECT COUNT(*) as cnt FROM cloth_types").fetchone()
@@ -131,7 +155,7 @@ def seed_cloth_types(conn):
         ("Shirting",  "shirting",  1, 1),
         ("Suiting",   "suiting",   1, 1),
         ("Readymade", "readymade", 1, 1),
-        ("Stitching", "stitching", 1, 0),
+        ("Stitching", "stitching", 1, 1),
     ]
     conn.executemany(
         """
@@ -156,6 +180,13 @@ def seed_companies(conn):
         ("Suiting",   "Mayur"),
         ("Suiting",   "Augustus"),
         ("Readymade", "Shubh"),
+        ("Stitching", "Pant"),
+        ("Stitching", "Shirt"),
+        ("Stitching", "Suit"),
+        ("Stitching", "Blazer"),
+        ("Stitching", "Kurta"),
+        ("Stitching", "Pyjama"),
+        ("Stitching", "Jacket"),
     ]
 
     conn.executemany(

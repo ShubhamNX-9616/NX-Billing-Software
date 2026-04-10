@@ -156,8 +156,8 @@
   <!-- Bill summary -->
   <div class="bill-summary-box">
     <div class="bill-totals">
-      <div class="bill-totals-row divider final">
-        <span>Final Payable</span>
+      <div class="bill-totals-row divider">
+        <span>Total</span>
         <span id="sum-final">₹0.00</span>
       </div>
       <div class="bill-totals-row" style="align-items:center;">
@@ -168,6 +168,10 @@
                oninput="updateSummary()" />
       </div>
       <div id="roundoff-error" class="text-danger" style="font-size:12px;text-align:right;min-height:16px;"></div>
+      <div class="bill-totals-row divider final">
+        <span>Final Payable</span>
+        <span id="sum-finalpayable">₹0.00</span>
+      </div>
       <div class="bill-totals-row" style="margin-top:6px;align-items:center;">
         <span class="text-muted" style="font-size:13px;">Advance Paid (₹)</span>
         <input type="number" id="advance-paid" class="input"

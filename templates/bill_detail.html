@@ -126,13 +126,17 @@
     <!-- Summary (right-aligned) -->
     <div style="display:flex;justify-content:flex-end;margin-bottom:16px;">
       <div style="width:260px;">
-        <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:16px;font-weight:700;">
-          <span>Final Payable</span>
+        <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:14px;font-weight:600;">
+          <span>Total</span>
           <span id="inv-final">—</span>
         </div>
         <div style="display:flex;justify-content:space-between;padding:3px 0;font-size:13.5px;">
           <span style="color:var(--text-muted);">R/O</span>
           <span id="inv-roundoff" style="color:var(--danger);">—</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:16px;font-weight:700;">
+          <span>Final Payable</span>
+          <span id="inv-finalpayable">—</span>
         </div>
         <div id="inv-advance-row" style="display:flex;justify-content:space-between;padding:3px 0;font-size:13px;">
           <span style="color:var(--text-muted);">Advance Paid</span>
@@ -304,8 +308,9 @@
     }).join('');
 
     // Totals
-    document.getElementById('inv-final').textContent     = fmt(grossFinalTotal);
-    document.getElementById('inv-roundoff').textContent  = `−${fmt(roundOff)}`;
+    document.getElementById('inv-final').textContent        = fmt(grossFinalTotal);
+    document.getElementById('inv-roundoff').textContent     = roundOff > 0 ? `−${fmt(roundOff)}` : '—';
+    document.getElementById('inv-finalpayable').textContent = fmt(Number(bill.final_total || 0));
     document.getElementById('inv-savings').textContent   = fmt(bill.total_savings);
 
     const advancePaid = bill.advance_paid || 0;
