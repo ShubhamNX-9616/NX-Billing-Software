@@ -3,6 +3,7 @@ import re
 from datetime import datetime, timedelta
 from flask import Blueprint, jsonify, request
 from database import get_db, generate_bill_number
+from auth import login_required, admin_required, staff_or_admin_required, api_login_required, api_admin_required
 
 bills_bp = Blueprint("bills", __name__)
 
@@ -30,6 +31,7 @@ def calculate_round_off(amount):
 # GET /api/bills
 # ---------------------------------------------------------------------------
 @bills_bp.route("/bills", methods=["GET"])
+@api_admin_required
 def get_bills():
     try:
         search = request.args.get("search", "").strip()
@@ -70,6 +72,7 @@ def get_bills():
 # GET /api/bills/search
 # ---------------------------------------------------------------------------
 @bills_bp.route("/bills/search", methods=["GET"])
+@api_admin_required
 def search_bills():
     try:
         bill_number = request.args.get("billNumber", "").strip()
@@ -113,6 +116,7 @@ def search_bills():
 # GET /api/bills/<id>
 # ---------------------------------------------------------------------------
 @bills_bp.route("/bills/<int:bill_id>", methods=["GET"])
+@api_admin_required
 def get_bill(bill_id):
     try:
         db = get_db()
@@ -155,6 +159,7 @@ def get_bill(bill_id):
 # POST /api/bills
 # ---------------------------------------------------------------------------
 @bills_bp.route("/bills", methods=["POST"])
+@api_login_required
 def create_bill():
     try:
         body = request.get_json(force=True, silent=True) or {}
@@ -404,6 +409,7 @@ def create_bill():
 # PUT /api/bills/<id>
 # ---------------------------------------------------------------------------
 @bills_bp.route("/bills/<int:bill_id>", methods=["PUT"])
+@api_admin_required
 def update_bill(bill_id):
     try:
         body = request.get_json(force=True, silent=True) or {}
@@ -650,6 +656,7 @@ def update_bill(bill_id):
 # DELETE /api/bills/<id>  — hard delete + renumber higher bills
 # ---------------------------------------------------------------------------
 @bills_bp.route("/bills/<int:bill_id>", methods=["DELETE"])
+@api_admin_required
 def delete_bill(bill_id):
     try:
         db = get_db()
@@ -714,6 +721,7 @@ def delete_bill(bill_id):
 # GET /api/analytics/summary
 # ---------------------------------------------------------------------------
 @bills_bp.route("/analytics/summary", methods=["GET"])
+@api_admin_required
 def analytics_summary():
     try:
         db = get_db()
@@ -782,6 +790,7 @@ def analytics_summary():
 # GET /api/analytics?period=daily|monthly|yearly
 # ---------------------------------------------------------------------------
 @bills_bp.route("/analytics", methods=["GET"])
+@api_admin_required
 def get_analytics():
     try:
         period = request.args.get("period", "monthly")
@@ -891,6 +900,7 @@ def get_analytics():
 
 
 @bills_bp.route("/analytics/salespersons", methods=["GET"])
+@api_admin_required
 def analytics_salespersons():
     try:
         period = request.args.get("period", "monthly")

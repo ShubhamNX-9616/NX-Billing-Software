@@ -77,10 +77,10 @@ Press Enter. You should see the path change in the prompt.
 
 Type this and press Enter:
 ```
-pip install flask
+pip install -r requirements.txt
 ```
 
-Wait for it to download and finish. You'll see a message like `Successfully installed flask`.
+Wait for it to download and finish. You'll see messages like `Successfully installed flask flask-bcrypt`.
 
 > If you see `pip is not recognized`, see the Troubleshooting section below.
 
@@ -165,6 +165,80 @@ Double-click **`stop.bat`** — both the Flask server and the tunnel will stop c
 - **Do not** share the URL publicly (WhatsApp groups, social media, etc.)
 - Only share with trusted people (shop staff, family)
 - Run `stop.bat` when the app is not in use to close the tunnel
+
+---
+
+## Login & User Management
+
+### Default credentials
+
+The app creates two accounts automatically on first run:
+
+| Role  | Username | Password    |
+|-------|----------|-------------|
+| Admin | `admin`  | `Admin@1234` |
+| Staff | `staff`  | `Staff@1234` |
+
+> **Change these passwords immediately after first login.** See instructions below.
+
+---
+
+### What each role can access
+
+| Feature | Admin | Staff |
+|---------|-------|-------|
+| Dashboard (analytics, charts) | ✅ | ❌ |
+| New Bill (create bills) | ✅ | ✅ |
+| Bill History (view all bills) | ✅ | ❌ |
+| Bill Detail & Edit | ✅ | ❌ |
+| Customers list & history | ✅ | ❌ |
+| Delete bills | ✅ | ❌ |
+| User Management (`/admin/users`) | ✅ | ❌ |
+
+Staff can only access the **New Bill** page — they can create bills, search customers by mobile, and use all dropdowns. They cannot view history, analytics, or customer data.
+
+---
+
+### How to change your own password
+
+1. Log in with your account
+2. In the sidebar footer (or topbar), click **My Profile**
+3. Enter your current password and choose a new one
+4. Click **Save Password**
+
+---
+
+### How to change another user's password (admin only)
+
+1. Log in as admin
+2. Go to **Users** in the sidebar (or `http://localhost:8081/admin/users`)
+3. Find the user in the table
+4. Click **Change Password** next to their name
+
+---
+
+### How to add a new staff account (admin only)
+
+1. Log in as admin
+2. Go to **Users** in the sidebar
+3. Scroll to **Add New User**
+4. Enter username, password, confirm password, and select role
+5. Click **Add User**
+
+---
+
+### Security warnings
+
+> ⚠️ **Change default passwords immediately** — `Admin@1234` and `Staff@1234` are public knowledge.
+
+> ⚠️ **Set a strong `SECRET_KEY`** before deploying online. Generate one with:
+> ```
+> python -c "import secrets; print(secrets.token_hex(32))"
+> ```
+> Copy the output into a `.env` file (see `.env.example`) or set it as an environment variable.
+> The default key (`dev-only-change-in-production`) must **never** be used in production.
+
+> ⚠️ If you expose the app via Cloudflare Tunnel or deploy it online, the login page protects all data — but only if the default passwords have been changed and a strong `SECRET_KEY` is set.
 
 ---
 
@@ -256,7 +330,7 @@ If you want to access the app from your phone or another computer without keepin
 2. Create a free account at https://render.com
 3. Click **New → Web Service** and connect your GitHub repository
 4. Set the following:
-   - **Build command:** `pip install flask`
+   - **Build command:** `pip install -r requirements.txt`
    - **Start command:** `python app.py`
 5. Click **Deploy** and wait a few minutes
 6. Render gives you a URL like `https://shubham-nx-billing.onrender.com`

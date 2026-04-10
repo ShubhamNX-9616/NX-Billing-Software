@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Access Denied — SHUBHAM NX Billing</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      background: #f3f4f6;
+    }
+
+    .card {
+      background: #ffffff;
+      border-radius: 12px;
+      border: 1px solid #e5e7eb;
+      padding: 2.5rem 2.5rem;
+      width: 100%;
+      max-width: 380px;
+      text-align: center;
+    }
+
+    .lock-icon {
+      margin: 0 auto 1.25rem;
+      color: #d1d5db;
+    }
+
+    .heading {
+      font-size: 22px;
+      font-weight: 700;
+      color: #111827;
+      margin-bottom: 0.625rem;
+    }
+
+    .message {
+      font-size: 14px;
+      color: #6b7280;
+      line-height: 1.6;
+      margin-bottom: 1.75rem;
+    }
+
+    .btn-primary {
+      display: inline-block;
+      width: 100%;
+      min-height: 44px;
+      line-height: 44px;
+      font-size: 15px;
+      font-weight: 600;
+      color: #ffffff;
+      background: #1a56db;
+      border-radius: 6px;
+      text-decoration: none;
+      transition: background 0.15s;
+    }
+
+    .btn-primary:hover {
+      background: #1e40af;
+    }
+
+    .logout-link {
+      display: block;
+      margin-top: 1rem;
+      font-size: 13px;
+      color: #6b7280;
+      text-decoration: none;
+    }
+
+    .logout-link:hover {
+      color: #111827;
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <svg class="lock-icon" width="56" height="56" viewBox="0 0 24 24" fill="none"
+         stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+      <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+    </svg>
+
+    <div class="heading">Access Denied</div>
+    <div class="message">
+      You do not have permission to view this page.<br>
+      Please contact the admin.
+    </div>
+
+    <a href="/new-bill" class="btn-primary">Go to New Bill</a>
+    <a href="/logout" class="logout-link">Logout</a>
+  </div>
+
+</body>
+</html>

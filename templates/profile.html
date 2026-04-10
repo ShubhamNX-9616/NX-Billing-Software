@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+
+{% block title %}My Profile — SHUBHAM NX{% endblock %}
+{% block page_title %}My Profile{% endblock %}
+
+{% block content %}
+<div style="max-width: 480px;">
+
+  <!-- ===== Account Info ===== -->
+  <div class="card" style="margin-bottom: 24px;">
+    <div class="card-header">
+      <span class="card-title">Account Info</span>
+    </div>
+    <div style="padding: 16px 20px;">
+      <div class="form-group">
+        <label class="form-label">Username</label>
+        <input type="text" class="input" value="{{ current_user.username }}" readonly
+               style="background: var(--bg); color: var(--text-muted); cursor: default;" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Role</label>
+        <input type="text" class="input"
+               value="{{ 'Admin' if current_user.is_admin else 'Staff' }}" readonly
+               style="background: var(--bg); color: var(--text-muted); cursor: default;" />
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Change Password ===== -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Change Password</span>
+    </div>
+    <div style="padding: 16px 20px;">
+      <div id="pwd-error"   class="profile-msg profile-msg--error"   style="display:none;"></div>
+      <div id="pwd-success" class="profile-msg profile-msg--success" style="display:none;"></div>
+
+      <div class="form-group">
+        <label class="form-label">Current Password</label>
+        <input type="password" id="current-password" class="input"
+               placeholder="Enter current password" autocomplete="current-password" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">New Password</label>
+        <input type="password" id="new-password" class="input"
+               placeholder="Min 6 characters" autocomplete="new-password" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Confirm New Password</label>
+        <input type="password" id="confirm-password" class="input"
+               placeholder="Repeat new password" autocomplete="new-password" />
+      </div>
+
+      <button class="btn btn-primary" id="btn-save" onclick="savePassword()">
+        Save Password
+      </button>
+    </div>
+  </div>
+
+</div>
+
+<style>
+  .profile-msg {
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-size: 13px;
+    margin-bottom: 12px;
+  }
+  .profile-msg--error   { background: #fee2e2; color: #991b1b; }
+  .profile-msg--success { background: #dcfce7; color: #166534; }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  async function savePassword() {
+    const errEl     = document.getElementById('pwd-error');
+    const successEl = document.getElementById('pwd-success');
+    errEl.style.display     = 'none';
+    successEl.style.display = 'none';
+
+    const btn = document.getElementById('btn-save');
+    btn.disabled    = true;
+    btn.textContent = 'Saving…';
+
+    try {
+      const res = await fetch('/api/users/me/password', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          current_password: document.getElementById('current-password').value,
+          new_password:     document.getElementById('new-password').value,
+          confirm_password: document.getElementById('confirm-password').value,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to update password');
+
+      successEl.textContent   = 'Password updated successfully.';
+      successEl.style.display = 'block';
+      document.getElementById('current-password').value = '';
+      document.getElementById('new-password').value     = '';
+      document.getElementById('confirm-password').value = '';
+    } catch (err) {
+      errEl.textContent   = err.message;
+      errEl.style.display = 'block';
+    } finally {
+      btn.disabled    = false;
+      btn.textContent = 'Save Password';
+    }
+  }
+
+  // Allow Enter key to submit
+  ['current-password', 'new-password', 'confirm-password'].forEach(function(id) {
+    document.getElementById(id).addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') savePassword();
+    });
+  });
+</script>
+{% endblock %}

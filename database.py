@@ -94,6 +94,16 @@ def init_db():
                 payment_method TEXT NOT NULL,
                 amount         REAL NOT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS users (
+                id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                username      TEXT NOT NULL UNIQUE,
+                password_hash TEXT NOT NULL,
+                role          TEXT NOT NULL DEFAULT 'staff',
+                is_active     INTEGER NOT NULL DEFAULT 1,
+                created_at    TEXT DEFAULT (datetime('now','localtime')),
+                updated_at    TEXT DEFAULT (datetime('now','localtime'))
+            );
         """)
         # Migrate bills table: add advance_paid and remaining if missing
         try:
@@ -211,6 +221,27 @@ def seed_salespersons(conn):
         """,
         defaults,
     )
+
+
+def seed_default_users(bcrypt):
+    with get_db() as conn:
+        row = conn.execute("SELECT COUNT(*) as cnt FROM users").fetchone()
+        if row["cnt"] > 0:
+            return
+        defaults = [
+            ("admin", "Admin@1234", "admin"),
+            ("staff", "Staff@1234", "staff"),
+        ]
+        for username, plain_password, role in defaults:
+            password_hash = bcrypt.generate_password_hash(plain_password).decode("utf-8")
+            conn.execute(
+                "INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)",
+                (username, password_hash, role),
+            )
+        print("Default users created:")
+        print("  Admin  — username: admin   password: Admin@1234")
+        print("  Staff  — username: staff   password: Staff@1234")
+        print("  IMPORTANT: Change these passwords after first login!")
 
 
 def generate_bill_number(conn):

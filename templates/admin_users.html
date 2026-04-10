@@ -1,0 +1,300 @@
+{% extends "base.html" %}
+
+{% block title %}User Management — SHUBHAM NX{% endblock %}
+{% block page_title %}User Management{% endblock %}
+
+{% block content %}
+
+<!-- ===== Current Users Table ===== -->
+<div class="card" style="margin-bottom: 24px;">
+  <div class="card-header">
+    <span class="card-title">Users</span>
+  </div>
+
+  <div id="users-loading" class="loading-row">
+    <div class="spinner"></div> Loading users&hellip;
+  </div>
+
+  <div id="users-error" class="empty-state" style="display:none; color: #b91c1c;"></div>
+
+  <div id="users-table-wrap" class="table-scroll-wrapper" style="display:none;">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Username</th>
+          <th>Role</th>
+          <th>Status</th>
+          <th>Created</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="users-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ===== Add New User ===== -->
+<div class="card" style="max-width: 480px;">
+  <div class="card-header">
+    <span class="card-title">Add New User</span>
+  </div>
+  <div style="padding: 16px 20px;">
+    <div id="add-user-error"   class="form-error-box"   style="display:none; margin-bottom:12px;"></div>
+    <div id="add-user-success" class="form-success-box" style="display:none; margin-bottom:12px;"></div>
+
+    <div class="form-group">
+      <label class="form-label">Username</label>
+      <input type="text" id="new-username" class="input" placeholder="e.g. john_doe" autocomplete="off" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">Password</label>
+      <input type="password" id="new-password" class="input" placeholder="Min 6 characters" autocomplete="new-password" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">Confirm Password</label>
+      <input type="password" id="new-confirm-password" class="input" placeholder="Repeat password" autocomplete="new-password" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">Role</label>
+      <select id="new-role" class="input">
+        <option value="staff">Staff</option>
+        <option value="admin">Admin</option>
+      </select>
+    </div>
+    <button class="btn btn-primary" id="btn-add-user" onclick="addUser()">Add User</button>
+  </div>
+</div>
+
+<!-- ===== Change Password Modal ===== -->
+<div id="pwd-modal-backdrop" class="modal-backdrop" style="display:none;">
+  <div class="modal" style="max-width: 400px;">
+    <div class="modal-header">
+      <span class="modal-title">Change Password</span>
+      <button class="modal-close" onclick="closePwdModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div id="pwd-modal-error" class="form-error-box" style="display:none; margin-bottom:12px;"></div>
+      <p style="font-size:13px; color:var(--text-muted); margin-bottom:14px;">
+        Changing password for: <strong id="pwd-modal-username"></strong>
+      </p>
+      <div class="form-group">
+        <label class="form-label">New Password</label>
+        <input type="password" id="pwd-new" class="input" placeholder="Min 6 characters" autocomplete="new-password" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Confirm Password</label>
+        <input type="password" id="pwd-confirm" class="input" placeholder="Repeat password" autocomplete="new-password" />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closePwdModal()">Cancel</button>
+      <button class="btn btn-primary" id="btn-save-pwd" onclick="savePassword()">Save Password</button>
+    </div>
+  </div>
+</div>
+
+<style>
+  .form-error-box {
+    background: #fee2e2;
+    color: #991b1b;
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+  .form-success-box {
+    background: #dcfce7;
+    color: #166534;
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+  .status-badge {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 10px;
+  }
+  .status-badge--active   { background: #dcfce7; color: #166534; }
+  .status-badge--inactive { background: #f3f4f6; color: #6b7280; }
+</style>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  let pwdTargetId = null;
+
+  // ---- Load users ----
+  async function loadUsers() {
+    try {
+      const res = await fetch('/api/users');
+      if (!res.ok) throw new Error((await res.json()).error || 'Failed to load');
+      const users = await res.json();
+      renderUsers(users);
+    } catch (err) {
+      document.getElementById('users-loading').style.display = 'none';
+      const el = document.getElementById('users-error');
+      el.textContent = err.message;
+      el.style.display = 'flex';
+    }
+  }
+
+  function renderUsers(users) {
+    document.getElementById('users-loading').style.display = 'none';
+    const wrap = document.getElementById('users-table-wrap');
+    const tbody = document.getElementById('users-body');
+    tbody.innerHTML = '';
+
+    users.forEach(function(u) {
+      const isActive = u.is_active === 1;
+      const statusBadge = isActive
+        ? '<span class="status-badge status-badge--active">Active</span>'
+        : '<span class="status-badge status-badge--inactive">Inactive</span>';
+      const roleBadge = u.role === 'admin'
+        ? '<span class="role-badge role-badge--admin">Admin</span>'
+        : '<span class="role-badge role-badge--staff">Staff</span>';
+      const toggleLabel = isActive ? 'Deactivate' : 'Activate';
+      const toggleClass = isActive ? 'btn-danger-outline' : 'btn-secondary';
+      const date = u.created_at ? u.created_at.substring(0, 10) : '—';
+
+      tbody.insertAdjacentHTML('beforeend', `
+        <tr>
+          <td><strong>${escHtml(u.username)}</strong></td>
+          <td>${roleBadge}</td>
+          <td>${statusBadge}</td>
+          <td>${date}</td>
+          <td>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+              <button class="btn btn-sm btn-secondary"
+                      onclick="openPwdModal(${u.id}, '${escHtml(u.username)}')">
+                Change Password
+              </button>
+              <button class="btn btn-sm ${toggleClass}"
+                      onclick="toggleStatus(${u.id})">
+                ${toggleLabel}
+              </button>
+            </div>
+          </td>
+        </tr>
+      `);
+    });
+    wrap.style.display = 'block';
+  }
+
+  // ---- Add user ----
+  async function addUser() {
+    const errEl     = document.getElementById('add-user-error');
+    const successEl = document.getElementById('add-user-success');
+    errEl.style.display = 'none';
+    successEl.style.display = 'none';
+
+    const body = {
+      username:         document.getElementById('new-username').value,
+      password:         document.getElementById('new-password').value,
+      confirm_password: document.getElementById('new-confirm-password').value,
+      role:             document.getElementById('new-role').value,
+    };
+
+    const btn = document.getElementById('btn-add-user');
+    btn.disabled = true;
+    btn.textContent = 'Adding…';
+
+    try {
+      const res = await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to add user');
+
+      successEl.textContent = `User "${data.username}" created successfully.`;
+      successEl.style.display = 'block';
+      document.getElementById('new-username').value = '';
+      document.getElementById('new-password').value = '';
+      document.getElementById('new-confirm-password').value = '';
+      document.getElementById('new-role').value = 'staff';
+      loadUsers();
+    } catch (err) {
+      errEl.textContent = err.message;
+      errEl.style.display = 'block';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Add User';
+    }
+  }
+
+  // ---- Change password modal ----
+  function openPwdModal(userId, username) {
+    pwdTargetId = userId;
+    document.getElementById('pwd-modal-username').textContent = username;
+    document.getElementById('pwd-new').value = '';
+    document.getElementById('pwd-confirm').value = '';
+    document.getElementById('pwd-modal-error').style.display = 'none';
+    document.getElementById('pwd-modal-backdrop').style.display = 'flex';
+  }
+
+  function closePwdModal() {
+    pwdTargetId = null;
+    document.getElementById('pwd-modal-backdrop').style.display = 'none';
+  }
+
+  async function savePassword() {
+    const errEl = document.getElementById('pwd-modal-error');
+    errEl.style.display = 'none';
+    const btn = document.getElementById('btn-save-pwd');
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
+
+    try {
+      const res = await fetch(`/api/users/${pwdTargetId}/password`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          new_password:     document.getElementById('pwd-new').value,
+          confirm_password: document.getElementById('pwd-confirm').value,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to update password');
+      closePwdModal();
+    } catch (err) {
+      errEl.textContent = err.message;
+      errEl.style.display = 'block';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Save Password';
+    }
+  }
+
+  // ---- Toggle status ----
+  async function toggleStatus(userId) {
+    try {
+      const res = await fetch(`/api/users/${userId}/toggle-status`, { method: 'PUT' });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || 'Failed to update status');
+        return;
+      }
+      loadUsers();
+    } catch (err) {
+      alert(err.message);
+    }
+  }
+
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  // Close modal on backdrop click
+  document.getElementById('pwd-modal-backdrop').addEventListener('click', function(e) {
+    if (e.target === this) closePwdModal();
+  });
+
+  loadUsers();
+</script>
+{% endblock %}

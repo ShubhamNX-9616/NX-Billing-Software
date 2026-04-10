@@ -1,6 +1,7 @@
 import re
 from flask import Blueprint, jsonify, request
 from database import get_db
+from auth import login_required, admin_required, staff_or_admin_required, api_login_required, api_admin_required
 
 customers_bp = Blueprint("customers", __name__)
 
@@ -16,6 +17,7 @@ def normalize_mobile(raw):
 
 
 @customers_bp.route("/customers", methods=["GET"])
+@api_admin_required
 def get_customers():
     try:
         search = request.args.get("search", "").strip()
@@ -40,6 +42,7 @@ def get_customers():
 
 
 @customers_bp.route("/customers/search", methods=["GET"])
+@api_login_required
 def search_customer_by_mobile():
     try:
         raw = request.args.get("mobile", "").strip()
@@ -58,6 +61,7 @@ def search_customer_by_mobile():
 
 
 @customers_bp.route("/customers/<int:customer_id>", methods=["GET"])
+@api_admin_required
 def get_customer(customer_id):
     try:
         db = get_db()
@@ -72,6 +76,7 @@ def get_customer(customer_id):
 
 
 @customers_bp.route("/customers/<int:customer_id>/bills", methods=["GET"])
+@api_admin_required
 def get_customer_bills(customer_id):
     try:
         db = get_db()

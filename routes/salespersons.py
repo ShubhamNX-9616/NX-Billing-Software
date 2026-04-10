@@ -1,11 +1,13 @@
 from flask import Blueprint, jsonify, request
 
 from database import get_db
+from auth import login_required, admin_required, staff_or_admin_required, api_login_required, api_admin_required
 
 salespersons_bp = Blueprint("salespersons", __name__)
 
 
 @salespersons_bp.route("/salespersons", methods=["GET"])
+@api_login_required
 def get_salespersons():
     try:
         db = get_db()
@@ -22,6 +24,7 @@ def get_salespersons():
 
 
 @salespersons_bp.route("/salespersons", methods=["POST"])
+@api_admin_required
 def add_salesperson():
     try:
         body = request.get_json(force=True, silent=True) or {}

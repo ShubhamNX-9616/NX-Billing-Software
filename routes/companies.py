@@ -1,10 +1,12 @@
 from flask import Blueprint, jsonify, request
 from database import get_db
+from auth import login_required, admin_required, staff_or_admin_required, api_login_required, api_admin_required
 
 companies_bp = Blueprint("companies", __name__)
 
 
 @companies_bp.route("/companies", methods=["GET"])
+@api_login_required
 def get_companies():
     try:
         cloth_type = request.args.get("clothType", "").strip()
@@ -26,6 +28,7 @@ def get_companies():
 
 
 @companies_bp.route("/companies", methods=["POST"])
+@api_login_required
 def add_company():
     try:
         body = request.get_json(force=True, silent=True) or {}

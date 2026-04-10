@@ -20,15 +20,19 @@
     </div>
 
     <nav class="sidebar-nav">
-      <a href="/"
-         class="nav-link {% if request.path == '/' %}active{% endif %}">
-        <span class="nav-icon">&#9632;</span>
-        Dashboard
-      </a>
+      {# New Bill — visible to all roles #}
       <a href="/new-bill"
          class="nav-link {% if request.path == '/new-bill' %}active{% endif %}">
         <span class="nav-icon">&#43;</span>
         New Bill
+      </a>
+
+      {# Admin-only nav links #}
+      {% if current_user.is_admin %}
+      <a href="/"
+         class="nav-link {% if request.path == '/' %}active{% endif %}">
+        <span class="nav-icon">&#9632;</span>
+        Dashboard
       </a>
       <a href="/bill-history"
          class="nav-link {% if request.path.startswith('/bill') and request.path != '/new-bill' %}active{% endif %}">
@@ -40,11 +44,28 @@
         <span class="nav-icon">&#128100;</span>
         Customers
       </a>
+      <a href="/admin/users"
+         class="nav-link {% if request.path.startswith('/admin/users') %}active{% endif %}">
+        <span class="nav-icon">&#128101;</span>
+        Users
+      </a>
+      {% endif %}
     </nav>
 
     <div class="sidebar-footer">
-      Pune &mdash; 411061<br>
-      +91 98501 23566
+      {# User info + role badge #}
+      {% if current_user.username %}
+      <div class="sidebar-user">
+        <span class="sidebar-username">{{ current_user.username }}</span>
+        {% if current_user.is_admin %}
+          <span class="role-badge role-badge--admin">Admin</span>
+        {% else %}
+          <span class="role-badge role-badge--staff">Staff</span>
+        {% endif %}
+      </div>
+      <a href="/profile" class="sidebar-profile-link">My Profile</a>
+      {% endif %}
+      <a href="/logout" class="sidebar-logout">Logout</a>
     </div>
   </aside>
 
@@ -52,7 +73,33 @@
   <div class="main-content">
     <div class="topbar">
       <div class="topbar-title">{% block page_title %}{% endblock %}</div>
-      <div class="topbar-actions">{% block topbar_actions %}{% endblock %}</div>
+      <div class="topbar-actions">
+        {% block topbar_actions %}{% endblock %}
+        {% if current_user.username %}
+        {% if current_user.is_admin %}
+        <a href="/admin/users" class="topbar-gear" title="User Management" aria-label="User Management">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33
+                     1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33
+                     l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4
+                     h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0
+                     0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0
+                     1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2
+                     2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+        </a>
+        {% endif %}
+        <span class="topbar-user">
+          Hello, {{ current_user.username }}
+          &nbsp;&mdash;&nbsp;
+          <a href="/profile" class="topbar-logout">My Profile</a>
+          &nbsp;|&nbsp;
+          <a href="/logout" class="topbar-logout">Logout</a>
+        </span>
+        {% endif %}
+      </div>
     </div>
 
     <div class="page-body">
@@ -62,6 +109,17 @@
 
   <!-- ====== Mobile bottom navigation ====== -->
   <nav class="mobile-bottom-nav">
+    {# New Bill — always visible #}
+    <a href="/new-bill" class="mob-nav-item" data-page="new-bill">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <line x1="12" y1="5" x2="12" y2="19"/>
+        <line x1="5" y1="12" x2="19" y2="12"/>
+      </svg>
+      <span>New Bill</span>
+    </a>
+
+    {# Admin-only tabs #}
+    {% if current_user.is_admin %}
     <a href="/" class="mob-nav-item" data-page="dashboard">
       <svg viewBox="0 0 24 24" aria-hidden="true">
         <rect x="3" y="3" width="7" height="7" rx="1"/>
@@ -70,13 +128,6 @@
         <rect x="14" y="14" width="7" height="7" rx="1"/>
       </svg>
       <span>Dashboard</span>
-    </a>
-    <a href="/new-bill" class="mob-nav-item" data-page="new-bill">
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <line x1="12" y1="5" x2="12" y2="19"/>
-        <line x1="5" y1="12" x2="19" y2="12"/>
-      </svg>
-      <span>New Bill</span>
     </a>
     <a href="/bill-history" class="mob-nav-item" data-page="history">
       <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -93,6 +144,7 @@
       </svg>
       <span>Customers</span>
     </a>
+    {% endif %}
   </nav>
 
   <script>
