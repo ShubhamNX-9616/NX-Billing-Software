@@ -6,7 +6,7 @@
   /* ---- Page setup ---- */
   @page {
     size: A4 portrait;
-    margin: 14mm 14mm 16mm 14mm;
+    margin: 6mm 12mm 12mm 12mm;
   }
 
   /* ---- Hide everything not needed ---- */
@@ -49,11 +49,11 @@
   /* ---- Shop header ---- */
   .inv-header {
     text-align: center;
-    margin-bottom: 10px;
+    margin-bottom: 4px;
   }
 
   .inv-shop-name {
-    font-size: 20px;
+    font-size: 18px;
     font-weight: 700;
     color: #1a3a7a;
     letter-spacing: 1px;
@@ -61,35 +61,35 @@
   }
 
   .inv-shop-address {
-    font-size: 12px;
+    font-size: 11px;
     color: #000;
-    margin-top: 2px;
+    margin-top: 1px;
   }
 
   .inv-shop-phones {
-    font-size: 12px;
+    font-size: 11px;
     color: #000;
-    margin-top: 1px;
+    margin-top: 0;
   }
 
   .inv-divider {
     border: none;
     border-top: 2px solid #000;
-    margin: 8px 0;
+    margin: 4px 0;
   }
 
   .inv-divider-thin {
     border: none;
     border-top: 1px solid #aaa;
-    margin: 6px 0;
+    margin: 3px 0;
   }
 
   /* ---- Bill info + Customer info (two columns) ---- */
   .inv-meta {
     display: flex;
     justify-content: space-between;
-    margin-bottom: 10px;
-    gap: 16px;
+    margin-bottom: 4px;
+    gap: 8px;
   }
 
   .inv-meta-block {
@@ -97,24 +97,24 @@
   }
 
   .inv-meta-block h4 {
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.5px;
     color: #555;
-    margin-bottom: 4px;
+    margin-bottom: 2px;
   }
 
   .inv-meta-row {
     display: flex;
     gap: 6px;
-    font-size: 12px;
-    margin-bottom: 2px;
+    font-size: 11.5px;
+    margin-bottom: 1px;
   }
 
   .inv-meta-label {
     color: #555;
-    min-width: 80px;
+    min-width: 70px;
     flex-shrink: 0;
   }
 
@@ -127,17 +127,17 @@
   .inv-items-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 12px;
-    margin-bottom: 10px;
+    font-size: 11.5px;
+    margin-bottom: 6px;
   }
 
   .inv-items-table th {
     background: #f0f0f0;
     border: 1px solid #999;
-    padding: 5px 7px;
+    padding: 3px 5px;
     font-weight: 700;
     text-align: left;
-    font-size: 11px;
+    font-size: 10px;
     text-transform: uppercase;
   }
 
@@ -148,7 +148,7 @@
 
   .inv-items-table td {
     border: 1px solid #ccc;
-    padding: 5px 7px;
+    padding: 3px 5px;
     vertical-align: top;
   }
 
@@ -259,7 +259,7 @@
   .inv-meta {
     display: grid !important;
     grid-template-columns: 1fr 1fr !important;
-    gap: 16px !important;
+    gap: 8px !important;
   }
 
   .inv-meta-block {
@@ -282,7 +282,7 @@
   /* Items table: always full width, no horizontal scroll */
   .inv-items-table {
     width: 100% !important;
-    font-size: 11px !important;
+    font-size: 10.5px !important;
   }
 
   /* Summary block: restore right-alignment */

@@ -362,4 +362,14 @@ async function loadDashboard() {
   await loadPeriodData('monthly');
 }
 
+// ---- Export ----
+function exportSales() {
+  let url = `/api/export/bills?period=${currentPeriod}`;
+  if (currentPeriod === 'custom') {
+    ensureCustomRangeDefaults();
+    url += `&from=${encodeURIComponent(customRange.from)}&to=${encodeURIComponent(customRange.to)}`;
+  }
+  window.location.href = url;
+}
+
 document.addEventListener('DOMContentLoaded', loadDashboard);

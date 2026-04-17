@@ -20,6 +20,7 @@ app.secret_key = os.environ.get('SECRET_KEY', 'dev-only-change-in-production')
 app.config['SESSION_PERMANENT'] = False         # session cookie expires when browser closes
 app.config['SESSION_COOKIE_HTTPONLY'] = True    # JS cannot read the cookie
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # Protects against CSRF
+app.config['TEMPLATES_AUTO_RELOAD'] = True
 
 # Initialize bcrypt
 bcrypt.init_app(app)

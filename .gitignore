@@ -1,9 +1,15 @@
 cloudflared.exe
-billing.db
 .env
 __pycache__/
 *.pyc
-.env
 *.db
 *.db-shm
 *.db-wal
+.claude/
+.mcp.json
+.opencode.json
+create_shortcut.bat
+launcher.pyw
+setup.bat
+# Added by code-review-graph
+.code-review-graph/

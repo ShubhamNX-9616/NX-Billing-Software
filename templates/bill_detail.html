@@ -54,24 +54,28 @@
 
   <!-- ====== INVOICE (prints) ====== -->
   <div class="card" id="invoice-card"
-       style="max-width:760px;margin:0 auto;padding:28px 32px;">
+       style="max-width:760px;margin:0 auto;padding:16px 24px;">
 
     <!-- Shop Header -->
     <div class="inv-header">
       <div class="inv-shop-name">SHUBHAM NX</div>
       <div class="inv-shop-address">Krishna Chowk, New Sangvi, Pune &mdash; 411061</div>
       <div class="inv-shop-phones">+91 9850123566 &nbsp;|&nbsp; +91 9284630254</div>
+      <div style="font-size:12px;font-weight:600;color:var(--text);margin-top:3px;">
+        GST No: 27AAKHM5518F1Z3
+      </div>
+      <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-top:2px;letter-spacing:0.3px;">
+        COMPOSITION TAXABLE PERSON, NOT ELIGIBLE TO COLLECT TAX ON SUPPLIERS
+      </div>
     </div>
 
-    <hr class="inv-divider" style="border:none;border-top:2px solid var(--border);margin:12px 0;" />
+    <hr class="inv-divider" style="border:none;border-top:2px solid var(--border);margin:6px 0;" />
 
     <!-- Bill info + Customer info -->
-    <div class="inv-meta" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:12px;">
+    <div class="inv-meta" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:6px;">
       <div class="inv-meta-block">
-        <h4 style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;
-                   color:var(--text-muted);margin-bottom:6px;">Customer</h4>
         <div class="inv-meta-row">
-          <span class="inv-meta-label" style="color:var(--text-muted);min-width:70px;">Name</span>
+          <span class="inv-meta-label" style="color:var(--text-muted);min-width:70px;">Cust Name</span>
           <span class="inv-meta-value fw-600" id="inv-customer-name">—</span>
         </div>
         <div class="inv-meta-row">
@@ -80,8 +84,6 @@
         </div>
       </div>
       <div class="inv-meta-block" style="text-align:right;">
-        <h4 style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;
-                   color:var(--text-muted);margin-bottom:6px;">Bill Info</h4>
         <div class="inv-meta-row" style="justify-content:flex-end;">
           <span class="inv-meta-label" style="color:var(--text-muted);min-width:70px;text-align:right;">Bill No</span>
           <span class="inv-meta-value fw-700" style="margin-left:8px;color:var(--primary);"
@@ -94,27 +96,27 @@
       </div>
     </div>
 
-    <hr class="inv-divider-thin" style="border:none;border-top:1px solid var(--border);margin:8px 0 14px;" />
+    <hr class="inv-divider-thin" style="border:none;border-top:1px solid var(--border);margin:4px 0 8px;" />
 
     <!-- Items Table -->
-    <table class="inv-items-table" style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:14px;">
+    <table class="inv-items-table" style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:8px;">
       <thead>
         <tr style="background:var(--bg);">
-          <th style="padding:7px 8px;border:1px solid var(--border);font-size:11.5px;font-weight:700;
+          <th style="padding:5px 6px;border:1px solid var(--border);font-size:11px;font-weight:700;
                      text-transform:uppercase;color:var(--text-muted);">#</th>
-          <th style="padding:7px 8px;border:1px solid var(--border);font-size:11.5px;font-weight:700;
+          <th style="padding:5px 6px;border:1px solid var(--border);font-size:11px;font-weight:700;
                      text-transform:uppercase;color:var(--text-muted);">Description</th>
-          <th style="padding:7px 8px;border:1px solid var(--border);font-size:11.5px;font-weight:700;
+          <th style="padding:5px 6px;border:1px solid var(--border);font-size:11px;font-weight:700;
                      text-transform:uppercase;color:var(--text-muted);text-align:right;">Qty</th>
-          <th style="padding:7px 8px;border:1px solid var(--border);font-size:11.5px;font-weight:700;
+          <th style="padding:5px 6px;border:1px solid var(--border);font-size:11px;font-weight:700;
                      text-transform:uppercase;color:var(--text-muted);text-align:center;">Unit</th>
-          <th style="padding:7px 8px;border:1px solid var(--border);font-size:11.5px;font-weight:700;
+          <th style="padding:5px 6px;border:1px solid var(--border);font-size:11px;font-weight:700;
                      text-transform:uppercase;color:var(--text-muted);text-align:right;">MRP</th>
-          <th style="padding:7px 8px;border:1px solid var(--border);font-size:11.5px;font-weight:700;
+          <th style="padding:5px 6px;border:1px solid var(--border);font-size:11px;font-weight:700;
                      text-transform:uppercase;color:var(--text-muted);text-align:center;">Disc%</th>
-          <th style="padding:7px 8px;border:1px solid var(--border);font-size:11.5px;font-weight:700;
+          <th style="padding:5px 6px;border:1px solid var(--border);font-size:11px;font-weight:700;
                      text-transform:uppercase;color:var(--text-muted);text-align:right;">Rate/unit</th>
-          <th style="padding:7px 8px;border:1px solid var(--border);font-size:11.5px;font-weight:700;
+          <th style="padding:5px 6px;border:1px solid var(--border);font-size:11px;font-weight:700;
                      text-transform:uppercase;color:var(--text-muted);text-align:right;">Amount</th>
         </tr>
       </thead>
@@ -123,49 +125,49 @@
       </tbody>
     </table>
 
-    <!-- Summary (right-aligned) -->
-    <div style="display:flex;justify-content:flex-end;margin-bottom:16px;">
+    <!-- Summary row: Payment (left) + Totals (right) -->
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+
+      <!-- Payment Details (left) -->
+      <div>
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;
+                    color:var(--text-muted);margin-bottom:3px;">Payment</div>
+        <div id="inv-payments" style="display:flex;flex-direction:column;gap:4px;font-size:13px;">
+          <!-- injected by JS -->
+        </div>
+      </div>
+
+      <!-- Totals (right) -->
       <div style="width:260px;">
-        <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:14px;font-weight:600;">
+        <div style="display:flex;justify-content:space-between;padding:2px 0;font-size:13.5px;font-weight:600;">
           <span>Total</span>
           <span id="inv-final">—</span>
         </div>
-        <div style="display:flex;justify-content:space-between;padding:3px 0;font-size:13.5px;">
+        <div style="display:flex;justify-content:space-between;padding:2px 0;font-size:13px;">
           <span style="color:var(--text-muted);">R/O</span>
           <span id="inv-roundoff" style="color:var(--danger);">—</span>
         </div>
-        <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:16px;font-weight:700;">
+        <div style="display:flex;justify-content:space-between;padding:3px 0;font-size:15px;font-weight:700;">
           <span>Final Payable</span>
           <span id="inv-finalpayable">—</span>
         </div>
-        <div id="inv-advance-row" style="display:flex;justify-content:space-between;padding:3px 0;font-size:13px;">
+        <div id="inv-advance-row" style="display:flex;justify-content:space-between;padding:2px 0;font-size:12.5px;">
           <span style="color:var(--text-muted);">Advance Paid</span>
           <span id="inv-advance">—</span>
         </div>
-        <div style="display:flex;justify-content:space-between;padding:5px 0;font-size:14.5px;font-weight:800;color:var(--success);">
+        <div style="display:flex;justify-content:space-between;padding:3px 0;font-size:13.5px;font-weight:800;color:var(--success);">
           <span>You saved</span>
           <span id="inv-savings">—</span>
         </div>
       </div>
     </div>
 
-    <hr class="inv-divider-thin" style="border:none;border-top:1px solid var(--border);margin:4px 0 12px;" />
-
-    <!-- Payment Details -->
-    <div style="margin-bottom:20px;">
-      <div style="font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;
-                  color:var(--text-muted);margin-bottom:6px;">Payment</div>
-      <div id="inv-payments" style="display:flex;gap:16px;flex-wrap:wrap;font-size:13.5px;">
-        <!-- injected by JS -->
-      </div>
-    </div>
-
     <!-- Footer -->
-    <div style="text-align:center;padding-top:12px;border-top:1px solid var(--border);">
-      <div style="font-size:14px;font-weight:600;color:var(--text);">
+    <div style="text-align:center;padding-top:6px;border-top:1px solid var(--border);">
+      <div style="font-size:13px;font-weight:600;color:var(--text);">
         Thank you for shopping at SHUBHAM NX!
       </div>
-      <div style="font-size:11.5px;color:var(--text-muted);margin-top:4px;">
+      <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">
         This is a computer-generated bill.
       </div>
     </div>
@@ -227,6 +229,17 @@
     return `${d}/${m}/${y}`;
   }
 
+  function fmtTime(createdAt) {
+    if (!createdAt) return '';
+    const parts = createdAt.split(' ');
+    if (parts.length < 2) return '';
+    const [h, min] = parts[1].split(':');
+    const hour = parseInt(h, 10);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const h12 = hour % 12 || 12;
+    return `${h12}:${min} ${ampm}`;
+  }
+
   function paymentBadgeHTML(mode) {
     const map = { Cash:'badge-success', Card:'badge-info', UPI:'badge-warning', Combination:'badge-neutral' };
     return `<span class="badge ${map[mode] || 'badge-neutral'}">${mode}</span>`;
@@ -277,7 +290,8 @@
 
     // Header fields
     document.getElementById('inv-bill-number').textContent    = bill.bill_number;
-    document.getElementById('inv-bill-date').textContent      = fmtDate(bill.bill_date);
+    const timeStr = fmtTime(bill.created_at);
+    document.getElementById('inv-bill-date').textContent = fmtDate(bill.bill_date) + (timeStr ? ', ' + timeStr : '');
     document.getElementById('inv-customer-name').textContent  = bill.customer_name_snapshot;
     document.getElementById('inv-customer-mobile').textContent = bill.customer_mobile_snapshot;
 
@@ -294,15 +308,15 @@
       const rowBg = i % 2 === 1 ? 'background:#fafafa;' : '';
       return `
         <tr style="${rowBg}">
-          <td style="padding:7px 8px;border:1px solid var(--border);text-align:center;
+          <td style="padding:5px 6px;border:1px solid var(--border);text-align:center;
                      color:var(--text-muted);font-size:12px;">${i + 1}</td>
-          <td style="padding:7px 8px;border:1px solid var(--border);">${desc}${quality}</td>
-          <td style="padding:7px 8px;border:1px solid var(--border);text-align:right;">${Number(item.quantity).toLocaleString('en-IN')}</td>
-          <td style="padding:7px 8px;border:1px solid var(--border);text-align:center;color:var(--text-muted);">${item.unit_label}</td>
-          <td style="padding:7px 8px;border:1px solid var(--border);text-align:right;">${fmt(item.mrp)}</td>
-          <td style="padding:7px 8px;border:1px solid var(--border);text-align:center;color:var(--text-muted);">${discDisplay}</td>
-          <td style="padding:7px 8px;border:1px solid var(--border);text-align:right;color:var(--text-muted);">${item.rate_after_disc > 0 ? fmt(item.rate_after_disc) : '—'}</td>
-          <td style="padding:7px 8px;border:1px solid var(--border);text-align:right;font-weight:600;">${fmt(item.final_amount)}</td>
+          <td style="padding:5px 6px;border:1px solid var(--border);">${desc}${quality}</td>
+          <td style="padding:5px 6px;border:1px solid var(--border);text-align:right;">${Number(item.quantity).toLocaleString('en-IN')}</td>
+          <td style="padding:5px 6px;border:1px solid var(--border);text-align:center;color:var(--text-muted);">${item.unit_label}</td>
+          <td style="padding:5px 6px;border:1px solid var(--border);text-align:right;">${fmt(item.mrp)}</td>
+          <td style="padding:5px 6px;border:1px solid var(--border);text-align:center;color:var(--text-muted);">${discDisplay}</td>
+          <td style="padding:5px 6px;border:1px solid var(--border);text-align:right;color:var(--text-muted);">${item.rate_after_disc > 0 ? fmt(item.rate_after_disc) : '—'}</td>
+          <td style="padding:5px 6px;border:1px solid var(--border);text-align:right;font-weight:600;">${fmt(item.final_amount)}</td>
         </tr>
       `;
     }).join('');
@@ -322,10 +336,10 @@
     const paymentsEl = document.getElementById('inv-payments');
     if (bill.payments && bill.payments.length) {
       paymentsEl.innerHTML = bill.payments.map(p =>
-        `<span style="background:var(--bg);border:1px solid var(--border);border-radius:6px;
-                      padding:4px 12px;font-size:13px;">
+        `<div style="background:var(--bg);border:1px solid var(--border);border-radius:6px;
+                     padding:4px 12px;font-size:13px;">
            <strong>${p.payment_method}</strong>: ${fmt(p.amount)}
-         </span>`
+         </div>`
       ).join('');
     } else {
       paymentsEl.innerHTML = `<span class="text-muted">—</span>`;
