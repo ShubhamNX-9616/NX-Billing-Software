@@ -2,6 +2,7 @@ cloudflared.exe
 .env
 __pycache__/
 *.pyc
+*.pyo
 *.db
 *.db-shm
 *.db-wal
@@ -13,3 +14,11 @@ launcher.pyw
 setup.bat
 # Added by code-review-graph
 .code-review-graph/
+# Virtual environment
+venv/
+env/
+.venv/
+# Logs
+*.log
+# Windows
+Thumbs.db

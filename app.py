@@ -21,7 +21,7 @@ app.secret_key = os.environ.get('SECRET_KEY', 'dev-only-change-in-production')
 # bill links are clickable for customers on any network.
 # Example: 'https://xyz.trycloudflare.com' or 'https://shubhamnx.pythonanywhere.com'
 # Leave empty to fall back to the browser's current origin (local network only).
-SHARE_BASE_URL = os.environ.get('SHARE_BASE_URL', '').rstrip('/')
+SHARE_BASE_URL = os.environ.get('SHARE_BASE_URL', 'https://shubhamnxtailoring.pythonanywhere.com').rstrip('/')
 
 # Session cookie settings
 app.config['SESSION_PERMANENT'] = False         # session cookie expires when browser closes
