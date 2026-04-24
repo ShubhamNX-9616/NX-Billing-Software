@@ -74,6 +74,17 @@ function renderTable(bills, titleText) {
                onclick="event.stopPropagation()">Edit</a>
             <a href="/bills/${b.id}?print=1" class="btn btn-secondary btn-sm"
                target="_blank" onclick="event.stopPropagation()">&#128438; Print</a>
+            <button class="btn-share-icon"
+                    onclick="copyBillShareLink('${b.bill_number}'); event.stopPropagation();"
+                    title="Copy share link">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" stroke-width="2">
+                <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/>
+                <circle cx="18" cy="19" r="3"/>
+                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+              </svg>
+            </button>
             <button class="btn btn-danger btn-sm"
                     onclick="deleteBill(${b.id}, '${b.bill_number}'); event.stopPropagation();">
               &#128465; Delete
@@ -230,3 +241,35 @@ function showDeleteToast(msg) {
 document.getElementById('delete-modal').addEventListener('click', function (e) {
   if (e.target === this) closeDeleteModal();
 });
+
+// ----------------------------------------------------------------
+// Share link helpers
+// ----------------------------------------------------------------
+function copyToClipboard(text) {
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text).catch(() => { fallbackCopy(text); });
+  } else {
+    fallbackCopy(text);
+  }
+}
+
+function fallbackCopy(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.cssText = 'position:fixed;opacity:0;top:0;left:0;';
+  document.body.appendChild(ta);
+  ta.focus();
+  ta.select();
+  try { document.execCommand('copy'); } catch (e) { console.warn('Copy failed:', e); }
+  document.body.removeChild(ta);
+}
+
+function copyBillShareLink(billNumber) {
+  const link = window.location.origin + '/bill/share/' + billNumber;
+  copyToClipboard(link);
+  showAlert('Share link copied for ' + billNumber, 'success');
+}
+
+function showAlert(msg, type) {
+  showDeleteToast(msg);
+}

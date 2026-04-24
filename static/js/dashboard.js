@@ -33,7 +33,13 @@ function pct(part, total) {
 }
 
 // ---- Section 1: Summary Cards ----
+function removeSkeleton(id) {
+  var el = document.getElementById(id);
+  if (el) el.classList.remove('skeleton-val');
+}
+
 function renderSummary(data) {
+  ['val-total-bills', 'val-total-customers', 'val-today-sales', 'val-month-sales'].forEach(removeSkeleton);
   document.getElementById('val-total-bills').textContent      = data.total_bills ?? '—';
   document.getElementById('val-total-customers').textContent  = data.total_customers ?? '—';
   document.getElementById('val-today-sales').textContent      = fmtCurrency(data.today_sales);
@@ -156,6 +162,8 @@ function updateChart(labels, cashData, cardData, upiData, comboData) {
 
 // ---- Section 4: Payment Method Cards ----
 function renderPaymentCards(data) {
+  ['pcard-cash-amount', 'pcard-card-amount', 'pcard-upi-amount', 'pcard-combo-amount'].forEach(removeSkeleton);
+
   const totalSales = data.reduce((s, d) => s + d.total_sales, 0);
   const totalCash  = data.reduce((s, d) => s + d.cash, 0);
   const totalCard  = data.reduce((s, d) => s + d.card, 0);
@@ -248,7 +256,7 @@ async function loadPeriodData(period) {
   const salespersonWrap = document.getElementById('salesperson-table-wrap');
   const salespersonEmpty = document.getElementById('salesperson-empty');
 
-  loading.style.display = 'flex';
+  loading.style.display = 'block';
   wrap.style.display    = 'none';
   customRangeError.textContent = '';
   salespersonLoading.style.display = 'flex';

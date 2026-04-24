@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bill {{ bill.bill_number }} — SHUBHAM NX</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #f3f4f6;
+      font-family: 'Segoe UI', sans-serif;
+      font-size: 14px;
+      color: #111827;
+    }
+
+    .shared-bill-wrapper {
+      max-width: 480px;
+      margin: 0 auto;
+      padding: 16px 16px 80px;
+    }
+
+    .shared-header {
+      text-align: center;
+      padding: 20px 16px 16px;
+      background: #1a56db;
+      border-radius: 12px;
+      color: white;
+      margin-bottom: 12px;
+    }
+    .shared-shop-name {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      margin-bottom: 4px;
+    }
+    .shared-shop-address {
+      font-size: 12px;
+      opacity: 0.9;
+      margin-bottom: 2px;
+    }
+    .shared-shop-phones {
+      font-size: 12px;
+      opacity: 0.85;
+    }
+
+    .shared-card {
+      background: #ffffff;
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin-bottom: 10px;
+      border: 1px solid #e5e7eb;
+    }
+
+    .shared-bill-info-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 10px;
+    }
+
+    .shared-label {
+      font-size: 11px;
+      color: #9ca3af;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      font-weight: 500;
+    }
+    .shared-value {
+      font-size: 14px;
+      font-weight: 600;
+      color: #111827;
+    }
+
+    .shared-divider {
+      border: none;
+      border-top: 1px solid #f3f4f6;
+      margin: 10px 0;
+    }
+
+    .shared-section-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 10px;
+    }
+
+    .shared-item { padding: 4px 0; }
+    .shared-item-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 3px;
+    }
+    .shared-item-name {
+      font-size: 14px;
+      font-weight: 500;
+      color: #111827;
+    }
+    .shared-item-amount {
+      font-size: 14px;
+      font-weight: 600;
+      color: #057a55;
+    }
+    .shared-item-detail {
+      font-size: 12px;
+      color: #6b7280;
+      line-height: 1.5;
+    }
+
+    .shared-summary-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      color: #374151;
+      padding: 5px 0;
+    }
+    .shared-summary-row.discount span:last-child { color: #057a55; }
+    .shared-summary-row.total {
+      font-size: 16px;
+      font-weight: 700;
+      color: #111827;
+    }
+    .shared-summary-row.remaining span:last-child {
+      color: #e02424;
+      font-weight: 600;
+    }
+    .shared-summary-row.paid span:last-child {
+      color: #057a55;
+      font-weight: 600;
+    }
+
+    .shared-savings {
+      background: #d1fae5;
+      color: #065f46;
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-size: 13px;
+      font-weight: 500;
+      text-align: center;
+      margin-top: 8px;
+    }
+
+    .shared-footer {
+      text-align: center;
+      font-size: 13px;
+      color: #6b7280;
+      padding: 16px 0 8px;
+    }
+
+    .shared-print-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: #ffffff;
+      border-top: 1px solid #e5e7eb;
+      padding: 12px 16px;
+      text-align: center;
+    }
+    .shared-print-btn {
+      background: #1a56db;
+      color: #ffffff;
+      border: none;
+      border-radius: 8px;
+      padding: 12px 32px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      width: 100%;
+      max-width: 400px;
+    }
+
+    @media print {
+      .no-print { display: none !important; }
+      body { background: white !important; }
+      .shared-bill-wrapper { padding-bottom: 0; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="shared-bill-wrapper">
+
+  <!-- Shop Header -->
+  <div class="shared-header">
+    <div class="shared-shop-name">SHUBHAM NX</div>
+    <div class="shared-shop-address">Krishna Chowk, New Sangvi, Pune - 411061</div>
+    <div class="shared-shop-phones">+91 9850123566 &nbsp;|&nbsp; +91 9284630254</div>
+  </div>
+
+  <!-- Bill Info -->
+  <div class="shared-card">
+    <div class="shared-bill-info-row">
+      <div>
+        <div class="shared-label">Bill Number</div>
+        <div class="shared-value">{{ bill.bill_number }}</div>
+      </div>
+      <div style="text-align:right">
+        <div class="shared-label">Date</div>
+        <div class="shared-value">{{ bill.bill_date | format_date }}</div>
+      </div>
+    </div>
+    <hr class="shared-divider">
+    <div class="shared-label">Customer</div>
+    <div class="shared-value">{{ bill.customer_name_snapshot }}</div>
+    <div class="shared-label" style="margin-top:6px">Mobile</div>
+    <div class="shared-value">{{ bill.customer_mobile_snapshot }}</div>
+  </div>
+
+  <!-- Items -->
+  <div class="shared-card">
+    <div class="shared-section-title">Items</div>
+    {% for item in items %}
+    <div class="shared-item">
+      <div class="shared-item-header">
+        <span class="shared-item-name">
+          {{ item.cloth_type }}{% if item.company_name %} — {{ item.company_name }}{% endif %}
+        </span>
+        <span class="shared-item-amount">₹{{ "%.2f"|format(item.final_amount) }}</span>
+      </div>
+      {% if item.quality_number %}
+      <div class="shared-item-detail">Quality: {{ item.quality_number }}</div>
+      {% endif %}
+      <div class="shared-item-detail">
+        {{ item.quantity }} {{ item.unit_label }}
+        × ₹{{ "%.2f"|format(item.mrp) }}
+        {% if item.discount_percent > 0 %}
+          — {{ item.discount_percent }}% off
+          (Rate: ₹{{ "%.2f"|format(item.rate_after_disc) }}/{{ item.unit_label }})
+        {% endif %}
+      </div>
+    </div>
+    {% if not loop.last %}<hr class="shared-divider">{% endif %}
+    {% endfor %}
+  </div>
+
+  <!-- Summary -->
+  <div class="shared-card">
+    <div class="shared-section-title">Summary</div>
+    <div class="shared-summary-row">
+      <span>Subtotal</span>
+      <span>₹{{ "%.2f"|format(bill.subtotal) }}</span>
+    </div>
+    {% if bill.total_discount > 0 %}
+    <div class="shared-summary-row discount">
+      <span>Total Discount</span>
+      <span>− ₹{{ "%.2f"|format(bill.total_discount) }}</span>
+    </div>
+    {% endif %}
+    <hr class="shared-divider">
+    <div class="shared-summary-row total">
+      <span>Total Payable</span>
+      <span>₹{{ "%.2f"|format(bill.final_total) }}</span>
+    </div>
+    {% if bill.advance_paid > 0 %}
+    <div class="shared-summary-row">
+      <span>Advance Paid</span>
+      <span>₹{{ "%.2f"|format(bill.advance_paid) }}</span>
+    </div>
+    <div class="shared-summary-row {% if bill.remaining > 0 %}remaining{% else %}paid{% endif %}">
+      <span>{% if bill.remaining > 0 %}Balance Due{% else %}Status{% endif %}</span>
+      <span>{% if bill.remaining > 0 %}₹{{ "%.2f"|format(bill.remaining) }}{% else %}PAID IN FULL ✓{% endif %}</span>
+    </div>
+    {% endif %}
+    {% if bill.total_savings > 0 %}
+    <div class="shared-savings">
+      🎉 You saved ₹{{ "%.2f"|format(bill.total_savings) }} on this bill!
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Payment -->
+  <div class="shared-card">
+    <div class="shared-section-title">Payment</div>
+    {% for payment in payments %}
+    <div class="shared-summary-row">
+      <span>{{ payment.payment_method }}</span>
+      <span>₹{{ "%.2f"|format(payment.amount) }}</span>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Footer -->
+  <div class="shared-footer">
+    <div>Thank you for shopping at SHUBHAM NX! 🙏</div>
+    <div style="margin-top:4px; font-size:11px; color:#9ca3af">
+      This is a digital copy of your bill.
+    </div>
+  </div>
+
+  <!-- Print button (hidden in print) -->
+  <div class="shared-print-bar no-print">
+    <button onclick="window.print()" class="shared-print-btn">🖨 Print / Save as PDF</button>
+  </div>
+
+</div>
+</body>
+</html>

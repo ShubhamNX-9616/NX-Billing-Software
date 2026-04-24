@@ -383,6 +383,8 @@ def create_bill():
             "id": bill_id,
             "bill_number": bill_number,
             "customer_id": customer_id,
+            "customer_name": customer_name,
+            "customer_mobile": norm_mobile,
             "customer_name_snapshot": customer_name,
             "customer_mobile_snapshot": norm_mobile,
             "bill_date": bill_date,

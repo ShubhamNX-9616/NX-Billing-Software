@@ -9,12 +9,12 @@
   gap: 6px;
   padding: 8px 16px;
   border: 1px solid transparent;
-  border-radius: var(--radius);
+  border-radius: 10px;
   font-family: var(--font);
   font-size: 13.5px;
   font-weight: 500;
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s, opacity 0.15s;
+  transition: background 0.15s, border-color 0.15s, opacity 0.15s, box-shadow 0.15s;
   white-space: nowrap;
   text-decoration: none;
 }
@@ -28,42 +28,51 @@
   background: var(--primary);
   color: #fff;
   border-color: var(--primary);
+  box-shadow: 0 1px 3px rgba(26, 86, 219, 0.3), 0 1px 2px rgba(26, 86, 219, 0.15);
 }
 .btn-primary:hover:not(:disabled) {
   background: var(--primary-dark);
   border-color: var(--primary-dark);
+  box-shadow: 0 3px 8px rgba(26, 86, 219, 0.35);
 }
 
 .btn-secondary {
   background: var(--surface);
   color: var(--text);
   border-color: var(--border);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
 }
 .btn-secondary:hover:not(:disabled) {
   background: var(--bg);
+  box-shadow: 0 2px 5px rgba(0,0,0,0.08);
 }
 
 .btn-danger {
   background: var(--danger);
   color: #fff;
   border-color: var(--danger);
+  box-shadow: 0 1px 3px rgba(224, 36, 36, 0.25);
 }
 .btn-danger:hover:not(:disabled) {
   background: #c81e1e;
+  box-shadow: 0 3px 8px rgba(224, 36, 36, 0.3);
 }
 
 .btn-success {
   background: var(--success);
   color: #fff;
   border-color: var(--success);
+  box-shadow: 0 1px 3px rgba(5, 122, 85, 0.25);
 }
 .btn-success:hover:not(:disabled) {
   background: #046c4e;
+  box-shadow: 0 3px 8px rgba(5, 122, 85, 0.3);
 }
 
 .btn-sm {
   padding: 4px 10px;
   font-size: 12px;
+  border-radius: 8px;
 }
 
 .btn-icon {
@@ -143,7 +152,15 @@ label {
 .card-title {
   font-size: 15px;
   font-weight: 600;
+  letter-spacing: -0.01em;
 }
+
+/* ---- Card accent variants (color-coded left border) ---- */
+.card-accent-blue   { border-left: 4px solid var(--primary); }
+.card-accent-green  { border-left: 4px solid var(--success); }
+.card-accent-purple { border-left: 4px solid #7c3aed; }
+.card-accent-amber  { border-left: 4px solid var(--warning); }
+.card-accent-teal   { border-left: 4px solid #0891b2; }
 
 /* ---- Table ---- */
 .table {
@@ -153,7 +170,7 @@ label {
 }
 
 .table th {
-  background: var(--bg);
+  background: #f1f5f9;
   color: var(--text-muted);
   font-weight: 600;
   font-size: 12px;
@@ -162,6 +179,9 @@ label {
   padding: 10px 12px;
   text-align: left;
   border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 2;
 }
 
 .table td {
@@ -175,7 +195,7 @@ label {
 }
 
 .table tbody tr:hover {
-  background: #f8fafc;
+  background: rgba(26, 86, 219, 0.04);
 }
 
 .table-striped tbody tr:nth-child(even) {
@@ -420,4 +440,94 @@ label {
     font-size: 13px !important;
     line-height: 1.6 !important;
   }
+}
+
+/* ---- WhatsApp & Share buttons (post-save actions) ---- */
+.btn-whatsapp {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #25d366;
+  color: #ffffff;
+  text-decoration: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+  min-height: 44px;
+  transition: background 0.15s;
+}
+.btn-whatsapp:hover {
+  background: #1ebe57;
+  color: #ffffff;
+}
+
+.btn-share-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #ffffff;
+  color: #1a56db;
+  border: 1.5px solid #1a56db;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  min-height: 44px;
+  transition: background 0.15s;
+}
+.btn-share-link:hover {
+  background: #eff6ff;
+}
+
+#link-copied-msg {
+  font-size: 13px;
+  color: #057a55;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 0;
+}
+
+#post-save-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #e5e7eb;
+}
+
+@media (max-width: 768px) {
+  #post-save-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .btn-whatsapp,
+  .btn-share-link {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* ---- Share icon button (bill history table) ---- */
+.btn-share-icon {
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  border-radius: 5px;
+  padding: 4px 7px;
+  cursor: pointer;
+  color: #6b7280;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.btn-share-icon:hover {
+  background: #eff6ff;
+  color: #1a56db;
+  border-color: #bfdbfe;
 }

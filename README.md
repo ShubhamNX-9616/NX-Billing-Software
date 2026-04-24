@@ -262,6 +262,37 @@ Staff can only access the **New Bill** page — they can create bills, search cu
 
 ---
 
+## Customer Bill Sharing
+
+After saving a bill, two sharing options appear instantly below the success message:
+
+### WhatsApp Button
+- Click **Send on WhatsApp** to open WhatsApp (web on desktop, app on phone)
+- A pre-filled thank-you message is ready to send — includes the customer's name, bill number, date, total amount, advance paid, balance due, and shop details
+- The customer's number is auto-filled — just tap Send
+
+### Copy Share Link
+- Click **Copy Share Link** to copy a direct URL for the bill
+- Send this link via any app — WhatsApp, SMS, email, etc.
+- The customer taps the link to view a clean digital copy of their bill — **no login required**
+- The shared bill page shows all items, discounts, payment summary, and a print button
+
+### Where share options appear
+| Location | WhatsApp | Copy Link |
+|----------|----------|-----------|
+| After saving a new bill | ✅ | ✅ |
+| Bill Detail page (topbar + action bar) | ✅ | ✅ |
+| Bill History table (per row) | — | ✅ (icon button) |
+
+### Share link format
+```
+https://your-domain/bill/share/SHN-0042
+```
+- Works on any device, any browser, without login
+- If a bill is deleted, the link shows a "Bill Not Found" page — never crashes
+
+---
+
 ## Stopping the app
 
 1. Go back to the Command Prompt window where the app is running

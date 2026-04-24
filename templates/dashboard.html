@@ -11,22 +11,22 @@
 
 <!-- Section 1: Summary Cards -->
 <div class="summary-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px;">
-  <div class="card">
-    <div class="text-muted" style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;">Total Bills</div>
-    <div style="font-size:28px;font-weight:700;" id="val-total-bills">—</div>
+  <div class="card card-accent-blue">
+    <div class="text-muted" style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;">&#128196; Total Bills</div>
+    <div style="font-size:28px;font-weight:700;color:var(--primary);" id="val-total-bills" class="skeleton-val">—</div>
   </div>
-  <div class="card">
-    <div class="text-muted" style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;">Total Customers</div>
-    <div style="font-size:28px;font-weight:700;" id="val-total-customers">—</div>
+  <div class="card card-accent-teal">
+    <div class="text-muted" style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;">&#128100; Total Customers</div>
+    <div style="font-size:28px;font-weight:700;color:#0891b2;" id="val-total-customers" class="skeleton-val">—</div>
   </div>
-  <div class="card">
-    <div class="text-muted" style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;">Today's Sales</div>
-    <div style="font-size:22px;font-weight:700;" id="val-today-sales">—</div>
+  <div class="card card-accent-green">
+    <div class="text-muted" style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;">&#9200; Today's Sales</div>
+    <div style="font-size:22px;font-weight:700;color:var(--success);" id="val-today-sales" class="skeleton-val">—</div>
     <div style="font-size:12px;color:var(--text-muted);margin-top:3px;" id="val-today-bills-count"></div>
   </div>
-  <div class="card">
-    <div class="text-muted" style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;">This Month's Sales</div>
-    <div style="font-size:22px;font-weight:700;" id="val-month-sales">—</div>
+  <div class="card card-accent-amber">
+    <div class="text-muted" style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;">&#128197; This Month's Sales</div>
+    <div style="font-size:22px;font-weight:700;color:var(--warning);" id="val-month-sales" class="skeleton-val">—</div>
   </div>
 </div>
 
@@ -58,9 +58,22 @@
     <div id="custom-range-error" style="margin-top:8px;font-size:12px;color:#b91c1c;"></div>
   </div>
 
-  <!-- Chart loading -->
-  <div id="chart-loading" style="display:none;align-items:center;justify-content:center;height:300px;">
-    <div class="spinner spinner-lg"></div>
+  <!-- Chart skeleton -->
+  <div id="chart-loading" style="display:none;height:300px;overflow:hidden;">
+    <div class="skeleton-bar-wrap">
+      <div class="skeleton-bar" style="height:38%"></div>
+      <div class="skeleton-bar" style="height:56%"></div>
+      <div class="skeleton-bar" style="height:43%"></div>
+      <div class="skeleton-bar" style="height:72%"></div>
+      <div class="skeleton-bar" style="height:49%"></div>
+      <div class="skeleton-bar" style="height:62%"></div>
+      <div class="skeleton-bar" style="height:35%"></div>
+      <div class="skeleton-bar" style="height:78%"></div>
+      <div class="skeleton-bar" style="height:53%"></div>
+      <div class="skeleton-bar" style="height:46%"></div>
+      <div class="skeleton-bar" style="height:68%"></div>
+      <div class="skeleton-bar" style="height:59%"></div>
+    </div>
   </div>
 
   <!-- Chart canvas -->
@@ -71,36 +84,36 @@
 
 <!-- Section 4: Payment Method Cards -->
 <div class="summary-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px;">
-  <div class="card">
+  <div class="card card-accent-green">
     <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
       <span style="width:10px;height:10px;border-radius:50%;background:#10b981;flex-shrink:0;"></span>
       <span class="text-muted" style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;">Cash Sales</span>
     </div>
-    <div style="font-size:20px;font-weight:700;color:#10b981;" id="pcard-cash-amount">—</div>
+    <div style="font-size:20px;font-weight:700;color:#10b981;" id="pcard-cash-amount" class="skeleton-val">—</div>
     <div style="font-size:12px;color:var(--text-muted);margin-top:3px;" id="pcard-cash-pct"></div>
   </div>
-  <div class="card">
+  <div class="card card-accent-blue">
     <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
       <span style="width:10px;height:10px;border-radius:50%;background:#3b82f6;flex-shrink:0;"></span>
       <span class="text-muted" style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;">Card Sales</span>
     </div>
-    <div style="font-size:20px;font-weight:700;color:#3b82f6;" id="pcard-card-amount">—</div>
+    <div style="font-size:20px;font-weight:700;color:#3b82f6;" id="pcard-card-amount" class="skeleton-val">—</div>
     <div style="font-size:12px;color:var(--text-muted);margin-top:3px;" id="pcard-card-pct"></div>
   </div>
-  <div class="card">
+  <div class="card card-accent-purple">
     <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
       <span style="width:10px;height:10px;border-radius:50%;background:#8b5cf6;flex-shrink:0;"></span>
       <span class="text-muted" style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;">UPI Sales</span>
     </div>
-    <div style="font-size:20px;font-weight:700;color:#8b5cf6;" id="pcard-upi-amount">—</div>
+    <div style="font-size:20px;font-weight:700;color:#8b5cf6;" id="pcard-upi-amount" class="skeleton-val">—</div>
     <div style="font-size:12px;color:var(--text-muted);margin-top:3px;" id="pcard-upi-pct"></div>
   </div>
-  <div class="card">
+  <div class="card card-accent-amber">
     <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
       <span style="width:10px;height:10px;border-radius:50%;background:#f59e0b;flex-shrink:0;"></span>
       <span class="text-muted" style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;">Combination</span>
     </div>
-    <div style="font-size:20px;font-weight:700;color:#f59e0b;" id="pcard-combo-amount">—</div>
+    <div style="font-size:20px;font-weight:700;color:#f59e0b;" id="pcard-combo-amount" class="skeleton-val">—</div>
     <div style="font-size:12px;color:var(--text-muted);margin-top:3px;" id="pcard-combo-pct"></div>
   </div>
 </div>
@@ -111,8 +124,24 @@
     <span class="card-title">Sales By Sales Person</span>
     <span id="salesperson-period-label" class="text-muted" style="font-size:12px;"></span>
   </div>
-  <div id="salesperson-loading" class="loading-row" style="display:none;">
-    <div class="spinner"></div> Loading sales data...
+  <div id="salesperson-loading" style="display:none;">
+    <table class="table" style="width:100%;"><tbody>
+      <tr class="skeleton-row">
+        <td><div class="skeleton-line" style="width:130px;"></div></td>
+        <td class="text-right"><div class="skeleton-line" style="width:28px;margin-left:auto;"></div></td>
+        <td class="text-right"><div class="skeleton-line" style="width:75px;margin-left:auto;"></div></td>
+      </tr>
+      <tr class="skeleton-row">
+        <td><div class="skeleton-line" style="width:100px;"></div></td>
+        <td class="text-right"><div class="skeleton-line" style="width:28px;margin-left:auto;"></div></td>
+        <td class="text-right"><div class="skeleton-line" style="width:82px;margin-left:auto;"></div></td>
+      </tr>
+      <tr class="skeleton-row">
+        <td><div class="skeleton-line" style="width:115px;"></div></td>
+        <td class="text-right"><div class="skeleton-line" style="width:28px;margin-left:auto;"></div></td>
+        <td class="text-right"><div class="skeleton-line" style="width:68px;margin-left:auto;"></div></td>
+      </tr>
+    </tbody></table>
   </div>
   <div id="salesperson-empty" class="empty-state" style="display:none;">
     <div class="empty-state-icon">&#128100;</div>
@@ -139,8 +168,49 @@
     <a href="/bill-history" class="btn btn-secondary btn-sm">View All</a>
   </div>
 
-  <div id="recent-bills-loading" class="loading-row">
-    <div class="spinner"></div> Loading bills…
+  <div id="recent-bills-loading">
+    <table class="table" style="width:100%;"><tbody>
+      <tr class="skeleton-row">
+        <td><div class="skeleton-line" style="width:72px;"></div></td>
+        <td><div class="skeleton-line" style="width:140px;"></div></td>
+        <td class="col-date"><div class="skeleton-line" style="width:80px;"></div></td>
+        <td class="text-right"><div class="skeleton-line" style="width:70px;margin-left:auto;"></div></td>
+        <td class="col-payment"><div class="skeleton-line" style="width:48px;height:18px;border-radius:999px;"></div></td>
+        <td><div class="skeleton-line" style="width:44px;height:26px;border-radius:8px;"></div></td>
+      </tr>
+      <tr class="skeleton-row">
+        <td><div class="skeleton-line" style="width:72px;"></div></td>
+        <td><div class="skeleton-line" style="width:110px;"></div></td>
+        <td class="col-date"><div class="skeleton-line" style="width:80px;"></div></td>
+        <td class="text-right"><div class="skeleton-line" style="width:80px;margin-left:auto;"></div></td>
+        <td class="col-payment"><div class="skeleton-line" style="width:36px;height:18px;border-radius:999px;"></div></td>
+        <td><div class="skeleton-line" style="width:44px;height:26px;border-radius:8px;"></div></td>
+      </tr>
+      <tr class="skeleton-row">
+        <td><div class="skeleton-line" style="width:72px;"></div></td>
+        <td><div class="skeleton-line" style="width:125px;"></div></td>
+        <td class="col-date"><div class="skeleton-line" style="width:80px;"></div></td>
+        <td class="text-right"><div class="skeleton-line" style="width:60px;margin-left:auto;"></div></td>
+        <td class="col-payment"><div class="skeleton-line" style="width:42px;height:18px;border-radius:999px;"></div></td>
+        <td><div class="skeleton-line" style="width:44px;height:26px;border-radius:8px;"></div></td>
+      </tr>
+      <tr class="skeleton-row">
+        <td><div class="skeleton-line" style="width:72px;"></div></td>
+        <td><div class="skeleton-line" style="width:95px;"></div></td>
+        <td class="col-date"><div class="skeleton-line" style="width:80px;"></div></td>
+        <td class="text-right"><div class="skeleton-line" style="width:74px;margin-left:auto;"></div></td>
+        <td class="col-payment"><div class="skeleton-line" style="width:50px;height:18px;border-radius:999px;"></div></td>
+        <td><div class="skeleton-line" style="width:44px;height:26px;border-radius:8px;"></div></td>
+      </tr>
+      <tr class="skeleton-row">
+        <td><div class="skeleton-line" style="width:72px;"></div></td>
+        <td><div class="skeleton-line" style="width:118px;"></div></td>
+        <td class="col-date"><div class="skeleton-line" style="width:80px;"></div></td>
+        <td class="text-right"><div class="skeleton-line" style="width:65px;margin-left:auto;"></div></td>
+        <td class="col-payment"><div class="skeleton-line" style="width:44px;height:18px;border-radius:999px;"></div></td>
+        <td><div class="skeleton-line" style="width:44px;height:26px;border-radius:8px;"></div></td>
+      </tr>
+    </tbody></table>
   </div>
 
   <div id="recent-bills-empty" class="empty-state" style="display:none;">
