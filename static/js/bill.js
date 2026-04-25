@@ -275,7 +275,7 @@ async function onClothChangeRestoring(id, clothType, selectedCompany) {
 
   unitEl.textContent = unit;
   if (qtyEl) { qtyEl.step = getQtyStep(unit); qtyEl.min = getQtyMin(unit); }
-  if (sel) sel.dataset.prev = clothType;
+  if (sel) { sel.value = clothType; sel.dataset.prev = clothType; }
   if (compWrap) compWrap.style.display = hasCo ? '' : 'none';
 
   const mrpHintEl    = document.getElementById(`mrp-label-${id}`);
@@ -1114,14 +1114,16 @@ async function prefillEditForm() {
 
 async function setItemRowValues(id, item) {
   // Set numeric inputs first so recalcRow (called inside onClothChangeRestoring) reads them
-  const qtyEl  = document.getElementById(`qty-${id}`);
-  const mrpEl  = document.getElementById(`mrp-${id}`);
-  const discEl = document.getElementById(`disc-${id}`);
-  const qualEl = document.getElementById(`quality-${id}`);
-  if (qtyEl)  qtyEl.value  = item.quantity;
-  if (mrpEl)  mrpEl.value  = item.mrp;
-  if (discEl) discEl.value = item.discount_percent || 0;
-  if (qualEl) qualEl.value = item.quality_number || '';
+  const qtyEl     = document.getElementById(`qty-${id}`);
+  const mrpEl     = document.getElementById(`mrp-${id}`);
+  const discEl    = document.getElementById(`disc-${id}`);
+  const discAmtEl = document.getElementById(`discamt-${id}`);
+  const qualEl    = document.getElementById(`quality-${id}`);
+  if (qtyEl)     qtyEl.value     = item.quantity;
+  if (mrpEl)     mrpEl.value     = item.mrp;
+  if (discEl)    discEl.value    = item.discount_percent || 0;
+  if (discAmtEl) discAmtEl.value = '';
+  if (qualEl)    qualEl.value    = item.quality_number || '';
   // Set cloth type and company (also calls recalcRow internally)
   await onClothChangeRestoring(id, item.cloth_type, item.company_name || '');
 }
