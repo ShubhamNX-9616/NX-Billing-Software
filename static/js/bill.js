@@ -550,7 +550,7 @@ function recalcRow(id) {
   }
   discPerUnit = round2(Math.min(discPerUnit, mrp));  // cap at MRP
 
-  const effectiveDiscPct = mrp > 0 ? round2(discPerUnit / mrp * 100) : 0;
+  const effectiveDiscPct = mrp > 0 ? discPerUnit / mrp * 100 : 0;
   const rateAfterDisc    = round2(mrp - discPerUnit);
   const finalAmt         = round2(rateAfterDisc * qty);
   const lineTotal        = round2(mrp * qty);
