@@ -1,12 +1,17 @@
 import io
 import math
 import re
+from decimal import Decimal, ROUND_HALF_UP
 from datetime import datetime, timedelta
 from flask import Blueprint, jsonify, request, send_file
 from database import get_db, generate_bill_number
 from auth import login_required, admin_required, staff_or_admin_required, api_login_required, api_admin_required
 
 bills_bp = Blueprint("bills", __name__)
+
+def r2(n):
+    """Round to 2 dp using round-half-up, matching JavaScript's Math.round behaviour."""
+    return float(Decimal(str(n)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP))
 
 VALID_PAYMENT_MODES = {"Cash", "Card", "UPI", "Combination"}
 VALID_PAYMENT_METHODS = {"Cash", "Card", "UPI"}
@@ -246,11 +251,11 @@ def create_bill():
             if not (0 <= discount_percent <= 100):
                 return jsonify({"error": f"{prefix}: discount_percent must be 0–100"}), 400
 
-            disc_per_unit   = round(mrp * discount_percent / 100, 2)
-            rate_after_disc = round(mrp - disc_per_unit, 2)
-            final_amount    = round(rate_after_disc * quantity, 2)
-            line_total      = round(mrp * quantity, 2)
-            discount_amount = round(line_total - final_amount, 2)
+            disc_per_unit   = r2(mrp * discount_percent / 100)
+            rate_after_disc = r2(mrp - disc_per_unit)
+            final_amount    = r2(rate_after_disc * quantity)
+            line_total      = r2(mrp * quantity)
+            discount_amount = r2(line_total - final_amount)
 
             calculated_items.append({
                 "cloth_type": cloth_type,
@@ -266,9 +271,9 @@ def create_bill():
                 "final_amount": final_amount,
             })
 
-        subtotal = round(sum(i["line_total"] for i in calculated_items), 2)
-        total_discount = round(sum(i["discount_amount"] for i in calculated_items), 2)
-        gross_final_total = round(sum(i["final_amount"] for i in calculated_items), 2)
+        subtotal = r2(sum(i["line_total"] for i in calculated_items))
+        total_discount = r2(sum(i["discount_amount"] for i in calculated_items))
+        gross_final_total = r2(sum(i["final_amount"] for i in calculated_items))
 
         try:
             round_off = round(float(body.get("round_off", 0) or 0), 2)
@@ -278,8 +283,8 @@ def create_bill():
             return jsonify({"error": "round_off cannot be negative"}), 400
         if round_off > gross_final_total:
             return jsonify({"error": "round_off cannot exceed bill total"}), 400
-        final_total   = round(gross_final_total - round_off, 2)
-        total_savings = round(total_discount + round_off, 2)
+        final_total   = r2(gross_final_total - round_off)
+        total_savings = r2(total_discount + round_off)
 
         # 6. Validate payments sum == final_total
         if not payments or not isinstance(payments, list):
@@ -293,7 +298,7 @@ def create_bill():
             except (KeyError, TypeError, ValueError):
                 return jsonify({"error": "payment amount must be a number"}), 400
 
-        payments_sum = round(sum(float(p["amount"]) for p in payments), 2)
+        payments_sum = r2(sum(float(p["amount"]) for p in payments))
         if abs(payments_sum - final_total) > 0.01:
             return jsonify({
                 "error": f"Payments sum ({payments_sum}) does not match final_total ({final_total})"
@@ -499,11 +504,11 @@ def update_bill(bill_id):
             if not (0 <= discount_percent <= 100):
                 return jsonify({"error": f"{prefix}: discount_percent must be 0–100"}), 400
 
-            disc_per_unit   = round(mrp * discount_percent / 100, 2)
-            rate_after_disc = round(mrp - disc_per_unit, 2)
-            final_amount    = round(rate_after_disc * quantity, 2)
-            line_total      = round(mrp * quantity, 2)
-            discount_amount = round(line_total - final_amount, 2)
+            disc_per_unit   = r2(mrp * discount_percent / 100)
+            rate_after_disc = r2(mrp - disc_per_unit)
+            final_amount    = r2(rate_after_disc * quantity)
+            line_total      = r2(mrp * quantity)
+            discount_amount = r2(line_total - final_amount)
 
             calculated_items.append({
                 "cloth_type": cloth_type, "company_name": company_name,
@@ -513,9 +518,9 @@ def update_bill(bill_id):
                 "rate_after_disc": rate_after_disc, "final_amount": final_amount,
             })
 
-        subtotal       = round(sum(i["line_total"]      for i in calculated_items), 2)
-        total_discount = round(sum(i["discount_amount"] for i in calculated_items), 2)
-        gross_final_total = round(sum(i["final_amount"] for i in calculated_items), 2)
+        subtotal       = r2(sum(i["line_total"]      for i in calculated_items))
+        total_discount = r2(sum(i["discount_amount"] for i in calculated_items))
+        gross_final_total = r2(sum(i["final_amount"] for i in calculated_items))
 
         try:
             round_off = round(float(body.get("round_off", 0) or 0), 2)
@@ -525,8 +530,8 @@ def update_bill(bill_id):
             return jsonify({"error": "round_off cannot be negative"}), 400
         if round_off > gross_final_total:
             return jsonify({"error": "round_off cannot exceed bill total"}), 400
-        final_total   = round(gross_final_total - round_off, 2)
-        total_savings = round(total_discount + round_off, 2)
+        final_total   = r2(gross_final_total - round_off)
+        total_savings = r2(total_discount + round_off)
 
         # 3. Validate payments sum == final_total
         if not payments or not isinstance(payments, list):
@@ -540,7 +545,7 @@ def update_bill(bill_id):
             except (KeyError, TypeError, ValueError):
                 return jsonify({"error": "payment amount must be a number"}), 400
 
-        payments_sum = round(sum(float(p["amount"]) for p in payments), 2)
+        payments_sum = r2(sum(float(p["amount"]) for p in payments))
         if abs(payments_sum - final_total) > 0.01:
             return jsonify({
                 "error": f"Payments sum ({payments_sum}) does not match final_total ({final_total})"

@@ -18,6 +18,7 @@ let clothTypes       = [];        // [{ id, type_name, has_company }, ...]
 let activeItemIds    = [];        // ordered list of live item IDs
 const itemDataStore  = {};        // { id: { lineTotal, discPerUnit, rateAfterDisc, discAmt, finalAmt } }
 let lastIsMobile     = window.innerWidth <= 768;
+let advancePaidUserModified = false;
 
 const companyCache = {};          // { clothType: [company, ...] }
 
@@ -631,7 +632,9 @@ function updateSummary() {
   const fpEl = document.getElementById('sum-finalpayable');
   if (fpEl) fpEl.textContent = fmt(netPayable);
 
-  // Advance paid / remaining balance
+  // Advance paid / remaining balance — auto-fill with total unless user has changed it
+  const advEl2 = document.getElementById('advance-paid');
+  if (advEl2 && !advancePaidUserModified) advEl2.value = netPayable.toFixed(2);
   const advancePaid = round2(parseFloat(document.getElementById('advance-paid')?.value) || 0);
   const advErrEl    = document.getElementById('advance-error');
 
@@ -1097,6 +1100,7 @@ async function prefillEditForm() {
     // Advance paid
     const advEl = document.getElementById('advance-paid');
     if (advEl) advEl.value = (bill.advance_paid || 0).toFixed(2);
+    advancePaidUserModified = true;
 
     // Update save button label
     const saveBtn = document.getElementById('btn-save');

@@ -5,8 +5,8 @@
 @media print {
   /* ---- Page setup ---- */
   @page {
-    size: A4 portrait;
-    margin: 6mm 12mm 12mm 12mm;
+    size: A5 portrait;
+    margin: 5mm 8mm 8mm 8mm;
   }
 
   /* ---- Hide everything not needed ---- */
@@ -25,7 +25,7 @@
   body {
     background: #fff;
     color: #000;
-    font-size: 12px;
+    font-size: 10px;
     font-family: 'Segoe UI', Arial, sans-serif;
     margin: 0;
     padding: 0;
@@ -49,11 +49,11 @@
   /* ---- Shop header ---- */
   .inv-header {
     text-align: center;
-    margin-bottom: 4px;
+    margin-bottom: 2px;
   }
 
   .inv-shop-name {
-    font-size: 18px;
+    font-size: 15px;
     font-weight: 700;
     color: #1a3a7a;
     letter-spacing: 1px;
@@ -61,13 +61,13 @@
   }
 
   .inv-shop-address {
-    font-size: 11px;
+    font-size: 9.5px;
     color: #000;
     margin-top: 1px;
   }
 
   .inv-shop-phones {
-    font-size: 11px;
+    font-size: 9.5px;
     color: #000;
     margin-top: 0;
   }
@@ -75,20 +75,20 @@
   .inv-divider {
     border: none;
     border-top: 2px solid #000;
-    margin: 4px 0;
+    margin: 2px 0;
   }
 
   .inv-divider-thin {
     border: none;
     border-top: 1px solid #aaa;
-    margin: 3px 0;
+    margin: 2px 0;
   }
 
   /* ---- Bill info + Customer info (two columns) ---- */
   .inv-meta {
     display: flex;
     justify-content: space-between;
-    margin-bottom: 4px;
+    margin-bottom: 2px;
     gap: 8px;
   }
 
@@ -97,24 +97,24 @@
   }
 
   .inv-meta-block h4 {
-    font-size: 10px;
+    font-size: 8.5px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.5px;
     color: #555;
-    margin-bottom: 2px;
+    margin-bottom: 1px;
   }
 
   .inv-meta-row {
     display: flex;
-    gap: 6px;
-    font-size: 11.5px;
+    gap: 4px;
+    font-size: 10px;
     margin-bottom: 1px;
   }
 
   .inv-meta-label {
     color: #555;
-    min-width: 70px;
+    min-width: 60px;
     flex-shrink: 0;
   }
 
@@ -127,18 +127,17 @@
   .inv-items-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 11.5px;
-    margin-bottom: 6px;
+    font-size: 14px;
+    margin-bottom: 4px;
   }
 
   .inv-items-table th {
     background: #f0f0f0;
     border: 1px solid #999;
-    padding: 3px 5px;
+    padding: 2px 4px;
     font-weight: 700;
     text-align: left;
-    font-size: 10px;
-    text-transform: uppercase;
+    font-size: 11px;
   }
 
   .inv-items-table th.text-right,
@@ -148,7 +147,7 @@
 
   .inv-items-table td {
     border: 1px solid #ccc;
-    padding: 3px 5px;
+    padding: 2px 4px;
     vertical-align: top;
   }
 
@@ -160,26 +159,26 @@
   .inv-summary {
     display: flex;
     justify-content: flex-end;
-    margin-bottom: 10px;
+    margin-bottom: 6px;
   }
 
   .inv-totals {
-    width: 240px;
-    font-size: 12px;
+    width: 200px;
+    font-size: 10px;
   }
 
   .inv-total-row {
     display: flex;
     justify-content: space-between;
-    padding: 2px 0;
+    padding: 1px 0;
   }
 
   .inv-total-row.final {
     font-weight: 700;
-    font-size: 13px;
+    font-size: 11px;
     border-top: 1px solid #000;
-    padding-top: 4px;
-    margin-top: 4px;
+    padding-top: 3px;
+    margin-top: 3px;
   }
 
   .inv-total-row.savings {
@@ -188,27 +187,27 @@
 
   /* ---- Payment details ---- */
   .inv-payments {
-    font-size: 12px;
-    margin-bottom: 10px;
+    font-size: 10px;
+    margin-bottom: 6px;
   }
 
   .inv-payments h4 {
-    font-size: 11px;
+    font-size: 9px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.5px;
     color: #555;
-    margin-bottom: 4px;
+    margin-bottom: 2px;
   }
 
   .inv-payment-row {
     display: flex;
-    gap: 8px;
-    margin-bottom: 2px;
+    gap: 6px;
+    margin-bottom: 1px;
   }
 
   .inv-payment-method {
-    min-width: 60px;
+    min-width: 50px;
     color: #555;
   }
 
@@ -219,16 +218,16 @@
   /* ---- Footer ---- */
   .inv-footer {
     text-align: center;
-    margin-top: 16px;
-    padding-top: 8px;
+    margin-top: 8px;
+    padding-top: 5px;
     border-top: 1px solid #aaa;
-    font-size: 12px;
+    font-size: 10px;
     color: #333;
   }
 
   .inv-footer-main {
     font-weight: 600;
-    font-size: 13px;
+    font-size: 11px;
   }
 
   /* Force page breaks if needed */
@@ -282,7 +281,7 @@
   /* Items table: always full width, no horizontal scroll */
   .inv-items-table {
     width: 100% !important;
-    font-size: 10.5px !important;
+    font-size: 14px !important;
   }
 
   /* Summary block: restore right-alignment */

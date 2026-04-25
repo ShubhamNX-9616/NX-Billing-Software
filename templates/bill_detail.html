@@ -108,7 +108,7 @@
         GST No: 27AAKHM5518F1Z3
       </div>
       <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-top:2px;letter-spacing:0.3px;">
-        COMPOSITION TAXABLE PERSON, NOT ELIGIBLE TO COLLECT TAX ON SUPPLIERS
+        COMPOSITION TAXABLE PERSON, NOT ELIGIBLE TO COLLECT TAX ON SUPPLIES
       </div>
     </div>
 
@@ -142,25 +142,23 @@
     <hr class="inv-divider-thin" style="border:none;border-top:1px solid var(--border);margin:4px 0 8px;" />
 
     <!-- Items Table -->
-    <table class="inv-items-table" style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:8px;">
+    <table class="inv-items-table" style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:8px;table-layout:auto;">
       <thead>
         <tr style="background:var(--bg);">
-          <th style="padding:5px 6px;border:1px solid var(--border);font-size:11px;font-weight:700;
-                     text-transform:uppercase;color:var(--text-muted);">#</th>
-          <th style="padding:5px 6px;border:1px solid var(--border);font-size:11px;font-weight:700;
-                     text-transform:uppercase;color:var(--text-muted);">Description</th>
-          <th style="padding:5px 6px;border:1px solid var(--border);font-size:11px;font-weight:700;
-                     text-transform:uppercase;color:var(--text-muted);text-align:right;">Qty</th>
-          <th style="padding:5px 6px;border:1px solid var(--border);font-size:11px;font-weight:700;
-                     text-transform:uppercase;color:var(--text-muted);text-align:center;">Unit</th>
-          <th style="padding:5px 6px;border:1px solid var(--border);font-size:11px;font-weight:700;
-                     text-transform:uppercase;color:var(--text-muted);text-align:right;">MRP</th>
-          <th style="padding:5px 6px;border:1px solid var(--border);font-size:11px;font-weight:700;
-                     text-transform:uppercase;color:var(--text-muted);text-align:center;">Disc%</th>
-          <th style="padding:5px 6px;border:1px solid var(--border);font-size:11px;font-weight:700;
-                     text-transform:uppercase;color:var(--text-muted);text-align:right;">Rate/unit</th>
-          <th style="padding:5px 6px;border:1px solid var(--border);font-size:11px;font-weight:700;
-                     text-transform:uppercase;color:var(--text-muted);text-align:right;">Amount</th>
+          <th style="padding:2px 3px;border:1px solid var(--border);font-size:11px;font-weight:700;
+                     color:var(--text-muted);width:1%;white-space:nowrap;">#</th>
+          <th style="padding:2px 3px;border:1px solid var(--border);font-size:11px;font-weight:700;
+                     color:var(--text-muted);">Description</th>
+          <th style="padding:2px 3px;border:1px solid var(--border);font-size:11px;font-weight:700;
+                     color:var(--text-muted);text-align:right;width:1%;white-space:nowrap;">Qty(m/pcs)</th>
+          <th style="padding:2px 3px;border:1px solid var(--border);font-size:11px;font-weight:700;
+                     color:var(--text-muted);text-align:right;width:1%;white-space:nowrap;">MRP</th>
+          <th style="padding:2px 3px;border:1px solid var(--border);font-size:11px;font-weight:700;
+                     color:var(--text-muted);text-align:center;width:1%;white-space:nowrap;">Disc%</th>
+          <th style="padding:2px 3px;border:1px solid var(--border);font-size:11px;font-weight:700;
+                     color:var(--text-muted);text-align:right;width:1%;white-space:nowrap;">Rate/unit</th>
+          <th style="padding:2px 3px;border:1px solid var(--border);font-size:11px;font-weight:700;
+                     color:var(--text-muted);text-align:right;width:1%;white-space:nowrap;">Amount</th>
         </tr>
       </thead>
       <tbody id="inv-items-body">
@@ -410,15 +408,14 @@
       const rowBg = i % 2 === 1 ? 'background:#fafafa;' : '';
       return `
         <tr style="${rowBg}">
-          <td style="padding:5px 6px;border:1px solid var(--border);text-align:center;
-                     color:var(--text-muted);font-size:12px;">${i + 1}</td>
-          <td style="padding:5px 6px;border:1px solid var(--border);">${desc}${quality}</td>
-          <td style="padding:5px 6px;border:1px solid var(--border);text-align:right;">${Number(item.quantity).toLocaleString('en-IN')}</td>
-          <td style="padding:5px 6px;border:1px solid var(--border);text-align:center;color:var(--text-muted);">${item.unit_label}</td>
-          <td style="padding:5px 6px;border:1px solid var(--border);text-align:right;">${fmt(item.mrp)}</td>
-          <td style="padding:5px 6px;border:1px solid var(--border);text-align:center;color:var(--text-muted);">${discDisplay}</td>
-          <td style="padding:5px 6px;border:1px solid var(--border);text-align:right;color:var(--text-muted);">${item.rate_after_disc > 0 ? fmt(item.rate_after_disc) : '—'}</td>
-          <td style="padding:5px 6px;border:1px solid var(--border);text-align:right;font-weight:600;">${fmt(item.final_amount)}</td>
+          <td style="padding:2px 3px;border:1px solid var(--border);text-align:center;white-space:nowrap;
+                     color:var(--text-muted);">${i + 1}</td>
+          <td style="padding:2px 3px;border:1px solid var(--border);">${desc}${quality}</td>
+          <td style="padding:2px 3px;border:1px solid var(--border);text-align:right;white-space:nowrap;">${Number(item.quantity).toLocaleString('en-IN')}</td>
+          <td style="padding:2px 3px;border:1px solid var(--border);text-align:right;white-space:nowrap;">${fmt(item.mrp)}</td>
+          <td style="padding:2px 3px;border:1px solid var(--border);text-align:center;white-space:nowrap;color:var(--text-muted);">${discDisplay}</td>
+          <td style="padding:2px 3px;border:1px solid var(--border);text-align:right;white-space:nowrap;color:var(--text-muted);">${item.rate_after_disc > 0 ? fmt(item.rate_after_disc) : '—'}</td>
+          <td style="padding:2px 3px;border:1px solid var(--border);text-align:right;white-space:nowrap;font-weight:600;">${fmt(item.final_amount)}</td>
         </tr>
       `;
     }).join('');
