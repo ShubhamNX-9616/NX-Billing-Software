@@ -276,7 +276,7 @@ def create_bill():
         gross_final_total = r2(sum(i["final_amount"] for i in calculated_items))
 
         try:
-            round_off = round(float(body.get("round_off", 0) or 0), 2)
+            round_off = r2(float(body.get("round_off", 0) or 0))
         except (TypeError, ValueError):
             round_off = 0.0
         if round_off < 0:
@@ -306,14 +306,14 @@ def create_bill():
 
         # 6b. Advance paid
         try:
-            advance_paid = round(float(body.get("advance_paid", 0) or 0), 2)
+            advance_paid = r2(float(body.get("advance_paid", 0) or 0))
         except (TypeError, ValueError):
             advance_paid = 0.0
         if advance_paid < 0:
             return jsonify({"error": "advance_paid cannot be negative"}), 400
         if advance_paid > final_total:
             return jsonify({"error": "advance_paid cannot exceed final_total"}), 400
-        remaining = round(final_total - advance_paid, 2)
+        remaining = r2(final_total - advance_paid)
 
         # 7. Find or create customer
         customer_id = None
@@ -523,7 +523,7 @@ def update_bill(bill_id):
         gross_final_total = r2(sum(i["final_amount"] for i in calculated_items))
 
         try:
-            round_off = round(float(body.get("round_off", 0) or 0), 2)
+            round_off = r2(float(body.get("round_off", 0) or 0))
         except (TypeError, ValueError):
             round_off = 0.0
         if round_off < 0:
@@ -552,14 +552,14 @@ def update_bill(bill_id):
             }), 400
 
         try:
-            advance_paid = round(float(body.get("advance_paid", 0) or 0), 2)
+            advance_paid = r2(float(body.get("advance_paid", 0) or 0))
         except (TypeError, ValueError):
             advance_paid = 0.0
         if advance_paid < 0:
             return jsonify({"error": "advance_paid cannot be negative"}), 400
         if advance_paid > final_total:
             return jsonify({"error": "advance_paid cannot exceed final_total"}), 400
-        remaining = round(final_total - advance_paid, 2)
+        remaining = r2(final_total - advance_paid)
 
         # 4f. Find or create customer
         customer_id = None

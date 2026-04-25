@@ -1119,10 +1119,13 @@ async function setItemRowValues(id, item) {
   const discEl    = document.getElementById(`disc-${id}`);
   const discAmtEl = document.getElementById(`discamt-${id}`);
   const qualEl    = document.getElementById(`quality-${id}`);
-  if (qtyEl)     qtyEl.value     = item.quantity;
-  if (mrpEl)     mrpEl.value     = item.mrp;
-  if (discEl)    discEl.value    = item.discount_percent || 0;
-  if (discAmtEl) discAmtEl.value = '';
+  if (qtyEl)  qtyEl.value  = item.quantity;
+  if (mrpEl)  mrpEl.value  = item.mrp;
+  // Restore discount as a flat ₹ amount (mrp − rate_after_disc) to avoid
+  // the lossy percentage round-trip that causes payment-sum mismatches.
+  const discPerUnit = round2((item.mrp || 0) - (item.rate_after_disc || 0));
+  if (discEl)    discEl.value    = '';
+  if (discAmtEl) discAmtEl.value = discPerUnit > 0 ? discPerUnit : '';
   if (qualEl)    qualEl.value    = item.quality_number || '';
   // Set cloth type and company (also calls recalcRow internally)
   await onClothChangeRestoring(id, item.cloth_type, item.company_name || '');
