@@ -12,8 +12,8 @@ auth_routes = Blueprint('auth_routes', __name__)
 def login():
     if 'user_id' in session:
         if session.get('role') == 'admin':
-            return redirect(url_for('dashboard'))
-        return redirect(url_for('new_bill'))
+            return redirect(url_for('pages.dashboard'))
+        return redirect(url_for('pages.new_bill'))
     return render_template('login.html')
 
 
@@ -61,8 +61,8 @@ def login_post():
     session['role']     = user['role']
 
     if user['role'] == 'admin':
-        return redirect(url_for('dashboard'))
-    return redirect(url_for('new_bill'))
+        return redirect(url_for('pages.dashboard'))
+    return redirect(url_for('pages.new_bill'))
 
 
 @auth_routes.route('/logout')
