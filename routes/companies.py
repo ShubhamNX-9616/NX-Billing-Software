@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify, request
-from database import get_db
+from db import get_db
 from auth import login_required, admin_required, staff_or_admin_required, api_login_required, api_admin_required
 
 companies_bp = Blueprint("companies", __name__)

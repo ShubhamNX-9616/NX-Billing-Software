@@ -1,19 +1,9 @@
-import re
 from flask import Blueprint, jsonify, request
-from database import get_db
+from db import get_db
 from auth import login_required, admin_required, staff_or_admin_required, api_login_required, api_admin_required
+from utils import normalize_mobile
 
 customers_bp = Blueprint("customers", __name__)
-
-
-def normalize_mobile(raw):
-    """Strip spaces, remove leading +91 or 0, return last 10 digits."""
-    digits = re.sub(r"\D", "", raw)
-    if digits.startswith("91") and len(digits) == 12:
-        digits = digits[2:]
-    elif digits.startswith("0") and len(digits) == 11:
-        digits = digits[1:]
-    return digits
 
 
 @customers_bp.route("/customers", methods=["GET"])

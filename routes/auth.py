@@ -1,7 +1,7 @@
 import re
 import time
 from flask import Blueprint, render_template, request, redirect, url_for, session, jsonify
-from database import get_db
+from db import get_db
 from extensions import bcrypt
 from auth import api_admin_required, api_login_required
 
