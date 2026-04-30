@@ -91,7 +91,7 @@ async function loadClothTypes() {
       { type_name: 'Shirting',  has_company: 1 },
       { type_name: 'Suiting',   has_company: 1 },
       { type_name: 'Readymade', has_company: 1 },
-      { type_name: 'Stitching', has_company: 0 },
+      { type_name: 'Stitching', has_company: 1 },
     ];
   }
 }

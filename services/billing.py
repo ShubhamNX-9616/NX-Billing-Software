@@ -37,8 +37,6 @@ def validate_and_calculate_items(db, items):
 
         if cloth_type not in valid_cloth_types:
             raise ValueError(f"{prefix}: invalid cloth_type '{cloth_type}'")
-        if valid_cloth_types[cloth_type]["has_company"] and not company_name:
-            raise ValueError(f"{prefix}: company_name is required")
         if quantity <= 0:
             raise ValueError(f"{prefix}: quantity must be > 0")
         if mrp < 0:
