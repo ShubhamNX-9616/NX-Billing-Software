@@ -1,5 +1,16 @@
 from db.connection import _open_connection
 
+_PREFIX_MAP = {
+    'shirting':    'SHT',
+    'suiting':     'SUT',
+    'readymade':   'RDY',
+    'gift sets':   'GFT',
+    'accessories': 'ACC',
+}
+
+def _cloth_prefix(cloth_type):
+    return _PREFIX_MAP.get((cloth_type or '').strip().lower(), 'OTH')
+
 
 def init_db():
     conn = _open_connection()
@@ -99,6 +110,42 @@ def init_db():
                 id       INTEGER PRIMARY KEY CHECK (id = 1),
                 next_val INTEGER NOT NULL DEFAULT 0
             );
+
+            CREATE TABLE IF NOT EXISTS suppliers (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                name            TEXT NOT NULL,
+                normalized_name TEXT NOT NULL UNIQUE,
+                created_at      TEXT DEFAULT (datetime('now','localtime'))
+            );
+
+            CREATE TABLE IF NOT EXISTS inventory_items (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                cloth_type      TEXT NOT NULL,
+                company_name    TEXT NOT NULL,
+                quality_number  TEXT NOT NULL DEFAULT '',
+                unit_label      TEXT NOT NULL DEFAULT 'm',
+                current_stock   REAL NOT NULL DEFAULT 0,
+                min_stock_alert REAL NOT NULL DEFAULT 5,
+                mrp             REAL NOT NULL DEFAULT 0,
+                notes           TEXT,
+                item_code       TEXT UNIQUE,
+                supplier_id     INTEGER REFERENCES suppliers(id),
+                created_at      TEXT DEFAULT (datetime('now','localtime')),
+                updated_at      TEXT DEFAULT (datetime('now','localtime')),
+                UNIQUE(cloth_type, company_name, quality_number)
+            );
+
+            CREATE TABLE IF NOT EXISTS inventory_transactions (
+                id             INTEGER PRIMARY KEY AUTOINCREMENT,
+                item_id        INTEGER NOT NULL REFERENCES inventory_items(id) ON DELETE CASCADE,
+                txn_type       TEXT NOT NULL,
+                quantity       REAL NOT NULL,
+                reference_type TEXT,
+                reference_id   INTEGER,
+                notes          TEXT,
+                created_by     TEXT,
+                created_at     TEXT DEFAULT (datetime('now','localtime'))
+            );
         """)
 
         # Column migrations — idempotent, safe on every startup
@@ -116,6 +163,30 @@ def init_db():
         existing_cols = [row[1] for row in conn.execute("PRAGMA table_info(bill_items)").fetchall()]
         if "rate_after_disc" not in existing_cols:
             conn.execute("ALTER TABLE bill_items ADD COLUMN rate_after_disc REAL NOT NULL DEFAULT 0")
+        if "inventory_item_id" not in existing_cols:
+            conn.execute("ALTER TABLE bill_items ADD COLUMN inventory_item_id INTEGER REFERENCES inventory_items(id)")
+
+        # Migrate: inventory_items column additions
+        inv_cols = {row[1] for row in conn.execute("PRAGMA table_info(inventory_items)").fetchall()}
+        if "item_code" not in inv_cols:
+            conn.execute("ALTER TABLE inventory_items ADD COLUMN item_code TEXT")
+            conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_inventory_item_code ON inventory_items(item_code)")
+            items = conn.execute("SELECT id, cloth_type FROM inventory_items ORDER BY id").fetchall()
+            counters = {}
+            for item in items:
+                prefix = _cloth_prefix(item[1])
+                counters[prefix] = counters.get(prefix, 0) + 1
+                code = f"{prefix}-{counters[prefix]:03d}"
+                conn.execute("UPDATE inventory_items SET item_code = ? WHERE id = ?", (code, item[0]))
+        if "supplier_id" not in inv_cols:
+            conn.execute("ALTER TABLE inventory_items ADD COLUMN supplier_id INTEGER REFERENCES suppliers(id)")
+
+        # Migrate: add Gift Sets and Accessories cloth types if missing
+        for (type_name, normalized_name) in [("Gift Sets", "gift sets"), ("Accessories", "accessories")]:
+            conn.execute(
+                "INSERT OR IGNORE INTO cloth_types (type_name, normalized_name, is_default, has_company) VALUES (?, ?, 1, 1)",
+                (type_name, normalized_name),
+            )
 
         # Sync sequence table to current max bill number
         conn.execute("INSERT OR IGNORE INTO bill_number_seq (id, next_val) VALUES (1, 0)")
@@ -162,10 +233,12 @@ def _seed_cloth_types(conn):
     conn.executemany(
         "INSERT OR IGNORE INTO cloth_types (type_name, normalized_name, is_default, has_company) VALUES (?, ?, ?, ?)",
         [
-            ("Shirting",  "shirting",  1, 1),
-            ("Suiting",   "suiting",   1, 1),
-            ("Readymade", "readymade", 1, 1),
-            ("Stitching", "stitching", 1, 1),
+            ("Shirting",     "shirting",     1, 1),
+            ("Suiting",      "suiting",      1, 1),
+            ("Readymade",    "readymade",    1, 1),
+            ("Stitching",    "stitching",    1, 1),
+            ("Gift Sets",    "gift sets",    1, 1),
+            ("Accessories",  "accessories",  1, 1),
         ],
     )
 

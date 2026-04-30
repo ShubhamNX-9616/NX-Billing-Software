@@ -59,6 +59,12 @@ def profile():
     return render_template("profile.html")
 
 
+@pages_bp.route("/inventory")
+@admin_required
+def inventory():
+    return render_template("inventory.html")
+
+
 @pages_bp.route("/bill/share/<bill_number>")
 def shared_bill(bill_number):
     data = get_bill_by_number(bill_number)

@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, session
 from db import get_db, generate_bill_number
 from auth import login_required, admin_required, staff_or_admin_required, api_login_required, api_admin_required
 from utils import normalize_mobile, validate_indian_mobile, r2
@@ -9,6 +9,7 @@ from services.billing import (
     parse_advance,
     find_or_create_customer,
 )
+from services.inventory import deduct_stock, restore_stock
 
 bills_bp = Blueprint("bills", __name__)
 
@@ -118,7 +119,8 @@ def get_bill(bill_id):
             """
             SELECT cloth_type, company_name, quality_number,
                    quantity, unit_label, mrp, rate_after_disc,
-                   discount_percent, discount_amount, line_total, final_amount
+                   discount_percent, discount_amount, line_total, final_amount,
+                   inventory_item_id
             FROM bill_items
             WHERE bill_id = ?
             ORDER BY id
@@ -191,6 +193,11 @@ def create_bill():
         customer_id               = find_or_create_customer(db, customer_name, norm_mobile)
         bill_number               = generate_bill_number(db)
 
+        # Attach inventory_item_id from raw request to calculated items
+        for raw, calc in zip(items, calculated_items):
+            inv_id = raw.get("inventory_item_id")
+            calc["inventory_item_id"] = int(inv_id) if inv_id else None
+
         bill_cursor = db.execute(
             """
             INSERT INTO bills (
@@ -215,8 +222,9 @@ def create_bill():
             INSERT INTO bill_items (
                 bill_id, cloth_type, company_name, quality_number,
                 quantity, unit_label, mrp, line_total,
-                discount_percent, discount_amount, rate_after_disc, final_amount
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                discount_percent, discount_amount, rate_after_disc, final_amount,
+                inventory_item_id
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             [
                 (
@@ -224,6 +232,7 @@ def create_bill():
                     i["cloth_type"], i["company_name"], i["quality_number"],
                     i["quantity"], i["unit_label"], i["mrp"], i["line_total"],
                     i["discount_percent"], i["discount_amount"], i["rate_after_disc"], i["final_amount"],
+                    i["inventory_item_id"],
                 )
                 for i in calculated_items
             ],
@@ -232,6 +241,13 @@ def create_bill():
             "INSERT INTO bill_payments (bill_id, payment_method, amount) VALUES (?, ?, ?)",
             [(bill_id, p["payment_method"], float(p["amount"])) for p in payments],
         )
+
+        # Deduct inventory stock for linked items (soft warn — never blocks)
+        username = session.get("username")
+        for i in calculated_items:
+            if i["inventory_item_id"]:
+                deduct_stock(db, i["inventory_item_id"], i["quantity"], bill_id, username)
+
         db.commit()
 
         return jsonify({
@@ -317,6 +333,20 @@ def update_bill(bill_id):
         advance_paid, remaining = parse_advance(body.get("advance_paid"), totals["final_total"])
         customer_id             = find_or_create_customer(db, customer_name, norm_mobile)
 
+        # Attach inventory_item_id from raw request to calculated items
+        for raw, calc in zip(items, calculated_items):
+            inv_id = raw.get("inventory_item_id")
+            calc["inventory_item_id"] = int(inv_id) if inv_id else None
+
+        # Restore stock for old linked items before deleting them
+        username = session.get("username")
+        old_items = db.execute(
+            "SELECT inventory_item_id, quantity FROM bill_items WHERE bill_id = ? AND inventory_item_id IS NOT NULL",
+            (bill_id,),
+        ).fetchall()
+        for old in old_items:
+            restore_stock(db, old["inventory_item_id"], old["quantity"], bill_id, username)
+
         db.execute("DELETE FROM bill_items    WHERE bill_id = ?", (bill_id,))
         db.execute("DELETE FROM bill_payments WHERE bill_id = ?", (bill_id,))
 
@@ -349,8 +379,9 @@ def update_bill(bill_id):
             INSERT INTO bill_items (
                 bill_id, cloth_type, company_name, quality_number,
                 quantity, unit_label, mrp, line_total,
-                discount_percent, discount_amount, rate_after_disc, final_amount
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                discount_percent, discount_amount, rate_after_disc, final_amount,
+                inventory_item_id
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             [
                 (
@@ -358,6 +389,7 @@ def update_bill(bill_id):
                     i["cloth_type"], i["company_name"], i["quality_number"],
                     i["quantity"], i["unit_label"], i["mrp"], i["line_total"],
                     i["discount_percent"], i["discount_amount"], i["rate_after_disc"], i["final_amount"],
+                    i["inventory_item_id"],
                 )
                 for i in calculated_items
             ],
@@ -366,6 +398,12 @@ def update_bill(bill_id):
             "INSERT INTO bill_payments (bill_id, payment_method, amount) VALUES (?, ?, ?)",
             [(bill_id, p["payment_method"], float(p["amount"])) for p in payments],
         )
+
+        # Deduct inventory stock for newly linked items
+        for i in calculated_items:
+            if i["inventory_item_id"]:
+                deduct_stock(db, i["inventory_item_id"], i["quantity"], bill_id, username)
+
         db.commit()
 
         return jsonify({
@@ -421,14 +459,22 @@ def delete_bill(bill_id):
         except (IndexError, ValueError):
             return jsonify({"error": "Unexpected bill_number format"}), 500
 
-        # 4. Delete items
+        # 4. Restore inventory stock for linked items before deleting
+        inv_items = db.execute(
+            "SELECT inventory_item_id, quantity FROM bill_items WHERE bill_id = ? AND inventory_item_id IS NOT NULL",
+            (bill_id,),
+        ).fetchall()
+        for inv in inv_items:
+            restore_stock(db, inv["inventory_item_id"], inv["quantity"], bill_id, session.get("username"))
+
+        # 5. Delete items
         db.execute("DELETE FROM bill_items    WHERE bill_id = ?", (bill_id,))
-        # 5. Delete payments
+        # 6. Delete payments
         db.execute("DELETE FROM bill_payments WHERE bill_id = ?", (bill_id,))
-        # 6. Delete the bill itself
+        # 7. Delete the bill itself
         db.execute("DELETE FROM bills WHERE id = ?", (bill_id,))
 
-        # 7. Renumber all bills whose number was higher than the deleted one
+        # 8. Renumber all bills whose number was higher than the deleted one
         higher_bills = db.execute(
             """
             SELECT id, bill_number
@@ -447,7 +493,7 @@ def delete_bill(bill_id):
                 (new_bill_number, b["id"]),
             )
 
-        # 8. Sync seq so the next bill number continues from the new max.
+        # 9. Sync seq so the next bill number continues from the new max.
         db.execute(
             "UPDATE bill_number_seq SET next_val = "
             "(SELECT COALESCE(MAX(CAST(SUBSTR(bill_number, 5) AS INTEGER)), 0) FROM bills) "

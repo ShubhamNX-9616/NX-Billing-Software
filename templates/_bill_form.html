@@ -85,9 +85,13 @@
       <!-- JS will render item cards here on mobile -->
     </div>
 
-    <div style="margin-top:10px;">
+    <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
       <button type="button" class="btn btn-secondary btn-sm btn-block-mobile" id="btn-add-item">
         &#43; Add Item
+      </button>
+      <button type="button" class="btn btn-secondary btn-sm btn-block-mobile" id="btn-scan-qr"
+              onclick="openQrScanModal()">
+        &#128247; Scan QR
       </button>
     </div>
 </div>
@@ -293,6 +297,57 @@
       <button type="button" class="btn btn-secondary" onclick="closeAddCompanyModal()">Cancel</button>
       <button type="button" class="btn btn-primary" id="btn-add-company-save"
               onclick="saveNewCompany()">Save Company</button>
+    </div>
+  </div>
+</div>
+
+<!-- ====== QR Scanner Modal ====== -->
+<div class="modal-overlay hidden" id="qr-scan-modal">
+  <div class="modal-box" style="max-width:420px;">
+    <div class="modal-header">
+      <h3>Add Item via QR</h3>
+      <button class="modal-close" onclick="closeQrScanModal()">&#215;</button>
+    </div>
+    <div class="modal-body" style="display:grid;gap:14px;">
+
+      <!-- Manual / USB scanner input — always visible -->
+      <div>
+        <label style="font-weight:600;">Item ID or USB Scanner</label>
+        <div style="display:flex;gap:8px;margin-top:6px;">
+          <input type="text" id="qr-manual-input" class="input"
+                 placeholder="Enter Item ID from Inventory page (e.g. 5)"
+                 style="flex:1;"
+                 onkeydown="if(event.key==='Enter') applyManualQr()" />
+          <button type="button" class="btn btn-primary" onclick="applyManualQr()">Add</button>
+        </div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">
+          Find the ID in the <strong>#ID</strong> column on the Inventory page. USB barcode scanner also works here.
+        </div>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:8px;color:var(--text-muted);">
+        <hr style="flex:1;border:none;border-top:1px solid var(--border);" />
+        <span style="font-size:12px;">or use camera</span>
+        <hr style="flex:1;border:none;border-top:1px solid var(--border);" />
+      </div>
+
+      <!-- Camera scanner — starts only when toggled -->
+      <div id="qr-camera-section">
+        <button type="button" class="btn btn-secondary" id="btn-start-camera"
+                onclick="startCamera()" style="width:100%;">
+          &#128247; Start Camera (HTTPS only)
+        </button>
+        <div id="qr-reader" style="width:100%;border-radius:8px;overflow:hidden;margin-top:10px;display:none;"></div>
+        <button type="button" class="btn btn-secondary btn-sm" id="btn-stop-camera"
+                onclick="stopCamera()" style="display:none;margin-top:6px;width:100%;">
+          &#9646;&#9646; Stop Camera
+        </button>
+      </div>
+
+      <div id="qr-scan-error" class="text-danger" style="font-size:13px;"></div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary" onclick="closeQrScanModal()">Cancel</button>
     </div>
   </div>
 </div>

@@ -1,0 +1,376 @@
+{% extends "base.html" %}
+
+{% block title %}Inventory — SHUBHAM NX{% endblock %}
+{% block page_title %}Inventory{% endblock %}
+
+{% block topbar_actions %}
+  <button type="button" class="btn btn-primary" onclick="openAddItemModal()">&#43; Add Item</button>
+  <button type="button" class="btn btn-secondary" style="margin-left:8px;" onclick="openCurrentStockQrModal()">&#128246; Current Stock QR</button>
+{% endblock %}
+
+{% block content %}
+
+<!-- ====== Stats ====== -->
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;" id="stats-bar">
+  <div class="card" style="text-align:center;padding:14px;">
+    <div style="font-size:22px;font-weight:700;" id="stat-total">—</div>
+    <div style="font-size:12px;color:var(--text-muted);">Total Items</div>
+  </div>
+  <div class="card" style="text-align:center;padding:14px;">
+    <div style="font-size:22px;font-weight:700;color:var(--success,#22c55e);" id="stat-instock">—</div>
+    <div style="font-size:12px;color:var(--text-muted);">In Stock</div>
+  </div>
+  <div class="card" style="text-align:center;padding:14px;">
+    <div style="font-size:22px;font-weight:700;color:var(--warning,#f59e0b);" id="stat-low">—</div>
+    <div style="font-size:12px;color:var(--text-muted);">Low Stock</div>
+  </div>
+  <div class="card" style="text-align:center;padding:14px;">
+    <div style="font-size:22px;font-weight:700;color:var(--danger,#ef4444);" id="stat-negative">—</div>
+    <div style="font-size:12px;color:var(--text-muted);">Negative Stock</div>
+  </div>
+</div>
+
+<!-- ====== Filter ====== -->
+<div class="card mb-3">
+  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+    <input type="text" id="filter-input" class="input" placeholder="Search cloth type, company, quality…"
+           style="flex:1;min-width:200px;" oninput="filterItems()" />
+    <select id="filter-status" class="input select" style="width:160px;" onchange="filterItems()">
+      <option value="">All</option>
+      <option value="negative">Negative Stock</option>
+      <option value="low">Low Stock</option>
+      <option value="ok">OK</option>
+    </select>
+  </div>
+</div>
+
+<!-- ====== Sections ====== -->
+<div id="inv-loading" class="loading-row">
+  <div class="spinner"></div> Loading inventory…
+</div>
+<div id="inv-empty" style="display:none;padding:32px;text-align:center;color:var(--text-muted);">
+  No inventory items yet. Click <strong>+ Add Item</strong> to get started.
+</div>
+<div id="sections-container"></div>
+
+<!-- ====== Add Item Modal ====== -->
+<div class="modal-overlay hidden" id="add-item-modal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3>Add Inventory Item</h3>
+      <button class="modal-close" onclick="closeAddItemModal()">&#215;</button>
+    </div>
+    <div class="modal-body" style="display:grid;gap:12px;">
+
+      <!-- Cloth Type -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div>
+          <label>Cloth Type <span class="text-danger">*</span></label>
+          <select id="ai-cloth" class="input select" onchange="onAiClothChange()">
+            <option value="">— Select cloth type —</option>
+          </select>
+          <div id="ai-cloth-add-row" style="display:none;margin-top:6px;">
+            <div style="display:flex;gap:6px;align-items:center;">
+              <input type="text" id="ai-cloth-new" class="input" placeholder="New cloth type name" style="flex:1;" />
+              <button type="button" class="btn btn-sm btn-primary" onclick="saveNewClothType()">Add</button>
+              <button type="button" class="btn btn-sm btn-secondary" onclick="cancelAiClothAdd()">&#215;</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Company -->
+        <div>
+          <label>Company <span class="text-danger">*</span></label>
+          <select id="ai-company" class="input select" onchange="onAiCompanyChange()">
+            <option value="">— Select cloth type first —</option>
+          </select>
+          <div id="ai-company-add-row" style="display:none;margin-top:6px;">
+            <div style="display:flex;gap:6px;align-items:center;">
+              <input type="text" id="ai-company-new" class="input" placeholder="New company name" style="flex:1;" />
+              <button type="button" class="btn btn-sm btn-primary" onclick="saveNewCompany()">Add</button>
+              <button type="button" class="btn btn-sm btn-secondary" onclick="cancelAiCompanyAdd()">&#215;</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Supplier -->
+      <div>
+        <label>Supplier</label>
+        <select id="ai-supplier" class="input select" onchange="onAiSupplierChange()">
+          <option value="">— None —</option>
+        </select>
+        <div id="ai-supplier-add-row" style="display:none;margin-top:6px;">
+          <div style="display:flex;gap:6px;align-items:center;">
+            <input type="text" id="ai-supplier-new" class="input" placeholder="New supplier name" style="flex:1;" />
+            <button type="button" class="btn btn-sm btn-primary" onclick="saveNewSupplier()">Add</button>
+            <button type="button" class="btn btn-sm btn-secondary" onclick="cancelAiSupplierAdd()">&#215;</button>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div>
+          <label>Quality Number</label>
+          <input type="text" id="ai-quality" class="input" placeholder="Optional" />
+        </div>
+        <div>
+          <label>Unit</label>
+          <select id="ai-unit" class="input select">
+            <option value="m">m (metres)</option>
+            <option value="pcs">pcs (pieces)</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div>
+          <label>MRP (₹) <span class="text-danger">*</span></label>
+          <input type="number" id="ai-mrp" class="input" min="0" step="0.01" placeholder="0.00" />
+        </div>
+        <div>
+          <label>Opening Stock</label>
+          <input type="number" id="ai-opening" class="input" min="0" step="0.01" placeholder="0" />
+        </div>
+      </div>
+      <div>
+        <label>Low Stock Alert Threshold</label>
+        <input type="number" id="ai-alert" class="input" min="0" step="0.01" placeholder="5" value="5" />
+      </div>
+      <div>
+        <label>Notes</label>
+        <input type="text" id="ai-notes" class="input" placeholder="Optional" />
+      </div>
+      <div id="ai-error" class="text-danger" style="font-size:13px;"></div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary" onclick="closeAddItemModal()">Cancel</button>
+      <button type="button" class="btn btn-primary" id="btn-ai-save" onclick="saveNewItem()">Save Item</button>
+    </div>
+  </div>
+</div>
+
+<!-- ====== Edit Item Modal ====== -->
+<div class="modal-overlay hidden" id="edit-item-modal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3 id="edit-item-title">Edit Item</h3>
+      <button class="modal-close" onclick="closeEditItemModal()">&#215;</button>
+    </div>
+    <div class="modal-body" style="display:grid;gap:12px;">
+      <input type="hidden" id="ei-id" />
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div>
+          <label>MRP (₹)</label>
+          <input type="number" id="ei-mrp" class="input" min="0" step="0.01" />
+        </div>
+        <div>
+          <label>Low Stock Alert Threshold</label>
+          <input type="number" id="ei-alert" class="input" min="0" step="0.01" />
+        </div>
+      </div>
+      <div>
+        <label>Notes</label>
+        <input type="text" id="ei-notes" class="input" />
+      </div>
+      <div id="ei-error" class="text-danger" style="font-size:13px;"></div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary" onclick="closeEditItemModal()">Cancel</button>
+      <button type="button" class="btn btn-primary" id="btn-ei-save" onclick="saveEditItem()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ====== Restock Modal ====== -->
+<div class="modal-overlay hidden" id="restock-modal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3 id="restock-title">Restock</h3>
+      <button class="modal-close" onclick="closeRestockModal()">&#215;</button>
+    </div>
+    <div class="modal-body" style="display:grid;gap:12px;">
+      <input type="hidden" id="rs-id" />
+      <div>
+        <label>Type</label>
+        <select id="rs-type" class="input select">
+          <option value="purchase">Purchase (new stock received)</option>
+          <option value="opening">Opening Stock (initial count)</option>
+        </select>
+      </div>
+      <div>
+        <label>Quantity <span class="text-danger">*</span></label>
+        <input type="number" id="rs-qty" class="input" min="0.01" step="0.01" placeholder="0" />
+      </div>
+      <div>
+        <label>Notes</label>
+        <input type="text" id="rs-notes" class="input" placeholder="Optional" />
+      </div>
+      <div id="rs-error" class="text-danger" style="font-size:13px;"></div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary" onclick="closeRestockModal()">Cancel</button>
+      <button type="button" class="btn btn-primary" id="btn-rs-save" onclick="saveRestock()">Add Stock</button>
+    </div>
+  </div>
+</div>
+
+<!-- ====== Adjust Modal ====== -->
+<div class="modal-overlay hidden" id="adjust-modal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3 id="adjust-title">Adjust Stock</h3>
+      <button class="modal-close" onclick="closeAdjustModal()">&#215;</button>
+    </div>
+    <div class="modal-body" style="display:grid;gap:12px;">
+      <input type="hidden" id="adj-id" />
+      <div style="font-size:13px;color:var(--text-muted);">
+        Use positive values to add stock, negative to remove.
+      </div>
+      <div>
+        <label>Adjustment Quantity <span class="text-danger">*</span></label>
+        <input type="number" id="adj-qty" class="input" step="0.01" placeholder="e.g. +10 or -5" />
+      </div>
+      <div>
+        <label>Notes</label>
+        <input type="text" id="adj-notes" class="input" placeholder="Reason for adjustment" />
+      </div>
+      <div id="adj-error" class="text-danger" style="font-size:13px;"></div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary" onclick="closeAdjustModal()">Cancel</button>
+      <button type="button" class="btn btn-primary" id="btn-adj-save" onclick="saveAdjust()">Apply</button>
+    </div>
+  </div>
+</div>
+
+<!-- ====== QR View Modal ====== -->
+<div class="modal-overlay hidden" id="qr-view-modal">
+  <div class="modal-box" style="max-width:340px;text-align:center;">
+    <div class="modal-header">
+      <h3 id="qr-view-title">Inventory QR Code</h3>
+      <button class="modal-close" onclick="closeQrViewModal()">&#215;</button>
+    </div>
+    <div class="modal-body">
+      <img id="qr-view-img" src="" alt="QR Code"
+           style="width:220px;height:220px;border:1px solid var(--border);border-radius:8px;" />
+      <div style="margin-top:10px;font-size:12px;color:var(--text-muted);">
+        Scan this QR on the bill form to auto-fill and track inventory.
+      </div>
+    </div>
+    <div class="modal-footer" style="justify-content:center;">
+      <a id="qr-download-link" href="#" download class="btn btn-primary">&#8595; Download PNG</a>
+      <button type="button" class="btn btn-secondary" onclick="closeQrViewModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ====== Current Stock QR Modal ====== -->
+<div class="modal-overlay hidden" id="cs-qr-modal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3>Generate Current Stock QR</h3>
+      <button class="modal-close" onclick="closeCsQrModal()">&#215;</button>
+    </div>
+    <div class="modal-body" style="display:grid;gap:12px;">
+      <div style="font-size:13px;color:var(--text-muted);">
+        Generate a QR label for physical stock that is <strong>not tracked in inventory</strong>.
+        When scanned on a bill, it fills item details but does NOT deduct inventory.
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div>
+          <label>Cloth Type <span class="text-danger">*</span></label>
+          <select id="cs-cloth" class="input select" onchange="onCsClothChange()">
+            <option value="">— Select cloth type —</option>
+          </select>
+          <div id="cs-cloth-add-row" style="display:none;margin-top:6px;">
+            <div style="display:flex;gap:6px;align-items:center;">
+              <input type="text" id="cs-cloth-new" class="input" placeholder="New cloth type name" style="flex:1;" />
+              <button type="button" class="btn btn-sm btn-primary" onclick="saveCsNewClothType()">Add</button>
+              <button type="button" class="btn btn-sm btn-secondary" onclick="cancelCsClothAdd()">&#215;</button>
+            </div>
+          </div>
+        </div>
+        <div>
+          <label>Company</label>
+          <select id="cs-company" class="input select" onchange="onCsCompanyChange()">
+            <option value="">— Select cloth type first —</option>
+          </select>
+          <div id="cs-company-add-row" style="display:none;margin-top:6px;">
+            <div style="display:flex;gap:6px;align-items:center;">
+              <input type="text" id="cs-company-new" class="input" placeholder="New company name" style="flex:1;" />
+              <button type="button" class="btn btn-sm btn-primary" onclick="saveCsNewCompany()">Add</button>
+              <button type="button" class="btn btn-sm btn-secondary" onclick="cancelCsCompanyAdd()">&#215;</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div>
+          <label>Quality Number</label>
+          <input type="text" id="cs-quality" class="input" placeholder="Optional" />
+        </div>
+        <div>
+          <label>Unit</label>
+          <select id="cs-unit" class="input select">
+            <option value="m">m (metres)</option>
+            <option value="pcs">pcs (pieces)</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label>MRP (₹)</label>
+        <input type="number" id="cs-mrp" class="input" min="0" step="0.01" placeholder="0.00" />
+      </div>
+      <div id="cs-error" class="text-danger" style="font-size:13px;"></div>
+      <div id="cs-qr-result" style="display:none;text-align:center;">
+        <img id="cs-qr-img" src="" alt="QR Code"
+             style="width:200px;height:200px;border:1px solid var(--border);border-radius:8px;margin-top:8px;" />
+        <div style="margin-top:8px;">
+          <a id="cs-qr-download" href="#" download="current-stock-qr.png" class="btn btn-primary btn-sm">
+            &#8595; Download PNG
+          </a>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary" onclick="closeCsQrModal()">Close</button>
+      <button type="button" class="btn btn-primary" id="btn-cs-generate" onclick="generateCsQr()">Generate QR</button>
+    </div>
+  </div>
+</div>
+
+<!-- ====== Transactions Modal ====== -->
+<div class="modal-overlay hidden" id="txn-modal">
+  <div class="modal-box" style="max-width:600px;">
+    <div class="modal-header">
+      <h3 id="txn-title">Stock History</h3>
+      <button class="modal-close" onclick="closeTxnModal()">&#215;</button>
+    </div>
+    <div class="modal-body">
+      <div id="txn-loading" style="text-align:center;padding:20px;"><div class="spinner"></div></div>
+      <div id="txn-empty" style="display:none;text-align:center;color:var(--text-muted);padding:20px;">No transactions yet.</div>
+      <table class="items-table" id="txn-table" style="display:none;">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Type</th>
+            <th class="text-right">Qty</th>
+            <th>Reference</th>
+            <th>Notes</th>
+            <th>By</th>
+          </tr>
+        </thead>
+        <tbody id="txn-tbody"></tbody>
+      </table>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary" onclick="closeTxnModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/inventory.js') }}"></script>
+{% endblock %}

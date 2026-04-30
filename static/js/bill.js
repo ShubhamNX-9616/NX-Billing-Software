@@ -16,9 +16,13 @@ let salespersons     = [];
 let comboLastChanged = null;
 let clothTypes       = [];        // [{ id, type_name, has_company }, ...]
 let activeItemIds    = [];        // ordered list of live item IDs
-const itemDataStore  = {};        // { id: { lineTotal, discPerUnit, rateAfterDisc, discAmt, finalAmt } }
+const itemDataStore  = {};        // { id: { lineTotal, discPerUnit, rateAfterDisc, discAmt, finalAmt, inventoryItemId } }
 let lastIsMobile     = window.innerWidth <= 768;
 let advancePaidUserModified = false;
+
+// QR scanner state
+let html5QrScanner  = null;
+let qrScanLock      = false;   // prevents duplicate scans of the same code
 
 const companyCache = {};          // { clothType: [company, ...] }
 
@@ -91,7 +95,7 @@ async function loadClothTypes() {
       { type_name: 'Shirting',  has_company: 1 },
       { type_name: 'Suiting',   has_company: 1 },
       { type_name: 'Readymade', has_company: 1 },
-      { type_name: 'Stitching', has_company: 0 },
+      { type_name: 'Stitching', has_company: 1 },
     ];
   }
 }
@@ -301,7 +305,7 @@ async function onClothChangeRestoring(id, clothType, selectedCompany) {
 function addItemRow() {
   const id = ++rowCounter;
   activeItemIds.push(id);
-  itemDataStore[id] = { lineTotal: 0, discPerUnit: 0, rateAfterDisc: 0, discAmt: 0, finalAmt: 0 };
+  itemDataStore[id] = { lineTotal: 0, discPerUnit: 0, rateAfterDisc: 0, discAmt: 0, finalAmt: 0, inventoryItemId: null };
 
   if (isMobile()) {
     appendCard(id, {});
@@ -333,6 +337,7 @@ function appendTableRow(id, vals = {}) {
               onchange="onClothChange(${id})">
         ${buildClothOptions(clothType)}
       </select>
+      <div id="inv-badge-${id}" style="display:none;margin-top:2px;font-size:9px;background:#eff6ff;color:#2563eb;padding:1px 5px;border-radius:3px;text-align:center;cursor:pointer;" onclick="clearInventoryLink(${id})" title="Linked to inventory — click to unlink">&#128230; INV</div>
     </td>
     <td id="company-wrap-${id}" style="min-width:140px;">
       <div style="display:flex;gap:4px;align-items:center;">
@@ -419,7 +424,10 @@ function appendCard(id, vals = {}) {
   card.innerHTML = `
     <div class="item-card-header">
       <span id="card-header-${id}">Item</span>
-      <button type="button" class="btn-remove-row" onclick="removeRow(${id})">&#215;</button>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <span id="inv-badge-${id}" style="display:none;font-size:9px;background:#eff6ff;color:#2563eb;padding:2px 6px;border-radius:3px;cursor:pointer;" onclick="clearInventoryLink(${id})" title="Linked to inventory — click to unlink">&#128230; INV</span>
+        <button type="button" class="btn-remove-row" onclick="removeRow(${id})">&#215;</button>
+      </div>
     </div>
 
     <div class="item-card-field">
@@ -692,9 +700,11 @@ function handleResponsiveItemsLayout() {
     } else {
       appendTableRow(snap.id, snap);
     }
-    // Restore numeric inputs (appendCard/Row sets them via value attr already)
-    // Recalculate display
     recalcRow(snap.id);
+    // Restore INV badge visibility if item was linked
+    if (itemDataStore[snap.id]?.inventoryItemId) {
+      showInventoryBadge(snap.id, true);
+    }
   });
 
   if (mobile) {
@@ -950,13 +960,14 @@ function collectBillData() {
   const mode   = currentMode;
 
   const items = activeItemIds.map(id => ({
-    cloth_type:       document.getElementById(`cloth-${id}`).value,
-    company_name:     document.getElementById(`company-${id}`)?.value || '',
-    quality_number:   document.getElementById(`quality-${id}`).value.trim() || null,
-    quantity:         parseFloat(document.getElementById(`qty-${id}`).value)   || 0,
-    unit_label:       (document.getElementById(`unit-${id}`).textContent || 'm').trim(),
-    mrp:              parseFloat(document.getElementById(`mrp-${id}`).value)   || 0,
-    discount_percent: itemDataStore[id]?.effectiveDiscPct || 0,
+    cloth_type:        document.getElementById(`cloth-${id}`).value,
+    company_name:      document.getElementById(`company-${id}`)?.value || '',
+    quality_number:    document.getElementById(`quality-${id}`).value.trim() || null,
+    quantity:          parseFloat(document.getElementById(`qty-${id}`).value)   || 0,
+    unit_label:        (document.getElementById(`unit-${id}`).textContent || 'm').trim(),
+    mrp:               parseFloat(document.getElementById(`mrp-${id}`).value)   || 0,
+    discount_percent:  itemDataStore[id]?.effectiveDiscPct || 0,
+    inventory_item_id: itemDataStore[id]?.inventoryItemId || null,
   }));
 
   const payments = [];
@@ -1127,6 +1138,11 @@ async function setItemRowValues(id, item) {
   if (discEl)    discEl.value    = '';
   if (discAmtEl) discAmtEl.value = discPerUnit > 0 ? discPerUnit : '';
   if (qualEl)    qualEl.value    = item.quality_number || '';
+  // Restore inventory link if present
+  if (item.inventory_item_id) {
+    itemDataStore[id].inventoryItemId = item.inventory_item_id;
+    showInventoryBadge(id, true);
+  }
   // Set cloth type and company (also calls recalcRow internally)
   await onClothChangeRestoring(id, item.cloth_type, item.company_name || '');
 }
@@ -1379,3 +1395,194 @@ async function saveBill() {
 function doPrint() {
   if (savedBillId) window.location.href = `/bills/${savedBillId}`;
 }
+
+// ----------------------------------------------------------------
+// Inventory badge helpers
+// ----------------------------------------------------------------
+function showInventoryBadge(id, show) {
+  const badge = document.getElementById(`inv-badge-${id}`);
+  if (badge) badge.style.display = show ? '' : 'none';
+}
+
+function clearInventoryLink(id) {
+  if (!itemDataStore[id]) return;
+  itemDataStore[id].inventoryItemId = null;
+  showInventoryBadge(id, false);
+}
+
+// ----------------------------------------------------------------
+// QR Scanner — dual mode: USB/manual input + camera (HTTPS only)
+// ----------------------------------------------------------------
+function openQrScanModal() {
+  qrScanLock = false;
+  document.getElementById('qr-scan-error').textContent = '';
+  document.getElementById('qr-manual-input').value = '';
+  document.getElementById('qr-reader').style.display    = 'none';
+  document.getElementById('btn-stop-camera').style.display = 'none';
+  document.getElementById('btn-start-camera').style.display = '';
+  document.getElementById('qr-scan-modal').classList.remove('hidden');
+  document.getElementById('qr-manual-input').focus();
+}
+
+function closeQrScanModal() {
+  stopCamera();
+  document.getElementById('qr-scan-modal').classList.add('hidden');
+}
+
+// ---- Manual / USB scanner input ----
+async function applyManualQr() {
+  const raw = document.getElementById('qr-manual-input').value.trim();
+  if (!raw) return;
+
+  let text = raw;
+  // If user typed just a plain number, treat it as an inventory item ID
+  if (/^\d+$/.test(raw)) text = 'inv:' + raw;
+
+  document.getElementById('qr-manual-input').value = '';
+  closeQrScanModal();
+  await processQrText(text);
+}
+
+// ---- Camera (only works on HTTPS / localhost) ----
+function startCamera() {
+  document.getElementById('qr-scan-error').textContent = '';
+
+  if (typeof Html5Qrcode === 'undefined') {
+    document.getElementById('qr-scan-error').textContent =
+      'QR library not loaded — check internet connection.';
+    return;
+  }
+  if (!window.isSecureContext) {
+    document.getElementById('qr-scan-error').textContent =
+      'Camera requires HTTPS. Use a USB scanner or type the item ID instead.';
+    return;
+  }
+
+  document.getElementById('btn-start-camera').style.display = 'none';
+  document.getElementById('qr-reader').style.display = '';
+  document.getElementById('btn-stop-camera').style.display = '';
+
+  html5QrScanner = new Html5Qrcode('qr-reader');
+  Html5Qrcode.getCameras().then(cameras => {
+    if (!cameras || !cameras.length) {
+      document.getElementById('qr-scan-error').textContent = 'No camera found on this device.';
+      stopCamera();
+      return;
+    }
+    const cameraId = cameras[cameras.length - 1].id;
+    html5QrScanner.start(
+      cameraId,
+      { fps: 10, qrbox: { width: 220, height: 220 } },
+      onQrScanned,
+      () => {}
+    ).catch(err => {
+      document.getElementById('qr-scan-error').textContent = 'Camera error: ' + err;
+      stopCamera();
+    });
+  }).catch(err => {
+    document.getElementById('qr-scan-error').textContent =
+      'Camera access denied. Use USB scanner or type the item ID.';
+    stopCamera();
+  });
+}
+
+function stopCamera() {
+  if (html5QrScanner) {
+    html5QrScanner.stop().catch(() => {}).finally(() => {
+      html5QrScanner.clear();
+      html5QrScanner = null;
+    });
+  }
+  const readerEl  = document.getElementById('qr-reader');
+  const startBtn  = document.getElementById('btn-start-camera');
+  const stopBtn   = document.getElementById('btn-stop-camera');
+  if (readerEl) readerEl.style.display = 'none';
+  if (startBtn) startBtn.style.display = '';
+  if (stopBtn)  stopBtn.style.display  = 'none';
+}
+
+async function onQrScanned(text) {
+  if (qrScanLock) return;   // ignore duplicate fires from the same QR code
+  qrScanLock = true;
+
+  if (html5QrScanner) {
+    await html5QrScanner.stop().catch(() => {});
+    html5QrScanner = null;
+  }
+  closeQrScanModal();
+  await processQrText(text);
+}
+
+// ---- Shared QR processing (used by both modes) ----
+async function processQrText(text) {
+  if (text.startsWith('inv:')) {
+    const itemId = parseInt(text.slice(4), 10);
+    if (isNaN(itemId)) { alert('Invalid inventory QR code.'); return; }
+    try {
+      const res = await fetch(`/api/inventory/${itemId}`);
+      if (!res.ok) { alert('Inventory item not found (ID ' + itemId + ').'); return; }
+      const item = await res.json();
+      await fillRowFromInventoryItem(item);
+    } catch (e) {
+      alert('Failed to fetch inventory item: ' + e.message);
+    }
+  } else if (text.startsWith('cs:')) {
+    try {
+      const data = JSON.parse(text.slice(3));
+      await fillRowFromCurrentStock(data);
+    } catch (e) {
+      alert('Invalid current stock QR code.');
+    }
+  } else {
+    alert('Unrecognised QR. Expected an Inventory or Current Stock QR from this system.');
+  }
+}
+
+function findOrAddRow() {
+  // Reuse the first row that has no qty AND no mrp entered, else add a new one
+  for (const id of activeItemIds) {
+    const qty = parseFloat(document.getElementById(`qty-${id}`)?.value) || 0;
+    const mrp = parseFloat(document.getElementById(`mrp-${id}`)?.value) || 0;
+    if (qty === 0 && mrp === 0) return id;
+  }
+  addItemRow();
+  return activeItemIds[activeItemIds.length - 1];
+}
+
+async function fillRowFromInventoryItem(item) {
+  const id = findOrAddRow();
+
+  itemDataStore[id].inventoryItemId = item.id;
+
+  const mrpEl  = document.getElementById(`mrp-${id}`);
+  const qualEl = document.getElementById(`quality-${id}`);
+  if (mrpEl)  mrpEl.value  = item.mrp;
+  if (qualEl) qualEl.value = item.quality_number || '';
+
+  await onClothChangeRestoring(id, item.cloth_type, item.company_name || '');
+  showInventoryBadge(id, true);
+  recalcRow(id);
+
+  const qtyEl = document.getElementById(`qty-${id}`);
+  if (qtyEl) { qtyEl.value = ''; qtyEl.focus(); }
+}
+
+async function fillRowFromCurrentStock(data) {
+  const id = findOrAddRow();
+
+  // inventoryItemId stays null — no deduction
+  const mrpEl  = document.getElementById(`mrp-${id}`);
+  const qualEl = document.getElementById(`quality-${id}`);
+  if (mrpEl)  mrpEl.value  = data.mrp || '';
+  if (qualEl) qualEl.value = data.quality_number || '';
+
+  await onClothChangeRestoring(id, data.cloth_type || 'Shirting', data.company_name || '');
+  recalcRow(id);
+
+  const qtyEl = document.getElementById(`qty-${id}`);
+  if (qtyEl) { qtyEl.value = ''; qtyEl.focus(); }
+}
+
+document.getElementById('qr-scan-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeQrScanModal();
+});

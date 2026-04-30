@@ -45,6 +45,11 @@
         <span class="nav-icon">&#128100;</span>
         Customers
       </a>
+      <a href="/inventory"
+         class="nav-link {% if request.path.startswith('/inventory') %}active{% endif %}">
+        <span class="nav-icon">&#128230;</span>
+        Inventory
+      </a>
       <a href="/admin/users"
          class="nav-link {% if request.path.startswith('/admin/users') %}active{% endif %}">
         <span class="nav-icon">&#128101;</span>
@@ -157,6 +162,14 @@
       </svg>
       <span>Customers</span>
     </a>
+    <a href="/inventory" class="mob-nav-item" data-page="inventory">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+        <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+        <line x1="12" y1="22.08" x2="12" y2="12"/>
+      </svg>
+      <span>Inventory</span>
+    </a>
     {% endif %}
   </nav>
 
@@ -169,6 +182,7 @@
         'new-bill':  path === '/new-bill',
         'history':   path.startsWith('/bill'),
         'customers': path.startsWith('/customers'),
+        'inventory': path.startsWith('/inventory'),
       };
       document.querySelectorAll('.mob-nav-item').forEach(function (el) {
         if (map[el.dataset.page]) el.classList.add('active');
