@@ -291,6 +291,18 @@ def low_stock():
 # ---------------------------------------------------------------------------
 # GET /api/inventory/<id>/qr  — returns PNG of inventory QR
 # ---------------------------------------------------------------------------
+@inventory_bp.route("/inventory/by-code/<item_code>", methods=["GET"])
+@api_login_required
+def get_inventory_item_by_code(item_code):
+    db = get_db()
+    item = db.execute(
+        "SELECT * FROM inventory_items WHERE item_code = ?", (item_code,)
+    ).fetchone()
+    if not item:
+        return jsonify({"error": "Item not found"}), 404
+    return jsonify(dict(item))
+
+
 @inventory_bp.route("/inventory/<int:item_id>/qr", methods=["GET"])
 @api_admin_required
 def get_inventory_qr(item_id):
@@ -299,13 +311,13 @@ def get_inventory_qr(item_id):
     if not item:
         return jsonify({"error": "Item not found"}), 404
 
-    qr_content = f"inv:{item_id}"
+    qr_content = f"inv:{item['item_code']}"
     img = qrcode.make(qr_content)
     buf = io.BytesIO()
     img.save(buf, format="PNG")
     buf.seek(0)
     return send_file(buf, mimetype="image/png",
-                     download_name=f"inv-qr-{item_id}.png")
+                     download_name=f"inv-qr-{item['item_code']}.png")
 
 
 # ---------------------------------------------------------------------------

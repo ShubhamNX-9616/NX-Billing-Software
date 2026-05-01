@@ -1511,8 +1511,7 @@ async function applyManualQr() {
   if (!raw) return;
 
   let text = raw;
-  // If user typed just a plain number, treat it as an inventory item ID
-  if (/^\d+$/.test(raw)) text = 'inv:' + raw;
+  if (!raw.startsWith('inv:') && !raw.startsWith('cs:')) text = 'inv:' + raw;
 
   document.getElementById('qr-manual-input').value = '';
   closeQrScanModal();
@@ -1530,7 +1529,7 @@ function startCamera() {
   }
   if (!window.isSecureContext) {
     document.getElementById('qr-scan-error').textContent =
-      'Camera requires HTTPS. Use a USB scanner or type the item ID instead.';
+      'Camera requires HTTPS. Use a USB scanner or type the item code instead.';
     return;
   }
 
@@ -1557,7 +1556,7 @@ function startCamera() {
     });
   }).catch(err => {
     document.getElementById('qr-scan-error').textContent =
-      'Camera access denied. Use USB scanner or type the item ID.';
+      'Camera access denied. Use USB scanner or type the item code.';
     stopCamera();
   });
 }
@@ -1592,11 +1591,13 @@ async function onQrScanned(text) {
 // ---- Shared QR processing (used by both modes) ----
 async function processQrText(text) {
   if (text.startsWith('inv:')) {
-    const itemId = parseInt(text.slice(4), 10);
-    if (isNaN(itemId)) { alert('Invalid inventory QR code.'); return; }
+    const code = text.slice(4);
+    const url = /^\d+$/.test(code)
+      ? `/api/inventory/${code}`
+      : `/api/inventory/by-code/${encodeURIComponent(code)}`;
     try {
-      const res = await fetch(`/api/inventory/${itemId}`);
-      if (!res.ok) { alert('Inventory item not found (ID ' + itemId + ').'); return; }
+      const res = await fetch(url);
+      if (!res.ok) { alert('Inventory item not found (' + code + ').'); return; }
       const item = await res.json();
       await fillRowFromInventoryItem(item);
     } catch (e) {

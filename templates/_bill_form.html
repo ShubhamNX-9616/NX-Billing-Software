@@ -312,10 +312,10 @@
 
       <!-- Manual / USB scanner input — always visible -->
       <div>
-        <label style="font-weight:600;">Item ID or USB Scanner</label>
+        <label style="font-weight:600;">Item Code or USB Scanner</label>
         <div style="display:flex;gap:8px;margin-top:6px;">
           <input type="text" id="qr-manual-input" class="input"
-                 placeholder="Enter Item ID from Inventory page (e.g. 5)"
+                 placeholder="Enter Item Code from Inventory page (e.g. SHT-001)"
                  style="flex:1;"
                  onkeydown="if(event.key==='Enter') applyManualQr()" />
           <button type="button" class="btn btn-primary" onclick="applyManualQr()">Add</button>

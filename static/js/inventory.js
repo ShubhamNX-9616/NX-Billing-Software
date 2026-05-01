@@ -747,6 +747,7 @@ function openQrViewModal(id) {
   document.getElementById('qr-view-title').textContent =
     `QR — ${item.cloth_type} / ${item.company_name}${item.quality_number ? ' / ' + item.quality_number : ''}`;
   document.getElementById('qr-view-img').src = url;
+  document.getElementById('qr-view-code').textContent = item.item_code || `inv:${id}`;
   document.getElementById('qr-download-link').href = url;
   document.getElementById('qr-view-modal').classList.remove('hidden');
 }
