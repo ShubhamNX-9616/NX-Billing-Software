@@ -161,11 +161,18 @@ function showLoading() {
   document.getElementById('results-count').textContent        = '';
 }
 
-// ---- Allow pressing Enter in any search field to trigger search
+// ---- Live debounced search + Enter key on all three search fields
+function debounce(fn, ms) {
+  let t;
+  return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+}
+
+const debouncedSearch = debounce(doSearch, 400);
+
 ['search-bill-number', 'search-name', 'search-mobile'].forEach(id => {
-  document.getElementById(id).addEventListener('keydown', e => {
-    if (e.key === 'Enter') doSearch();
-  });
+  const el = document.getElementById(id);
+  el.addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
+  el.addEventListener('input', debouncedSearch);
 });
 
 // ---- Init

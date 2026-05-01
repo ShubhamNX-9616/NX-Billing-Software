@@ -1,6 +1,20 @@
 import re
 from decimal import Decimal, ROUND_HALF_UP
 
+_CLOTH_PREFIX_MAP = {
+    'shirting':    'SHT',
+    'suiting':     'SUT',
+    'readymade':   'RDY',
+    'stitching':   'STT',
+    'gift sets':   'GFT',
+    'accessories': 'ACC',
+}
+
+
+def cloth_type_prefix(cloth_type):
+    """Return the 3-letter item-code prefix for a given cloth type."""
+    return _CLOTH_PREFIX_MAP.get((cloth_type or '').strip().lower(), 'OTH')
+
 
 def normalize_mobile(raw):
     """Strip non-digits, remove leading +91 or 0, return last 10 digits."""

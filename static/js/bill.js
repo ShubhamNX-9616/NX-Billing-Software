@@ -19,6 +19,29 @@ let activeItemIds    = [];        // ordered list of live item IDs
 const itemDataStore  = {};        // { id: { lineTotal, discPerUnit, rateAfterDisc, discAmt, finalAmt, inventoryItemId } }
 let lastIsMobile     = window.innerWidth <= 768;
 let advancePaidUserModified = false;
+let billSaved = false;  // set true on successful save to suppress beforeunload
+
+// ----------------------------------------------------------------
+// Unsaved-changes guard
+// ----------------------------------------------------------------
+function isBillDirty() {
+  if (billSaved) return false;
+  const mobile = (document.getElementById('customer-mobile')?.value || '').trim();
+  const name   = (document.getElementById('customer-name')?.value   || '').trim();
+  if (mobile.length > 0 || name.length > 0) return true;
+  return activeItemIds.some(id => {
+    const qty = (document.getElementById(`qty-${id}`)?.value || '').trim();
+    const mrp = (document.getElementById(`mrp-${id}`)?.value || '').trim();
+    return qty !== '' || mrp !== '';
+  });
+}
+
+window.addEventListener('beforeunload', e => {
+  if (isBillDirty()) {
+    e.preventDefault();
+    e.returnValue = '';
+  }
+});
 
 // QR scanner state
 let html5QrScanner  = null;
@@ -157,12 +180,12 @@ async function loadNextBillNumber() {
 // ----------------------------------------------------------------
 function setupMobileSearch() {
   const input = document.getElementById('customer-mobile');
-  input.addEventListener('input', debounce(doMobileSearch, 500));
+  input.addEventListener('input', debounce(doMobileSearch, 300));
 }
 
 async function doMobileSearch() {
-  const raw     = document.getElementById('customer-mobile').value.trim();
-  const norm    = normalizeMobile(raw);
+  const raw      = document.getElementById('customer-mobile').value.trim();
+  const norm     = normalizeMobile(raw);
   const statusEl = document.getElementById('customer-status');
   const nameEl   = document.getElementById('customer-name');
   const spinner  = document.getElementById('mobile-spinner');
@@ -180,10 +203,18 @@ async function doMobileSearch() {
     const data = await res.json();
     if (data.found) {
       nameEl.value = data.customer.name;
-      statusEl.innerHTML = '<span class="badge badge-success">Existing Customer</span>';
+      // Brief yellow flash so staff can see the field was auto-filled
+      nameEl.style.transition = 'background 0.15s';
+      nameEl.style.background = '#fef9c3';
+      setTimeout(() => {
+        nameEl.style.background = '';
+        setTimeout(() => { nameEl.style.transition = ''; }, 300);
+      }, 700);
+      statusEl.innerHTML = '<span class="badge badge-success">&#10003; Existing Customer</span>';
     } else {
       nameEl.value = '';
       statusEl.innerHTML = '<span class="badge badge-info">New Customer</span>';
+      nameEl.focus();
     }
   } catch {
     statusEl.innerHTML = '<span class="text-danger">Search failed</span>';
@@ -300,6 +331,42 @@ async function onClothChangeRestoring(id, clothType, selectedCompany) {
 }
 
 // ----------------------------------------------------------------
+// ----------------------------------------------------------------
+// Keyboard nav inside an item row: Enter moves qty→mrp→disc→next row
+// ----------------------------------------------------------------
+function setupRowEnterNav(id) {
+  function focusAndSelect(fieldId) {
+    const el = document.getElementById(fieldId);
+    if (!el) return;
+    el.focus();
+    if (el.select) el.select();
+  }
+
+  const qtyEl  = document.getElementById(`qty-${id}`);
+  const mrpEl  = document.getElementById(`mrp-${id}`);
+  const discEl = document.getElementById(`disc-${id}`);
+
+  if (qtyEl) qtyEl.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); focusAndSelect(`mrp-${id}`); }
+  });
+  if (mrpEl) mrpEl.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); focusAndSelect(`disc-${id}`); }
+  });
+  if (discEl) discEl.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const idx  = activeItemIds.indexOf(id);
+      const next = activeItemIds[idx + 1];
+      if (next !== undefined) {
+        focusAndSelect(`cloth-${next}`);
+      } else {
+        addItemRow();
+        requestAnimationFrame(() => focusAndSelect(`cloth-${rowCounter}`));
+      }
+    }
+  });
+}
+
 // addItemRow — entry point, branches on layout
 // ----------------------------------------------------------------
 function addItemRow() {
@@ -389,6 +456,7 @@ function appendTableRow(id, vals = {}) {
 
   tbody.appendChild(tr);
   onClothChangeRestoring(id, clothType, vals.companyName || '');
+  setupRowEnterNav(id);
 }
 
 // ----------------------------------------------------------------
@@ -935,7 +1003,13 @@ document.getElementById('add-cloth-type-modal').addEventListener('click', functi
   if (e.target === this) closeAddClothTypeModal();
 });
 
-document.getElementById('btn-add-item').addEventListener('click', addItemRow);
+document.getElementById('btn-add-item').addEventListener('click', () => {
+  addItemRow();
+  requestAnimationFrame(() => {
+    const clothSel = document.getElementById(`cloth-${rowCounter}`);
+    if (clothSel) clothSel.focus();
+  });
+});
 
 // ----------------------------------------------------------------
 // Validation helpers
@@ -1247,7 +1321,7 @@ function formatCurrency(amount) {
 function buildWhatsAppMessage(bill) {
   const shopName    = 'SHUBHAM NX';
   const shopAddress = 'Krishna Chowk, New Sangvi, Pune - 411061';
-  const shopPhone   = '+91 9850123566';
+  const shopPhone   = '+91 9284630254';
 
   const dateStr = bill.bill_date
     ? formatDate(bill.bill_date)
@@ -1365,6 +1439,8 @@ async function saveBill() {
       saveBtn.textContent = EDIT_MODE ? '\u2713 Update Bill' : '\u2713 Save Bill';
       return;
     }
+
+    billSaved = true;  // disable beforeunload guard
 
     if (EDIT_MODE) {
       const successEl         = document.getElementById('save-success');

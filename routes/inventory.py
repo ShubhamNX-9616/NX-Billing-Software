@@ -4,20 +4,9 @@ import qrcode
 from flask import Blueprint, jsonify, request, send_file, session
 from db import get_db
 from auth import api_login_required, api_admin_required
-from utils import r2
+from utils import r2, cloth_type_prefix as _item_prefix
 
 inventory_bp = Blueprint("inventory", __name__)
-
-_PREFIX_MAP = {
-    'shirting':    'SHT',
-    'suiting':     'SUT',
-    'readymade':   'RDY',
-    'gift sets':   'GFT',
-    'accessories': 'ACC',
-}
-
-def _item_prefix(cloth_type):
-    return _PREFIX_MAP.get((cloth_type or '').strip().lower(), 'OTH')
 
 def _next_item_code(db, cloth_type):
     prefix = _item_prefix(cloth_type)

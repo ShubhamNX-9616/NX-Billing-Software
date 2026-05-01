@@ -259,3 +259,93 @@ a:hover {
   h1 { font-size: 20px; }
   h2 { font-size: 17px; }
 }
+
+/* ============================================================
+   DARK MODE — variable overrides + component fixes
+   ============================================================ */
+
+html[data-theme="dark"] {
+  --bg:         #111827;
+  --surface:    #1f2937;
+  --border:     #374151;
+  --text:       #f9fafb;
+  --text-muted: #9ca3af;
+  --text-light: #6b7280;
+}
+
+/* Skeleton shimmer */
+html[data-theme="dark"] .skeleton-val,
+html[data-theme="dark"] .skeleton-line,
+html[data-theme="dark"] .skeleton-bar {
+  background: linear-gradient(90deg, #374151 25%, #4b5563 50%, #374151 75%);
+  background-size: 200% 100%;
+}
+
+/* Tables */
+html[data-theme="dark"] .table th {
+  background: #374151;
+  color: #9ca3af;
+}
+html[data-theme="dark"] .table tbody tr:hover {
+  background: rgba(255,255,255,0.04);
+}
+html[data-theme="dark"] .table-striped tbody tr:nth-child(even) {
+  background: rgba(255,255,255,0.03);
+}
+
+/* Secondary button */
+html[data-theme="dark"] .btn-secondary {
+  background: #374151;
+  border-color: #4b5563;
+  color: #f9fafb;
+}
+html[data-theme="dark"] .btn-secondary:hover:not(:disabled) {
+  background: #4b5563;
+}
+
+/* Badges */
+html[data-theme="dark"] .badge-success { background: #064e3b; color: #6ee7b7; }
+html[data-theme="dark"] .badge-warning { background: #78350f; color: #fcd34d; }
+html[data-theme="dark"] .badge-danger  { background: #7f1d1d; color: #fca5a5; }
+html[data-theme="dark"] .badge-info    { background: #1e3a8a; color: #93c5fd; }
+html[data-theme="dark"] .badge-neutral { background: #374151; color: #9ca3af; border-color: #4b5563; }
+
+/* Alerts */
+html[data-theme="dark"] .alert-success { background: #064e3b; color: #6ee7b7; border-color: #065f46; }
+html[data-theme="dark"] .alert-danger  { background: #7f1d1d; color: #fca5a5; border-color: #991b1b; }
+html[data-theme="dark"] .alert-warning { background: #78350f; color: #fcd34d; border-color: #92400e; }
+
+/* Share / copy buttons */
+html[data-theme="dark"] .btn-share-link {
+  background: #1e3a8a;
+  border-color: #3b82f6;
+  color: #93c5fd;
+}
+html[data-theme="dark"] .btn-share-link:hover { background: #1e40af; }
+html[data-theme="dark"] .btn-share-icon {
+  background: #374151;
+  border-color: #4b5563;
+  color: #9ca3af;
+}
+html[data-theme="dark"] .btn-share-icon:hover { background: #1e3a8a; color: #93c5fd; }
+
+/* Mobile bottom nav */
+html[data-theme="dark"] .mobile-bottom-nav {
+  background: #1f2937;
+  border-color: #374151;
+}
+html[data-theme="dark"] .mob-nav-item { color: #9ca3af; }
+
+/* Bill items table cell inputs */
+html[data-theme="dark"] .items-table th { background: #374151; }
+html[data-theme="dark"] .items-table .cell-input {
+  color: #f9fafb;
+}
+html[data-theme="dark"] .items-table .cell-input:hover {
+  background: #374151;
+  border-color: #4b5563;
+}
+html[data-theme="dark"] .items-table .cell-input:focus {
+  background: #111827;
+  border-color: #3b82f6;
+}

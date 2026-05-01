@@ -153,20 +153,16 @@ def get_bill_by_number(bill_number):
 
 
 def find_or_create_customer(db, customer_name, norm_mobile):
-    """Return customer_id for norm_mobile, creating the customer if not found."""
+    """Return customer_id for norm_mobile, creating the customer if not found.
+    The customer's stored name is never overwritten here — edits go through
+    the customer management UI so bill-form typos don't corrupt the record."""
     existing = db.execute(
         "SELECT id FROM customers WHERE normalized_mobile = ?", (norm_mobile,)
     ).fetchone()
     if existing:
-        customer_id = existing["id"]
-        db.execute(
-            "UPDATE customers SET name = ?, updated_at = datetime('now','localtime') WHERE id = ?",
-            (customer_name, customer_id),
-        )
-    else:
-        cursor = db.execute(
-            "INSERT INTO customers (name, mobile, normalized_mobile) VALUES (?, ?, ?)",
-            (customer_name, norm_mobile, norm_mobile),
-        )
-        customer_id = cursor.lastrowid
-    return customer_id
+        return existing["id"]
+    cursor = db.execute(
+        "INSERT INTO customers (name, mobile, normalized_mobile) VALUES (?, ?, ?)",
+        (customer_name, norm_mobile, norm_mobile),
+    )
+    return cursor.lastrowid

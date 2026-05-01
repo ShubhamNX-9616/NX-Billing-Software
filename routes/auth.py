@@ -1,11 +1,27 @@
 import re
 import time
+import threading
 from flask import Blueprint, render_template, request, redirect, url_for, session, jsonify
 from db import get_db
 from extensions import bcrypt
 from auth import api_admin_required, api_login_required
 
 auth_routes = Blueprint('auth_routes', __name__)
+
+# Server-side IP-based login lockout — not bypassable by clearing cookies.
+# Resets on server restart, which is acceptable for a single-shop deployment.
+_MAX_ATTEMPTS    = 5
+_LOCKOUT_SECONDS = 15 * 60  # 15 minutes
+_store_lock      = threading.Lock()
+_attempt_store   = {}  # ip -> {"count": int, "lockout_until": float | None}
+
+
+def _get_client_ip():
+    """Return the real client IP, honouring X-Forwarded-For from a trusted proxy."""
+    forwarded = request.headers.get("X-Forwarded-For")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.remote_addr
 
 
 @auth_routes.route('/login', methods=['GET'])
@@ -17,20 +33,20 @@ def login():
     return render_template('login.html')
 
 
-_MAX_ATTEMPTS = 5
-_LOCKOUT_SECONDS = 15 * 60  # 15 minutes
-
-
 @auth_routes.route('/login', methods=['POST'])
 def login_post():
-    # --- Lockout check ---
-    lockout_until = session.get('lockout_until')
-    if lockout_until and time.time() < lockout_until:
-        remaining = int((lockout_until - time.time()) / 60) + 1
-        return render_template(
-            'login.html',
-            error=f'Too many failed attempts. Please wait {remaining} minute(s).'
-        )
+    ip  = _get_client_ip()
+    now = time.time()
+
+    # --- Check lockout ---
+    with _store_lock:
+        record = _attempt_store.get(ip, {"count": 0, "lockout_until": None})
+        if record["lockout_until"] and now < record["lockout_until"]:
+            remaining = int((record["lockout_until"] - now) / 60) + 1
+            return render_template(
+                'login.html',
+                error=f'Too many failed attempts. Please wait {remaining} minute(s).'
+            )
 
     username = request.form.get('username', '').strip()
     password = request.form.get('password', '')
@@ -42,20 +58,26 @@ def login_post():
     ).fetchone()
 
     if user is None or not bcrypt.check_password_hash(user['password_hash'], password):
-        attempts = session.get('login_attempts', 0) + 1
-        session['login_attempts'] = attempts
-        if attempts >= _MAX_ATTEMPTS:
-            session['lockout_until'] = time.time() + _LOCKOUT_SECONDS
-            session['login_attempts'] = 0
+        just_locked = False
+        with _store_lock:
+            record = _attempt_store.setdefault(ip, {"count": 0, "lockout_until": None})
+            record["count"] += 1
+            if record["count"] >= _MAX_ATTEMPTS:
+                record["lockout_until"] = now + _LOCKOUT_SECONDS
+                record["count"] = 0
+                just_locked = True
+
+        if just_locked:
             return render_template(
                 'login.html',
                 error='Too many failed attempts. Please wait 15 minutes.'
             )
         return render_template('login.html', error='Invalid username or password')
 
-    # Success — clear attempt counters and set session
-    session.pop('login_attempts', None)
-    session.pop('lockout_until', None)
+    # Success — clear IP record and populate session
+    with _store_lock:
+        _attempt_store.pop(ip, None)
+
     session['user_id']  = user['id']
     session['username'] = user['username']
     session['role']     = user['role']

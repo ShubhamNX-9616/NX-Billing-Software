@@ -1,15 +1,5 @@
 from db.connection import _open_connection
-
-_PREFIX_MAP = {
-    'shirting':    'SHT',
-    'suiting':     'SUT',
-    'readymade':   'RDY',
-    'gift sets':   'GFT',
-    'accessories': 'ACC',
-}
-
-def _cloth_prefix(cloth_type):
-    return _PREFIX_MAP.get((cloth_type or '').strip().lower(), 'OTH')
+from utils import cloth_type_prefix as _cloth_prefix
 
 
 def init_db():
