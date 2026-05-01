@@ -1,7 +1,5 @@
 cloudflared.exe
 .env
-service_account.json
-shubham-billing-backup-*.json
 __pycache__/
 *.pyc
 *.pyo

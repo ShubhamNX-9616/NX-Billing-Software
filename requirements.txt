@@ -2,5 +2,3 @@ flask
 flask-bcrypt
 openpyxl
 qrcode[pil]
-google-api-python-client
-google-auth
