@@ -132,12 +132,16 @@ def get_bill(bill_id):
             (bill_id,),
         ).fetchall()
 
-        gross_final_total = round(sum(float(i["final_amount"] or 0) for i in items), 2)
-        round_off = round(gross_final_total - float(bill["final_total"] or 0), 2)
+        gross_final_total = r2(sum(float(i["final_amount"] or 0) for i in items))
+        stored_round_off = float(bill["round_off"] or 0)
+        if stored_round_off > 0:
+            round_off = stored_round_off
+        else:
+            round_off = max(r2(gross_final_total - float(bill["final_total"] or 0)), 0.0)
 
         result = dict(bill)
         result["gross_final_total"] = gross_final_total
-        result["round_off"] = max(round_off, 0)
+        result["round_off"] = round_off
         result["items"] = [dict(i) for i in items]
         result["payments"] = [dict(p) for p in payments]
         return jsonify(result)
@@ -204,8 +208,9 @@ def create_bill():
                 bill_number, customer_id,
                 customer_name_snapshot, customer_mobile_snapshot,
                 bill_date, subtotal, total_discount, final_total,
-                total_savings, advance_paid, remaining, salesperson_name, payment_mode_type
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                total_savings, advance_paid, remaining, salesperson_name, payment_mode_type,
+                round_off
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 bill_number, customer_id,
@@ -213,6 +218,7 @@ def create_bill():
                 totals["subtotal"], totals["total_discount"], totals["final_total"],
                 totals["total_savings"], advance_paid, remaining,
                 salesperson_name, payment_mode_type,
+                totals["round_off"],
             ),
         )
         bill_id = bill_cursor.lastrowid
@@ -364,6 +370,7 @@ def update_bill(bill_id):
                 remaining                = ?,
                 salesperson_name         = ?,
                 payment_mode_type        = ?,
+                round_off                = ?,
                 updated_at               = datetime('now','localtime')
             WHERE id = ?
         """, (
@@ -371,6 +378,7 @@ def update_bill(bill_id):
             totals["subtotal"], totals["total_discount"], totals["final_total"],
             totals["total_savings"], advance_paid, remaining,
             salesperson_name, payment_mode_type,
+            totals["round_off"],
             bill_id,
         ))
 

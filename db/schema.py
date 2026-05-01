@@ -144,6 +144,7 @@ def init_db():
             "ALTER TABLE bills ADD COLUMN remaining REAL NOT NULL DEFAULT 0",
             "ALTER TABLE bills ADD COLUMN status TEXT NOT NULL DEFAULT 'active'",
             "ALTER TABLE bills ADD COLUMN salesperson_name TEXT NOT NULL DEFAULT 'Self'",
+            "ALTER TABLE bills ADD COLUMN round_off REAL NOT NULL DEFAULT 0",
         ]:
             try:
                 conn.execute(stmt)
