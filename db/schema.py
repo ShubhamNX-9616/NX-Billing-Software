@@ -1,4 +1,4 @@
-from db.connection import _open_connection
+from db.connection import _open_connection, _current_fy
 from utils import cloth_type_prefix as _cloth_prefix
 
 
@@ -98,7 +98,8 @@ def init_db():
 
             CREATE TABLE IF NOT EXISTS bill_number_seq (
                 id       INTEGER PRIMARY KEY CHECK (id = 1),
-                next_val INTEGER NOT NULL DEFAULT 0
+                next_val INTEGER NOT NULL DEFAULT 0,
+                fy       TEXT    NOT NULL DEFAULT ''
             );
 
             CREATE TABLE IF NOT EXISTS suppliers (
@@ -179,12 +180,24 @@ def init_db():
                 (type_name, normalized_name),
             )
 
-        # Sync sequence table to current max bill number
-        conn.execute("INSERT OR IGNORE INTO bill_number_seq (id, next_val) VALUES (1, 0)")
+        # Migrate: add fy column to bill_number_seq
+        try:
+            conn.execute("ALTER TABLE bill_number_seq ADD COLUMN fy TEXT NOT NULL DEFAULT ''")
+        except Exception:
+            pass
+
+        # Sync sequence table to current max bill number for the current FY
+        fy = _current_fy()
+        conn.execute("INSERT OR IGNORE INTO bill_number_seq (id, next_val, fy) VALUES (1, 0, ?)", (fy,))
+        # Set fy on existing row if it was created before this migration
+        conn.execute("UPDATE bill_number_seq SET fy = ? WHERE id = 1 AND fy = ''", (fy,))
+        # Crash-recovery sync: ensure next_val >= max bill number for the current FY
         conn.execute(
             "UPDATE bill_number_seq SET next_val = MAX(next_val, "
-            "(SELECT COALESCE(MAX(CAST(SUBSTR(bill_number, 5) AS INTEGER)), 0) FROM bills)) "
-            "WHERE id = 1"
+            "(SELECT COALESCE(MAX(CAST(SUBSTR(bill_number, 5) AS INTEGER)), 0) "
+            "FROM bills WHERE bill_number LIKE ?)) "
+            "WHERE id = 1",
+            (f"SHN-%/{fy}",),
         )
 
         _seed_cloth_types(conn)

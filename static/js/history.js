@@ -1,8 +1,10 @@
 /* history.js — Bill History page logic */
 
-// ---- Delete state ----
+// ---- Modal state ----
 let pendingDeleteId     = null;
 let pendingDeleteNumber = null;
+let pendingCancelId     = null;
+let pendingCancelNumber = null;
 
 function fmt(amount) {
   return Number(amount || 0).toLocaleString('en-IN', {
@@ -50,45 +52,86 @@ function renderTable(bills, titleText) {
   wrap.style.display  = 'block';
 
   tbody.innerHTML = bills.map(b => {
-    const itemCount = b.item_count !== undefined ? b.item_count : '—';
-    const remaining = b.remaining || 0;
-    const statusBadge = remaining > 0
-      ? `<span class="badge" style="background:#fee2e2;color:#b91c1c;font-size:10px;">Due: ${fmt(remaining)}</span>`
-      : `<span class="badge badge-success" style="font-size:10px;">Paid</span>`;
+    const cancelled  = b.status === 'cancelled';
+    const itemCount  = b.item_count !== undefined ? b.item_count : '—';
+    const remaining  = b.remaining || 0;
+
+    const paymentBadgeHtml = cancelled
+      ? `<span class="badge" style="background:#fee2e2;color:#9b1c1c;font-size:10px;font-weight:700;letter-spacing:.4px;">CANCELLED</span>`
+      : (remaining > 0
+          ? `<span class="badge" style="background:#fee2e2;color:#b91c1c;font-size:10px;">Due: ${fmt(remaining)}</span>`
+          : `<span class="badge badge-success" style="font-size:10px;">Paid</span>`);
+
+    const rowStyle = cancelled
+      ? 'background:#fafafa;opacity:.72;'
+      : '';
+
+    const billNumHtml = cancelled
+      ? `<span class="fw-600" style="color:var(--text-muted);text-decoration:line-through;">${b.bill_number}</span>`
+      : `<span class="fw-600" style="color:var(--primary);">${b.bill_number}</span>`;
+
+    const amountHtml = cancelled
+      ? `<span class="fw-600" style="color:var(--text-muted);text-decoration:line-through;">${fmt(b.final_total)}</span>`
+      : `<span class="fw-600">${fmt(b.final_total)}</span>`;
+
+    const shareBtn = `
+      <button class="btn-share-icon"
+              onclick="copyBillShareLink('${b.bill_number}'); event.stopPropagation();"
+              title="Copy share link">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2">
+          <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/>
+          <circle cx="18" cy="19" r="3"/>
+          <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+          <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+        </svg>
+      </button>`;
+
+    const actionBtns = cancelled
+      ? `
+        <a href="/bills/${b.id}" class="btn btn-secondary btn-sm">View</a>
+        <a href="/bills/${b.id}?print=1" class="btn btn-secondary btn-sm"
+           target="_blank" onclick="event.stopPropagation()">&#128438; Print</a>
+        ${shareBtn}
+        <button class="btn btn-sm" style="background:#d1fae5;color:#065f46;border:1px solid #6ee7b7;"
+                onclick="restoreBill(${b.id}, '${b.bill_number}'); event.stopPropagation();">
+          &#10227; Restore
+        </button>
+        <button class="btn btn-danger btn-sm"
+                onclick="deleteBill(${b.id}, '${b.bill_number}'); event.stopPropagation();">
+          &#128465; Delete
+        </button>`
+      : `
+        <a href="/bills/${b.id}" class="btn btn-secondary btn-sm">View</a>
+        <a href="/edit-bill/${b.id}" class="btn btn-secondary btn-sm"
+           onclick="event.stopPropagation()">Edit</a>
+        <a href="/bills/${b.id}?print=1" class="btn btn-secondary btn-sm"
+           target="_blank" onclick="event.stopPropagation()">&#128438; Print</a>
+        ${shareBtn}
+        <button class="btn btn-sm" style="background:#fef3c7;color:#92400e;border:1px solid #fcd34d;"
+                onclick="cancelBill(${b.id}, '${b.bill_number}'); event.stopPropagation();">
+          &#10006; Cancel
+        </button>
+        <button class="btn btn-danger btn-sm"
+                onclick="deleteBill(${b.id}, '${b.bill_number}'); event.stopPropagation();">
+          &#128465; Delete
+        </button>`;
+
     return `
-      <tr onclick="location.href='/bills/${b.id}'" style="cursor:pointer;">
-        <td><span class="fw-600" style="color:var(--primary);">${b.bill_number}</span></td>
-        <td>${b.customer_name_snapshot || '—'}</td>
+      <tr onclick="location.href='/bills/${b.id}'" style="cursor:pointer;${rowStyle}">
+        <td>${billNumHtml}</td>
+        <td style="${cancelled ? 'color:var(--text-muted);' : ''}">${b.customer_name_snapshot || '—'}</td>
         <td class="col-mobile" style="color:var(--text-muted);">${b.customer_mobile_snapshot || '—'}</td>
-        <td class="col-date">${b.bill_date || '—'}</td>
-        <td class="col-items text-right">${itemCount}</td>
+        <td class="col-date" style="${cancelled ? 'color:var(--text-muted);' : ''}">${b.bill_date || '—'}</td>
+        <td class="col-items text-right" style="${cancelled ? 'color:var(--text-muted);' : ''}">${itemCount}</td>
         <td class="text-right">
-          <span class="fw-600">${fmt(b.final_total)}</span>
-          <span style="display:block;margin-top:2px;">${statusBadge}</span>
+          ${amountHtml}
+          <span style="display:block;margin-top:2px;">${paymentBadgeHtml}</span>
         </td>
         <td class="col-payment">${paymentBadge(b.payment_mode_type)}</td>
         <td style="text-align:center;">
           <div style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap;" onclick="event.stopPropagation()">
-            <a href="/bills/${b.id}" class="btn btn-secondary btn-sm">View</a>
-            <a href="/edit-bill/${b.id}" class="btn btn-secondary btn-sm"
-               onclick="event.stopPropagation()">Edit</a>
-            <a href="/bills/${b.id}?print=1" class="btn btn-secondary btn-sm"
-               target="_blank" onclick="event.stopPropagation()">&#128438; Print</a>
-            <button class="btn-share-icon"
-                    onclick="copyBillShareLink('${b.bill_number}'); event.stopPropagation();"
-                    title="Copy share link">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-                   stroke="currentColor" stroke-width="2">
-                <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/>
-                <circle cx="18" cy="19" r="3"/>
-                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
-                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
-              </svg>
-            </button>
-            <button class="btn btn-danger btn-sm"
-                    onclick="deleteBill(${b.id}, '${b.bill_number}'); event.stopPropagation();">
-              &#128465; Delete
-            </button>
+            ${actionBtns}
           </div>
         </td>
       </tr>
@@ -119,7 +162,6 @@ async function doSearch() {
   const name       = document.getElementById('search-name').value.trim();
   const mobile     = document.getElementById('search-mobile').value.trim();
 
-  // If all empty, reload all
   if (!billNumber && !name && !mobile) {
     showLoading();
     await loadAllBills();
@@ -179,6 +221,65 @@ const debouncedSearch = debounce(doSearch, 400);
 document.addEventListener('DOMContentLoaded', loadAllBills);
 
 // ----------------------------------------------------------------
+// Cancel bill
+// ----------------------------------------------------------------
+function cancelBill(billId, billNumber) {
+  pendingCancelId     = billId;
+  pendingCancelNumber = billNumber;
+  document.getElementById('cancel-modal-bill-num').textContent = billNumber;
+  document.getElementById('cancel-modal-error').textContent    = '';
+  document.getElementById('btn-confirm-cancel').disabled    = false;
+  document.getElementById('btn-confirm-cancel').textContent = 'Yes, Cancel Bill';
+  document.getElementById('cancel-modal').classList.remove('hidden');
+}
+
+function closeCancelModal() {
+  document.getElementById('cancel-modal').classList.add('hidden');
+  pendingCancelId     = null;
+  pendingCancelNumber = null;
+}
+
+async function confirmCancel() {
+  if (!pendingCancelId) return;
+  const btn = document.getElementById('btn-confirm-cancel');
+  btn.disabled    = true;
+  btn.textContent = 'Cancelling…';
+  document.getElementById('cancel-modal-error').textContent = '';
+  try {
+    const res  = await fetch(`/api/bills/${pendingCancelId}/cancel`, { method: 'PUT' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Cancel failed.');
+    closeCancelModal();
+    showToast('Bill cancelled successfully.');
+    setTimeout(() => { showLoading(); loadAllBills(); }, 800);
+  } catch (err) {
+    document.getElementById('cancel-modal-error').textContent = err.message;
+    btn.disabled    = false;
+    btn.textContent = 'Yes, Cancel Bill';
+  }
+}
+
+document.getElementById('cancel-modal').addEventListener('click', function (e) {
+  if (e.target === this) closeCancelModal();
+});
+
+// ----------------------------------------------------------------
+// Restore bill
+// ----------------------------------------------------------------
+async function restoreBill(billId, billNumber) {
+  if (!confirm(`Restore bill ${billNumber}? It will become active again.`)) return;
+  try {
+    const res  = await fetch(`/api/bills/${billId}/restore`, { method: 'PUT' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Restore failed.');
+    showToast('Bill restored successfully.');
+    setTimeout(() => { showLoading(); loadAllBills(); }, 800);
+  } catch (err) {
+    showToast('Error: ' + err.message, true);
+  }
+}
+
+// ----------------------------------------------------------------
 // Delete bill — confirmation modal + API call
 // ----------------------------------------------------------------
 function deleteBill(billId, billNumber) {
@@ -203,19 +304,16 @@ async function confirmDelete() {
 
   const btn = document.getElementById('btn-confirm-delete');
   btn.disabled    = true;
-  btn.textContent = 'Deleting\u2026';
+  btn.textContent = 'Deleting…';
   document.getElementById('delete-modal-error').textContent = '';
 
   try {
     const res  = await fetch(`/api/bills/${pendingDeleteId}`, { method: 'DELETE' });
     const data = await res.json();
-
     if (!res.ok) throw new Error(data.error || 'Delete failed.');
-
     closeDeleteModal();
-    showDeleteToast('Bill deleted. Remaining bills have been renumbered.');
+    showToast('Bill deleted. Remaining bills have been renumbered.');
     setTimeout(() => { showLoading(); loadAllBills(); }, 1000);
-
   } catch (err) {
     document.getElementById('delete-modal-error').textContent = err.message;
     btn.disabled    = false;
@@ -223,19 +321,28 @@ async function confirmDelete() {
   }
 }
 
-function showDeleteToast(msg) {
-  let el = document.getElementById('__delete-toast__');
+document.getElementById('delete-modal').addEventListener('click', function (e) {
+  if (e.target === this) closeDeleteModal();
+});
+
+// ----------------------------------------------------------------
+// Toast
+// ----------------------------------------------------------------
+function showToast(msg, isError) {
+  let el = document.getElementById('__history-toast__');
   if (!el) {
     el = document.createElement('div');
-    el.id = '__delete-toast__';
-    el.className = 'alert alert-success';
+    el.id = '__history-toast__';
     el.style.cssText = 'position:fixed;top:16px;right:16px;z-index:9999;min-width:300px;' +
-                       'max-width:420px;box-shadow:0 4px 16px rgba(0,0,0,.15);';
+                       'max-width:420px;box-shadow:0 4px 16px rgba(0,0,0,.15);padding:12px 16px;' +
+                       'border-radius:8px;font-size:14px;display:flex;align-items:center;';
     document.body.appendChild(el);
   }
-  el.textContent    = msg;
-  el.style.display  = 'flex';
-  el.style.opacity  = '1';
+  el.style.background = isError ? '#fee2e2' : '#d1fae5';
+  el.style.color      = isError ? '#9b1c1c' : '#065f46';
+  el.textContent      = msg;
+  el.style.display    = 'flex';
+  el.style.opacity    = '1';
   clearTimeout(el._timer);
   el._timer = setTimeout(() => {
     el.style.transition = 'opacity .4s';
@@ -244,10 +351,8 @@ function showDeleteToast(msg) {
   }, 2800);
 }
 
-// Close delete modal on overlay click
-document.getElementById('delete-modal').addEventListener('click', function (e) {
-  if (e.target === this) closeDeleteModal();
-});
+// legacy alias used by share helpers
+function showDeleteToast(msg) { showToast(msg); }
 
 // ----------------------------------------------------------------
 // Share link helpers
@@ -274,9 +379,5 @@ function fallbackCopy(text) {
 function copyBillShareLink(billNumber) {
   const link = window.location.origin + '/bill/share/' + billNumber;
   copyToClipboard(link);
-  showAlert('Share link copied for ' + billNumber, 'success');
-}
-
-function showAlert(msg, type) {
-  showDeleteToast(msg);
+  showToast('Share link copied for ' + billNumber);
 }

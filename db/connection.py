@@ -1,5 +1,6 @@
 import sqlite3
 import os
+from datetime import date
 from flask import g, has_app_context
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "..", "billing.db")
@@ -30,9 +31,25 @@ def close_db(e=None):
         db.close()
 
 
+def _current_fy():
+    """Return the current Indian financial year suffix, e.g. '26-27' for FY 2026-27."""
+    today = date.today()
+    start = today.year if today.month >= 4 else today.year - 1
+    return f"{str(start)[2:]}-{str(start + 1)[2:]}"
+
+
 def generate_bill_number(conn):
-    # Atomic increment: SQLite serializes concurrent writers on this single-row UPDATE,
-    # eliminating the SELECT-MAX race condition that could produce duplicate bill numbers.
-    conn.execute("UPDATE bill_number_seq SET next_val = next_val + 1 WHERE id = 1")
-    row = conn.execute("SELECT next_val FROM bill_number_seq WHERE id = 1").fetchone()
-    return f"SHN-{row['next_val']:04d}"
+    fy = _current_fy()
+    row = conn.execute("SELECT next_val, fy FROM bill_number_seq WHERE id = 1").fetchone()
+    if row["fy"] != fy:
+        # New financial year — reset counter to 1
+        new_val = 1
+        conn.execute(
+            "UPDATE bill_number_seq SET next_val = ?, fy = ? WHERE id = 1",
+            (new_val, fy),
+        )
+    else:
+        conn.execute("UPDATE bill_number_seq SET next_val = next_val + 1 WHERE id = 1")
+        row = conn.execute("SELECT next_val FROM bill_number_seq WHERE id = 1").fetchone()
+        new_val = row["next_val"]
+    return f"SHN-{new_val:04d}/{fy}"

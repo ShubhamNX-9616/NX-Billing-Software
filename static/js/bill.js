@@ -930,6 +930,9 @@ async function saveNewCompany() {
 document.getElementById('add-company-modal').addEventListener('click', function (e) {
   if (e.target === this) closeAddCompanyModal();
 });
+document.getElementById('add-company-name').addEventListener('keydown', function (e) {
+  if (e.key === 'Enter') saveNewCompany();
+});
 
 // ----------------------------------------------------------------
 // Add Cloth Type modal
@@ -1001,6 +1004,9 @@ async function saveNewClothType() {
 
 document.getElementById('add-cloth-type-modal').addEventListener('click', function (e) {
   if (e.target === this) closeAddClothTypeModal();
+});
+document.getElementById('add-cloth-type-name').addEventListener('keydown', function (e) {
+  if (e.key === 'Enter') saveNewClothType();
 });
 
 document.getElementById('btn-add-item').addEventListener('click', () => {
@@ -1302,6 +1308,9 @@ async function saveNewSalesperson() {
 
 document.getElementById('add-salesperson-modal').addEventListener('click', function (e) {
   if (e.target === this) closeAddSalespersonModal();
+});
+document.getElementById('add-salesperson-name').addEventListener('keydown', function (e) {
+  if (e.key === 'Enter') saveNewSalesperson();
 });
 
 // ----------------------------------------------------------------

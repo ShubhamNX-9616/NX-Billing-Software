@@ -1,5 +1,7 @@
+import re
 from flask import Blueprint, jsonify, request, session
 from db import get_db, generate_bill_number
+from db.connection import _current_fy
 from auth import login_required, admin_required, staff_or_admin_required, api_login_required, api_admin_required
 from utils import normalize_mobile, validate_indian_mobile, r2
 from services.billing import (
@@ -32,7 +34,8 @@ def get_bills():
                 SELECT id, bill_number, customer_id, customer_name_snapshot,
                        customer_mobile_snapshot, bill_date,
                        subtotal, total_discount, final_total, total_savings,
-                       payment_mode_type, salesperson_name, advance_paid, remaining, created_at
+                       payment_mode_type, salesperson_name, advance_paid, remaining,
+                       status, created_at
                 FROM bills
                 WHERE bill_number LIKE ?
                    OR customer_name_snapshot LIKE ?
@@ -47,7 +50,8 @@ def get_bills():
                 SELECT id, bill_number, customer_id, customer_name_snapshot,
                        customer_mobile_snapshot, bill_date,
                        subtotal, total_discount, final_total, total_savings,
-                       payment_mode_type, salesperson_name, advance_paid, remaining, created_at
+                       payment_mode_type, salesperson_name, advance_paid, remaining,
+                       status, created_at
                 FROM bills
                 ORDER BY created_at DESC
                 """
@@ -89,7 +93,8 @@ def search_bills():
             SELECT id, bill_number, customer_name_snapshot,
                    customer_mobile_snapshot, bill_date,
                    subtotal, total_discount, final_total, total_savings,
-                   payment_mode_type, salesperson_name, advance_paid, remaining, created_at
+                   payment_mode_type, salesperson_name, advance_paid, remaining,
+                   status, created_at
             FROM bills
             {where}
             ORDER BY created_at DESC
@@ -460,12 +465,14 @@ def delete_bill(bill_id):
         if not bill:
             return jsonify({"error": "Bill not found"}), 404
 
-        # 2–3. Parse the numeric part (e.g. "SHN-0003" → 3)
+        # 2–3. Parse the numeric part and FY.
+        # Supports "SHN-0003/26-27" (new) and "SHN-0003" (old format).
         bill_number = bill["bill_number"]
-        try:
-            deleted_num = int(bill_number.split("-")[1])
-        except (IndexError, ValueError):
+        m = re.match(r'^SHN-(\d+)(?:/(.+))?$', bill_number)
+        if not m:
             return jsonify({"error": "Unexpected bill_number format"}), 500
+        deleted_num = int(m.group(1))
+        bill_fy     = m.group(2)  # e.g. "26-27", or None for old-format bills
 
         # 4. Restore inventory stock for linked items before deleting
         inv_items = db.execute(
@@ -482,30 +489,50 @@ def delete_bill(bill_id):
         # 7. Delete the bill itself
         db.execute("DELETE FROM bills WHERE id = ?", (bill_id,))
 
-        # 8. Renumber all bills whose number was higher than the deleted one
-        higher_bills = db.execute(
-            """
-            SELECT id, bill_number
-            FROM bills
-            WHERE CAST(SUBSTR(bill_number, 5) AS INTEGER) > ?
-            ORDER BY CAST(SUBSTR(bill_number, 5) AS INTEGER) ASC
-            """,
-            (deleted_num,),
-        ).fetchall()
+        # 8. Renumber bills in the same FY with a higher number than the deleted one
+        if bill_fy:
+            higher_bills = db.execute(
+                """
+                SELECT id, bill_number FROM bills
+                WHERE bill_number LIKE ?
+                  AND CAST(SUBSTR(bill_number, 5) AS INTEGER) > ?
+                ORDER BY CAST(SUBSTR(bill_number, 5) AS INTEGER) ASC
+                """,
+                (f"SHN-%/{bill_fy}", deleted_num),
+            ).fetchall()
+            for b in higher_bills:
+                bm = re.match(r'^SHN-(\d+)/(.+)$', b["bill_number"])
+                if bm:
+                    db.execute(
+                        "UPDATE bills SET bill_number = ? WHERE id = ?",
+                        (f"SHN-{int(bm.group(1)) - 1:04d}/{bm.group(2)}", b["id"]),
+                    )
+        else:
+            higher_bills = db.execute(
+                """
+                SELECT id, bill_number FROM bills
+                WHERE bill_number NOT LIKE '%/%'
+                  AND CAST(SUBSTR(bill_number, 5) AS INTEGER) > ?
+                ORDER BY CAST(SUBSTR(bill_number, 5) AS INTEGER) ASC
+                """,
+                (deleted_num,),
+            ).fetchall()
+            for b in higher_bills:
+                bm = re.match(r'^SHN-(\d+)$', b["bill_number"])
+                if bm:
+                    db.execute(
+                        "UPDATE bills SET bill_number = ? WHERE id = ?",
+                        (f"SHN-{int(bm.group(1)) - 1:04d}", b["id"]),
+                    )
 
-        for b in higher_bills:
-            current_num     = int(b["bill_number"].split("-")[1])
-            new_bill_number = f"SHN-{(current_num - 1):04d}"
-            db.execute(
-                "UPDATE bills SET bill_number = ? WHERE id = ?",
-                (new_bill_number, b["id"]),
-            )
-
-        # 9. Sync seq so the next bill number continues from the new max.
+        # 9. Sync seq next_val to the new max for the current FY
+        fy = _current_fy()
         db.execute(
             "UPDATE bill_number_seq SET next_val = "
-            "(SELECT COALESCE(MAX(CAST(SUBSTR(bill_number, 5) AS INTEGER)), 0) FROM bills) "
-            "WHERE id = 1"
+            "(SELECT COALESCE(MAX(CAST(SUBSTR(bill_number, 5) AS INTEGER)), 0) "
+            "FROM bills WHERE bill_number LIKE ?) "
+            "WHERE id = 1",
+            (f"SHN-%/{fy}",),
         )
 
         db.commit()
@@ -515,6 +542,78 @@ def delete_bill(bill_id):
             "message": "Bill deleted and remaining bills renumbered",
         }), 200
 
+    except Exception as e:
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        return jsonify({"error": str(e)}), 500
+
+
+# ---------------------------------------------------------------------------
+# PUT /api/bills/<id>/cancel  — mark cancelled, restore inventory
+# ---------------------------------------------------------------------------
+@bills_bp.route("/bills/<int:bill_id>/cancel", methods=["PUT"])
+@api_admin_required
+def cancel_bill(bill_id):
+    try:
+        db = get_db()
+        bill = db.execute("SELECT id, status FROM bills WHERE id = ?", (bill_id,)).fetchone()
+        if not bill:
+            return jsonify({"error": "Bill not found"}), 404
+        if bill["status"] == "cancelled":
+            return jsonify({"error": "Bill is already cancelled"}), 400
+
+        inv_items = db.execute(
+            "SELECT inventory_item_id, quantity FROM bill_items "
+            "WHERE bill_id = ? AND inventory_item_id IS NOT NULL",
+            (bill_id,),
+        ).fetchall()
+        for inv in inv_items:
+            restore_stock(db, inv["inventory_item_id"], inv["quantity"], bill_id, session.get("username"))
+
+        db.execute(
+            "UPDATE bills SET status = 'cancelled', updated_at = datetime('now','localtime') WHERE id = ?",
+            (bill_id,),
+        )
+        db.commit()
+        return jsonify({"success": True}), 200
+    except Exception as e:
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        return jsonify({"error": str(e)}), 500
+
+
+# ---------------------------------------------------------------------------
+# PUT /api/bills/<id>/restore  — reactivate a cancelled bill, re-deduct inventory
+# ---------------------------------------------------------------------------
+@bills_bp.route("/bills/<int:bill_id>/restore", methods=["PUT"])
+@api_admin_required
+def restore_bill(bill_id):
+    try:
+        db = get_db()
+        bill = db.execute("SELECT id, status FROM bills WHERE id = ?", (bill_id,)).fetchone()
+        if not bill:
+            return jsonify({"error": "Bill not found"}), 404
+        if bill["status"] != "cancelled":
+            return jsonify({"error": "Bill is not cancelled"}), 400
+
+        inv_items = db.execute(
+            "SELECT inventory_item_id, quantity FROM bill_items "
+            "WHERE bill_id = ? AND inventory_item_id IS NOT NULL",
+            (bill_id,),
+        ).fetchall()
+        for inv in inv_items:
+            deduct_stock(db, inv["inventory_item_id"], inv["quantity"], bill_id, session.get("username"))
+
+        db.execute(
+            "UPDATE bills SET status = 'active', updated_at = datetime('now','localtime') WHERE id = ?",
+            (bill_id,),
+        )
+        db.commit()
+        return jsonify({"success": True}), 200
     except Exception as e:
         try:
             db.rollback()

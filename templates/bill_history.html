@@ -78,6 +78,34 @@
   </div>
 </div>
 
+<!-- ====== Cancel Confirmation Modal ====== -->
+<div class="modal-overlay hidden" id="cancel-modal">
+  <div class="modal-box">
+    <div class="modal-header" style="background:#fef3c7;border-radius:var(--radius-lg) var(--radius-lg) 0 0;">
+      <h3 style="color:#92400e;">&#10006; Cancel Bill &mdash; <span id="cancel-modal-bill-num"></span></h3>
+      <button class="modal-close" onclick="closeCancelModal()">&#215;</button>
+    </div>
+    <div class="modal-body">
+      <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:var(--radius);padding:14px 16px;margin-bottom:8px;">
+        <p style="font-size:13.5px;color:#78350f;line-height:1.8;margin:0;">
+          The bill will be marked as <strong>CANCELLED</strong> but kept in records.<br>
+          The bill number will <strong>not</strong> be changed or reused.<br>
+          Linked inventory stock will be restored.<br>
+          You can restore the bill later if needed.
+        </p>
+      </div>
+      <div id="cancel-modal-error" class="text-danger mt-2" style="font-size:13px;min-height:18px;"></div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary" onclick="closeCancelModal()">Go Back</button>
+      <button type="button" id="btn-confirm-cancel" onclick="confirmCancel()"
+              style="background:#d97706;color:#fff;border:none;padding:8px 18px;border-radius:6px;font-weight:600;cursor:pointer;">
+        Yes, Cancel Bill
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- ====== Delete Confirmation Modal ====== -->
 <div class="modal-overlay hidden" id="delete-modal">
   <div class="modal-box">
@@ -92,9 +120,9 @@
         </p>
         <p style="font-size:13.5px;color:#991b1b;line-height:1.8;margin:0;">
           Bill <strong id="delete-modal-warning-num"></strong> will be permanently deleted.<br>
-          All bills after this one will be renumbered.<br>
-          For example: SHN-0004 will become SHN-0003,<br>
-          SHN-0005 will become SHN-0004, and so on.<br>
+          All bills after this one (in the same financial year) will be renumbered.<br>
+          For example: SHN-0004/26-27 will become SHN-0003/26-27,<br>
+          SHN-0005/26-27 will become SHN-0004/26-27, and so on.<br>
           Any printed bills given to customers with those<br>
           numbers will no longer match.
         </p>
