@@ -29,6 +29,11 @@
   align-items: center;
   justify-content: space-between;
 }
+html[data-theme="dark"] .customer-found-bar {
+  background: #064e3b;
+  border-color: #065f46;
+  color: #6ee7b7;
+}
 
 /* ---- Items table ---- */
 .items-section {
@@ -133,7 +138,7 @@
 
 .btn-remove-row:hover {
   color: var(--danger);
-  background: #fee2e2;
+  background: rgba(239, 68, 68, 0.12);
 }
 
 /* Add row button row */
@@ -309,8 +314,8 @@
   }
 
   .item-card {
-    background: #ffffff;
-    border: 1px solid #e5e7eb;
+    background: var(--surface);
+    border: 1px solid var(--border);
     border-radius: 10px;
     padding: 12px;
     margin-bottom: 12px;
@@ -324,7 +329,7 @@
     margin-bottom: 10px;
     font-weight: 600;
     font-size: 14px;
-    color: #1a56db;
+    color: var(--primary);
   }
 
   .item-card-field {
@@ -337,13 +342,13 @@
 
   .item-card-label {
     font-size: 12px;
-    color: #6b7280;
+    color: var(--text-muted);
     font-weight: 500;
   }
 
   .item-card-footer {
-    background: #f9fafb;
-    border-top: 1px solid #e5e7eb;
+    background: var(--bg);
+    border-top: 1px solid var(--border);
     border-radius: 0 0 8px 8px;
     padding: 8px 12px;
     display: flex;
@@ -352,7 +357,7 @@
   }
 
   .item-card-final {
-    color: #057a55;
+    color: var(--success);
     font-weight: 600;
   }
 
@@ -467,3 +472,7 @@
     max-width: 100% !important;
   }
 }
+
+/* Invoice items — alternating row stripe, dark-mode safe */
+.inv-row-alt { background: #fafafa; }
+html[data-theme="dark"] .inv-row-alt { background: rgba(255, 255, 255, 0.04); }
