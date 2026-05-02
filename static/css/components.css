@@ -531,3 +531,78 @@ label {
   color: #1a56db;
   border-color: #bfdbfe;
 }
+
+/* ---- Modal header colour variants ---- */
+.modal-header { border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
+
+.modal-header--warning { background: #fef3c7; }
+.modal-header--warning h3 { color: #92400e; }
+.modal-header--danger  { background: #fee2e2; }
+.modal-header--danger  h3 { color: var(--danger); }
+
+html[data-theme="dark"] .modal-header--warning { background: #292200; }
+html[data-theme="dark"] .modal-header--warning h3 { color: #fcd34d; }
+html[data-theme="dark"] .modal-header--danger  { background: #2d0000; }
+
+/* ---- Notice boxes (coloured alert blocks inside modal body) ---- */
+.notice-box {
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-bottom: 8px;
+}
+.notice-box p { font-size: 13.5px; line-height: 1.8; margin: 0; }
+
+.notice-box--warning { background: #fef3c7; border: 1px solid #fcd34d; }
+.notice-box--warning p { color: #78350f; }
+.notice-box--danger  { background: #fee2e2; border: 1px solid #fca5a5; }
+
+.notice-danger-title { font-weight: 700; color: var(--danger); margin-bottom: 8px; font-size: 14px; }
+.notice-danger-body  { color: #991b1b; }
+
+html[data-theme="dark"] .notice-box--warning { background: #292200; border-color: #92400e; }
+html[data-theme="dark"] .notice-box--warning p { color: #fde68a; }
+html[data-theme="dark"] .notice-box--danger  { background: #2d0000; border-color: #7f1d1d; }
+html[data-theme="dark"] .notice-danger-body  { color: #fca5a5; }
+
+/* ---- Button variants: warning (amber), restore (green), cancel-bill (amber outline) ---- */
+.btn-warning { background: #d97706; color: #fff; border-color: #d97706; }
+.btn-warning:hover:not(:disabled) { background: #b45309; border-color: #b45309; }
+
+.btn-restore { background: #d1fae5; color: #065f46; border-color: #6ee7b7; }
+.btn-restore:hover:not(:disabled) { background: #a7f3d0; }
+html[data-theme="dark"] .btn-restore { background: #064e3b; color: #6ee7b7; border-color: #065f46; }
+
+.btn-cancel-bill { background: #fef3c7; color: #92400e; border-color: #fcd34d; }
+.btn-cancel-bill:hover:not(:disabled) { background: #fde68a; }
+html[data-theme="dark"] .btn-cancel-bill { background: #292200; color: #fcd34d; border-color: #92400e; }
+
+/* ---- Dashboard stat value typography + colours ---- */
+.stat-val    { font-size: 28px; font-weight: 700; line-height: 1.1; }
+.stat-val-md { font-size: 22px; }
+.stat-val-sm { font-size: 20px; }
+
+.stat-val-primary { color: var(--primary); }
+.stat-val-success { color: var(--success); }
+.stat-val-warning { color: var(--warning); }
+.stat-val-teal    { color: #0891b2; }
+.stat-val-green   { color: #10b981; }
+.stat-val-blue    { color: #3b82f6; }
+.stat-val-purple  { color: #8b5cf6; }
+.stat-val-amber   { color: #f59e0b; }
+
+html[data-theme="dark"] .stat-val-teal   { color: #22d3ee; }
+html[data-theme="dark"] .stat-val-green  { color: #34d399; }
+html[data-theme="dark"] .stat-val-blue   { color: #60a5fa; }
+html[data-theme="dark"] .stat-val-purple { color: #a78bfa; }
+html[data-theme="dark"] .stat-val-amber  { color: #fbbf24; }
+
+/* ---- Payment method colour dots ---- */
+.dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.dot-green  { background: #10b981; }
+.dot-blue   { background: #3b82f6; }
+.dot-purple { background: #8b5cf6; }
+.dot-amber  { background: #f59e0b; }
+
+/* ---- "Copied!" inline feedback text ---- */
+.txt-copied { font-size: 13px; color: #057a55; }
+html[data-theme="dark"] .txt-copied { color: #34d399; }

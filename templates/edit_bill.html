@@ -26,5 +26,11 @@
 {% block extra_js %}
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script>window.BILL_ID = {{ bill_id }};</script>
-<script src="{{ url_for('static', filename='js/bill.js') }}"></script>
+<script src="{{ url_for('static', filename='js/bill-state.js') }}"></script>
+<script src="{{ url_for('static', filename='js/bill-items.js') }}"></script>
+<script src="{{ url_for('static', filename='js/bill-payments.js') }}"></script>
+<script src="{{ url_for('static', filename='js/bill-modals.js') }}"></script>
+<script src="{{ url_for('static', filename='js/bill-qr.js') }}"></script>
+<script src="{{ url_for('static', filename='js/bill-share.js') }}"></script>
+<script src="{{ url_for('static', filename='js/bill-form.js') }}"></script>
 {% endblock %}

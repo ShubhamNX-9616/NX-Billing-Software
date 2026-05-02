@@ -10,23 +10,23 @@
 {% block content %}
 
 <!-- Section 1: Summary Cards -->
-<div class="summary-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px;">
+<div class="summary-grid">
   <div class="card card-accent-blue">
     <div class="text-muted" style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;">&#128196; Total Bills</div>
-    <div style="font-size:28px;font-weight:700;color:var(--primary);" id="val-total-bills" class="skeleton-val">—</div>
+    <div class="stat-val stat-val-primary skeleton-val" id="val-total-bills">—</div>
   </div>
   <div class="card card-accent-teal">
     <div class="text-muted" style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;">&#128100; Total Customers</div>
-    <div style="font-size:28px;font-weight:700;color:#0891b2;" id="val-total-customers" class="skeleton-val">—</div>
+    <div class="stat-val stat-val-teal skeleton-val" id="val-total-customers">—</div>
   </div>
   <div class="card card-accent-green">
     <div class="text-muted" style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;">&#9200; Today's Sales</div>
-    <div style="font-size:22px;font-weight:700;color:var(--success);" id="val-today-sales" class="skeleton-val">—</div>
+    <div class="stat-val stat-val-md stat-val-success skeleton-val" id="val-today-sales">—</div>
     <div style="font-size:12px;color:var(--text-muted);margin-top:3px;" id="val-today-bills-count"></div>
   </div>
   <div class="card card-accent-amber">
     <div class="text-muted" style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;">&#128197; This Month's Sales</div>
-    <div style="font-size:22px;font-weight:700;color:var(--warning);" id="val-month-sales" class="skeleton-val">—</div>
+    <div class="stat-val stat-val-md stat-val-warning skeleton-val" id="val-month-sales">—</div>
   </div>
 </div>
 
@@ -55,7 +55,7 @@
       </div>
       <button class="btn btn-sm btn-primary" onclick="applyCustomRange()">Apply</button>
     </div>
-    <div id="custom-range-error" style="margin-top:8px;font-size:12px;color:#b91c1c;"></div>
+    <div id="custom-range-error" class="text-danger mt-2" style="font-size:12px;"></div>
   </div>
 
   <!-- Chart skeleton -->
@@ -83,37 +83,37 @@
 </div>
 
 <!-- Section 4: Payment Method Cards -->
-<div class="summary-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px;">
+<div class="summary-grid">
   <div class="card card-accent-green">
     <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
-      <span style="width:10px;height:10px;border-radius:50%;background:#10b981;flex-shrink:0;"></span>
+      <span class="dot dot-green"></span>
       <span class="text-muted" style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;">Cash Sales</span>
     </div>
-    <div style="font-size:20px;font-weight:700;color:#10b981;" id="pcard-cash-amount" class="skeleton-val">—</div>
+    <div class="stat-val stat-val-sm stat-val-green skeleton-val" id="pcard-cash-amount">—</div>
     <div style="font-size:12px;color:var(--text-muted);margin-top:3px;" id="pcard-cash-pct"></div>
   </div>
   <div class="card card-accent-blue">
     <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
-      <span style="width:10px;height:10px;border-radius:50%;background:#3b82f6;flex-shrink:0;"></span>
+      <span class="dot dot-blue"></span>
       <span class="text-muted" style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;">Card Sales</span>
     </div>
-    <div style="font-size:20px;font-weight:700;color:#3b82f6;" id="pcard-card-amount" class="skeleton-val">—</div>
+    <div class="stat-val stat-val-sm stat-val-blue skeleton-val" id="pcard-card-amount">—</div>
     <div style="font-size:12px;color:var(--text-muted);margin-top:3px;" id="pcard-card-pct"></div>
   </div>
   <div class="card card-accent-purple">
     <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
-      <span style="width:10px;height:10px;border-radius:50%;background:#8b5cf6;flex-shrink:0;"></span>
+      <span class="dot dot-purple"></span>
       <span class="text-muted" style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;">UPI Sales</span>
     </div>
-    <div style="font-size:20px;font-weight:700;color:#8b5cf6;" id="pcard-upi-amount" class="skeleton-val">—</div>
+    <div class="stat-val stat-val-sm stat-val-purple skeleton-val" id="pcard-upi-amount">—</div>
     <div style="font-size:12px;color:var(--text-muted);margin-top:3px;" id="pcard-upi-pct"></div>
   </div>
   <div class="card card-accent-amber">
     <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
-      <span style="width:10px;height:10px;border-radius:50%;background:#f59e0b;flex-shrink:0;"></span>
+      <span class="dot dot-amber"></span>
       <span class="text-muted" style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;">Combination</span>
     </div>
-    <div style="font-size:20px;font-weight:700;color:#f59e0b;" id="pcard-combo-amount" class="skeleton-val">—</div>
+    <div class="stat-val stat-val-sm stat-val-amber skeleton-val" id="pcard-combo-amount">—</div>
     <div style="font-size:12px;color:var(--text-muted);margin-top:3px;" id="pcard-combo-pct"></div>
   </div>
 </div>

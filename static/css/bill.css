@@ -476,3 +476,52 @@ html[data-theme="dark"] .customer-found-bar {
 /* Invoice items — alternating row stripe, dark-mode safe */
 .inv-row-alt { background: #fafafa; }
 html[data-theme="dark"] .inv-row-alt { background: rgba(255, 255, 255, 0.04); }
+
+/* ---- Cancelled bill banner ---- */
+.banner-cancelled {
+  max-width: 760px;
+  margin: 0 auto 12px;
+  background: #fee2e2;
+  border: 2px solid #f87171;
+  border-radius: 8px;
+  padding: 14px 20px;
+  text-align: center;
+}
+.banner-cancelled-text {
+  font-size: 17px;
+  font-weight: 800;
+  color: #9b1c1c;
+  letter-spacing: 1px;
+}
+html[data-theme="dark"] .banner-cancelled { background: #2d0000; border-color: #991b1b; }
+html[data-theme="dark"] .banner-cancelled-text { color: #fca5a5; }
+
+/* ---- Invoice items table header cells ---- */
+.inv-items-table thead th {
+  padding: 2px 3px;
+  border: 1px solid var(--border);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  background: var(--bg);
+}
+.inv-th-right  { text-align: right;  width: 1%; white-space: nowrap; }
+.inv-th-center { text-align: center; width: 1%; white-space: nowrap; }
+.inv-th-narrow { width: 1%; white-space: nowrap; }
+
+/* ---- Invoice items table body cells ---- */
+.inv-td             { padding: 2px 3px; border: 1px solid var(--border); }
+.inv-td-num         { text-align: center; white-space: nowrap; color: var(--text-muted); }
+.inv-td-right       { text-align: right;  white-space: nowrap; }
+.inv-td-right-muted { text-align: right;  white-space: nowrap; color: var(--text-muted); }
+.inv-td-center-muted{ text-align: center; white-space: nowrap; color: var(--text-muted); }
+.inv-td-amount      { text-align: right;  white-space: nowrap; font-weight: 600; }
+
+/* ---- Payment method pill inside invoice ---- */
+.inv-payment-pill {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 12px;
+  font-size: 13px;
+}

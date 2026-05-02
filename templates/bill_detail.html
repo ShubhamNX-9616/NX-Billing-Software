@@ -28,9 +28,6 @@
       <span id="screen-payment-badge" style="margin-left:8px;"></span>
     </div>
     <div class="invoice-action-buttons">
-      <span class="invoice-hint">
-        &#128161; Print &rarr; Save as PDF to download
-      </span>
       <a href="/bill-history" class="btn btn-secondary btn-block-mobile">&#8592; Back</a>
       <a href="/edit-bill/{{ bill_id }}" class="btn btn-secondary btn-block-mobile">&#9998; Edit Bill</a>
       <a id="detail-whatsapp-btn"
@@ -55,27 +52,21 @@
         </svg>
         Copy Share Link
       </button>
-      <span id="detail-link-copied"
-            style="display:none;font-size:13px;color:#057a55">&#10003; Copied!</span>
-      <button type="button" id="action-cancel-btn" class="btn btn-block-mobile no-print"
-              style="background:#fef3c7;color:#92400e;border:1px solid #fcd34d;"
+      <span id="detail-link-copied" class="txt-copied" style="display:none;">&#10003; Copied!</span>
+      <button type="button" id="action-cancel-btn" class="btn btn-cancel-bill btn-block-mobile no-print"
               onclick="openDetailCancelModal()">&#10006; Cancel Bill</button>
-      <button type="button" id="action-restore-btn" class="btn btn-block-mobile no-print" style="display:none;background:#d1fae5;color:#065f46;border:1px solid #6ee7b7;"
+      <button type="button" id="action-restore-btn" class="btn btn-restore btn-block-mobile no-print" style="display:none;"
               onclick="confirmDetailRestore()">&#10227; Restore Bill</button>
       <button type="button" class="btn btn-danger btn-block-mobile no-print"
               onclick="openDetailDeleteModal()">&#128465; Delete</button>
       <button type="button" class="btn btn-primary btn-block-mobile"
-              onclick="window.print()">&#128438; Print / Save PDF</button>
+              onclick="window.print()">&#128438; Print</button>
     </div>
   </div>
 
   <!-- Cancelled banner — shown only for cancelled bills -->
-  <div id="cancelled-banner" style="display:none;max-width:760px;margin:0 auto 12px;
-       background:#fee2e2;border:2px solid #f87171;border-radius:8px;
-       padding:14px 20px;text-align:center;">
-    <span style="font-size:17px;font-weight:800;color:#9b1c1c;letter-spacing:1px;">
-      &#9888; THIS BILL HAS BEEN CANCELLED
-    </span>
+  <div id="cancelled-banner" class="banner-cancelled" style="display:none;">
+    <span class="banner-cancelled-text">&#9888; THIS BILL HAS BEEN CANCELLED</span>
   </div>
 
   <!-- ====== INVOICE (prints) ====== -->
@@ -127,21 +118,14 @@
     <!-- Items Table -->
     <table class="inv-items-table" style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:8px;table-layout:auto;">
       <thead>
-        <tr style="background:var(--bg);">
-          <th style="padding:2px 3px;border:1px solid var(--border);font-size:11px;font-weight:700;
-                     color:var(--text-muted);width:1%;white-space:nowrap;">#</th>
-          <th style="padding:2px 3px;border:1px solid var(--border);font-size:11px;font-weight:700;
-                     color:var(--text-muted);">Description</th>
-          <th style="padding:2px 3px;border:1px solid var(--border);font-size:11px;font-weight:700;
-                     color:var(--text-muted);text-align:right;width:1%;white-space:nowrap;">Qty(m/pcs)</th>
-          <th style="padding:2px 3px;border:1px solid var(--border);font-size:11px;font-weight:700;
-                     color:var(--text-muted);text-align:right;width:1%;white-space:nowrap;">MRP</th>
-          <th style="padding:2px 3px;border:1px solid var(--border);font-size:11px;font-weight:700;
-                     color:var(--text-muted);text-align:center;width:1%;white-space:nowrap;">Disc%</th>
-          <th style="padding:2px 3px;border:1px solid var(--border);font-size:11px;font-weight:700;
-                     color:var(--text-muted);text-align:right;width:1%;white-space:nowrap;">Rate/unit</th>
-          <th style="padding:2px 3px;border:1px solid var(--border);font-size:11px;font-weight:700;
-                     color:var(--text-muted);text-align:right;width:1%;white-space:nowrap;">Amount</th>
+        <tr>
+          <th class="inv-th-narrow">#</th>
+          <th>Description</th>
+          <th class="inv-th-right">Qty(m/pcs)</th>
+          <th class="inv-th-right">MRP</th>
+          <th class="inv-th-center">Disc%</th>
+          <th class="inv-th-right">Rate/unit</th>
+          <th class="inv-th-right">Amount</th>
         </tr>
       </thead>
       <tbody id="inv-items-body">
@@ -202,13 +186,13 @@
 <!-- Cancel Confirmation Modal -->
 <div class="modal-overlay hidden no-print" id="detail-cancel-modal">
   <div class="modal-box">
-    <div class="modal-header" style="background:#fef3c7;border-radius:var(--radius-lg) var(--radius-lg) 0 0;">
-      <h3 style="color:#92400e;">&#10006; Cancel Bill &mdash; <span id="detail-cancel-bill-num"></span></h3>
+    <div class="modal-header modal-header--warning">
+      <h3>&#10006; Cancel Bill &mdash; <span id="detail-cancel-bill-num"></span></h3>
       <button class="modal-close" onclick="closeDetailCancelModal()">&#215;</button>
     </div>
     <div class="modal-body">
-      <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:var(--radius);padding:14px 16px;margin-bottom:8px;">
-        <p style="font-size:13.5px;color:#78350f;line-height:1.8;margin:0;">
+      <div class="notice-box notice-box--warning">
+        <p>
           The bill will be marked as <strong>CANCELLED</strong> but kept in records.<br>
           The bill number will <strong>not</strong> be changed or reused.<br>
           Linked inventory stock will be restored.<br>
@@ -220,7 +204,7 @@
     <div class="modal-footer">
       <button type="button" class="btn btn-secondary" onclick="closeDetailCancelModal()">Go Back</button>
       <button type="button" id="btn-detail-confirm-cancel" onclick="confirmDetailCancel()"
-              style="background:#d97706;color:#fff;border:none;padding:8px 18px;border-radius:6px;font-weight:600;cursor:pointer;">
+              class="btn btn-warning">
         Yes, Cancel Bill
       </button>
     </div>
@@ -230,16 +214,16 @@
 <!-- Delete Confirmation Modal -->
 <div class="modal-overlay hidden no-print" id="detail-delete-modal">
   <div class="modal-box">
-    <div class="modal-header" style="background:#fee2e2;border-radius:var(--radius-lg) var(--radius-lg) 0 0;">
-      <h3 style="color:var(--danger);">&#128465; Delete Bill &mdash; <span id="detail-delete-bill-num"></span></h3>
+    <div class="modal-header modal-header--danger">
+      <h3>&#128465; Delete Bill &mdash; <span id="detail-delete-bill-num"></span></h3>
       <button class="modal-close" onclick="closeDetailDeleteModal()">&#215;</button>
     </div>
     <div class="modal-body">
-      <div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:var(--radius);padding:14px 16px;margin-bottom:8px;">
-        <p style="font-weight:700;color:var(--danger);margin-bottom:8px;font-size:14px;">
+      <div class="notice-box notice-box--danger">
+        <p class="notice-danger-title">
           &#9888;&#65039; WARNING: This action cannot be undone.
         </p>
-        <p style="font-size:13.5px;color:#991b1b;line-height:1.8;margin:0;">
+        <p class="notice-danger-body">
           This bill will be permanently deleted.<br>
           All bills after this one (in the same financial year) will be renumbered.<br>
           For example: SHN-0004/26-27 will become SHN-0003/26-27,<br>
@@ -417,7 +401,7 @@
     tbody.innerHTML = bill.items.map((item, i) => {
       const desc = `${item.cloth_type} &mdash; ${item.company_name}`;
       const quality = item.quality_number
-        ? `<br><span style="font-size:11px;color:var(--text-muted);">Quality: ${item.quality_number}</span>`
+        ? `<br><span class="text-muted" style="font-size:11px;">Quality: ${item.quality_number}</span>`
         : '';
       const discDisplay = item.discount_percent > 0
         ? `${Number(item.discount_percent).toFixed(1)}%`
@@ -425,14 +409,13 @@
       const rowClass = i % 2 === 1 ? 'inv-row-alt' : '';
       return `
         <tr class="${rowClass}">
-          <td style="padding:2px 3px;border:1px solid var(--border);text-align:center;white-space:nowrap;
-                     color:var(--text-muted);">${i + 1}</td>
-          <td style="padding:2px 3px;border:1px solid var(--border);">${desc}${quality}</td>
-          <td style="padding:2px 3px;border:1px solid var(--border);text-align:right;white-space:nowrap;">${Number(item.quantity).toLocaleString('en-IN')}</td>
-          <td style="padding:2px 3px;border:1px solid var(--border);text-align:right;white-space:nowrap;">${fmt(item.mrp)}</td>
-          <td style="padding:2px 3px;border:1px solid var(--border);text-align:center;white-space:nowrap;color:var(--text-muted);">${discDisplay}</td>
-          <td style="padding:2px 3px;border:1px solid var(--border);text-align:right;white-space:nowrap;color:var(--text-muted);">${item.rate_after_disc > 0 ? fmt(item.rate_after_disc) : '—'}</td>
-          <td style="padding:2px 3px;border:1px solid var(--border);text-align:right;white-space:nowrap;font-weight:600;">${fmt(item.final_amount)}</td>
+          <td class="inv-td inv-td-num">${i + 1}</td>
+          <td class="inv-td">${desc}${quality}</td>
+          <td class="inv-td inv-td-right">${Number(item.quantity).toLocaleString('en-IN')}</td>
+          <td class="inv-td inv-td-right">${fmt(item.mrp)}</td>
+          <td class="inv-td inv-td-center-muted">${discDisplay}</td>
+          <td class="inv-td inv-td-right-muted">${item.rate_after_disc > 0 ? fmt(item.rate_after_disc) : '—'}</td>
+          <td class="inv-td inv-td-amount">${fmt(item.final_amount)}</td>
         </tr>
       `;
     }).join('');
@@ -452,10 +435,7 @@
     const paymentsEl = document.getElementById('inv-payments');
     if (bill.payments && bill.payments.length) {
       paymentsEl.innerHTML = bill.payments.map(p =>
-        `<div style="background:var(--bg);border:1px solid var(--border);border-radius:6px;
-                     padding:4px 12px;font-size:13px;">
-           <strong>${p.payment_method}</strong>: ${fmt(p.amount)}
-         </div>`
+        `<div class="inv-payment-pill"><strong>${p.payment_method}</strong>: ${fmt(p.amount)}</div>`
       ).join('');
     } else {
       paymentsEl.innerHTML = `<span class="text-muted">—</span>`;

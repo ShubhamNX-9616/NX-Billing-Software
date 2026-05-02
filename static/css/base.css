@@ -98,6 +98,14 @@ a:hover {
 .gap-2        { gap:  8px; }
 .gap-3        { gap: 16px; }
 
+/* ---- Summary stat card grid (desktop: 4 cols) ---- */
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
 /* ---- Customer info grid (desktop: 4 cols) ---- */
 .customer-info-grid {
   display: grid;

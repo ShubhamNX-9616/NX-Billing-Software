@@ -65,15 +65,20 @@
   </div>
 </div>
 
+<!-- Success toast for password change -->
+<div id="pwd-global-success" class="alert alert-success" style="display:none;max-width:480px;margin-bottom:16px;">
+  &#10003; Password updated successfully.
+</div>
+
 <!-- ===== Change Password Modal ===== -->
-<div id="pwd-modal-backdrop" class="modal-backdrop" style="display:none;">
-  <div class="modal" style="max-width: 400px;">
+<div id="pwd-modal-backdrop" class="modal-overlay hidden">
+  <div class="modal-box" style="max-width: 400px;">
     <div class="modal-header">
-      <span class="modal-title">Change Password</span>
+      <h3>Change Password</h3>
       <button class="modal-close" onclick="closePwdModal()">&times;</button>
     </div>
     <div class="modal-body">
-      <div id="pwd-modal-error" class="form-error-box" style="display:none; margin-bottom:12px;"></div>
+      <div id="pwd-modal-error" class="alert alert-danger" style="display:none; margin-bottom:12px;"></div>
       <p style="font-size:13px; color:var(--text-muted); margin-bottom:14px;">
         Changing password for: <strong id="pwd-modal-username"></strong>
       </p>
@@ -231,12 +236,13 @@
     document.getElementById('pwd-new').value = '';
     document.getElementById('pwd-confirm').value = '';
     document.getElementById('pwd-modal-error').style.display = 'none';
-    document.getElementById('pwd-modal-backdrop').style.display = 'flex';
+    document.getElementById('pwd-modal-backdrop').classList.remove('hidden');
+    document.getElementById('pwd-new').focus();
   }
 
   function closePwdModal() {
     pwdTargetId = null;
-    document.getElementById('pwd-modal-backdrop').style.display = 'none';
+    document.getElementById('pwd-modal-backdrop').classList.add('hidden');
   }
 
   async function savePassword() {
@@ -258,6 +264,12 @@
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to update password');
       closePwdModal();
+      // Brief success toast
+      const successEl = document.getElementById('pwd-global-success');
+      if (successEl) {
+        successEl.style.display = 'block';
+        setTimeout(() => { successEl.style.display = 'none'; }, 3000);
+      }
     } catch (err) {
       errEl.textContent = err.message;
       errEl.style.display = 'block';
@@ -290,9 +302,14 @@
       .replace(/"/g, '&quot;');
   }
 
-  // Close modal on backdrop click
   document.getElementById('pwd-modal-backdrop').addEventListener('click', function(e) {
     if (e.target === this) closePwdModal();
+  });
+  document.getElementById('pwd-new').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') document.getElementById('pwd-confirm').focus();
+  });
+  document.getElementById('pwd-confirm').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') savePassword();
   });
 
   loadUsers();

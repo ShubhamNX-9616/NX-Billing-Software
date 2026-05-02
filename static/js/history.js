@@ -74,48 +74,49 @@ function renderTable(bills, titleText) {
       ? `<span class="fw-600" style="color:var(--text-muted);text-decoration:line-through;">${fmt(b.final_total)}</span>`
       : `<span class="fw-600">${fmt(b.final_total)}</span>`;
 
-    const shareBtn = `
-      <button class="btn-share-icon"
-              onclick="copyBillShareLink('${b.bill_number}'); event.stopPropagation();"
-              title="Copy share link">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-             stroke="currentColor" stroke-width="2">
-          <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/>
-          <circle cx="18" cy="19" r="3"/>
-          <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
-          <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
-        </svg>
-      </button>`;
-
-    const actionBtns = cancelled
+    const moreItems = cancelled
       ? `
-        <a href="/bills/${b.id}" class="btn btn-secondary btn-sm">View</a>
-        <a href="/bills/${b.id}?print=1" class="btn btn-secondary btn-sm"
-           target="_blank" onclick="event.stopPropagation()">&#128438; Print</a>
-        ${shareBtn}
-        <button class="btn btn-sm" style="background:#d1fae5;color:#065f46;border:1px solid #6ee7b7;"
-                onclick="restoreBill(${b.id}, '${b.bill_number}'); event.stopPropagation();">
-          &#10227; Restore
-        </button>
-        <button class="btn btn-danger btn-sm"
-                onclick="deleteBill(${b.id}, '${b.bill_number}'); event.stopPropagation();">
-          &#128465; Delete
-        </button>`
+          <a href="/bills/${b.id}?print=1" class="row-menu-item" target="_blank"
+             onclick="event.stopPropagation()">&#128438; Print</a>
+          <button class="row-menu-item" onclick="copyBillShareLink('${b.bill_number}'); closeRowMenu('menu-${b.id}'); event.stopPropagation();">
+            &#128279; Copy Link
+          </button>
+          <div class="row-menu-divider"></div>
+          <button class="row-menu-item" onclick="restoreBill(${b.id}, '${b.bill_number}'); closeRowMenu('menu-${b.id}'); event.stopPropagation();">
+            &#10227; Restore Bill
+          </button>
+          <button class="row-menu-item row-menu-danger" onclick="deleteBill(${b.id}, '${b.bill_number}'); closeRowMenu('menu-${b.id}'); event.stopPropagation();">
+            &#128465; Delete
+          </button>`
       : `
-        <a href="/bills/${b.id}" class="btn btn-secondary btn-sm">View</a>
-        <a href="/edit-bill/${b.id}" class="btn btn-secondary btn-sm"
-           onclick="event.stopPropagation()">Edit</a>
-        <a href="/bills/${b.id}?print=1" class="btn btn-secondary btn-sm"
-           target="_blank" onclick="event.stopPropagation()">&#128438; Print</a>
-        ${shareBtn}
-        <button class="btn btn-sm" style="background:#fef3c7;color:#92400e;border:1px solid #fcd34d;"
-                onclick="cancelBill(${b.id}, '${b.bill_number}'); event.stopPropagation();">
-          &#10006; Cancel
-        </button>
-        <button class="btn btn-danger btn-sm"
-                onclick="deleteBill(${b.id}, '${b.bill_number}'); event.stopPropagation();">
-          &#128465; Delete
-        </button>`;
+          <a href="/bills/${b.id}?print=1" class="row-menu-item" target="_blank"
+             onclick="event.stopPropagation()">&#128438; Print</a>
+          <button class="row-menu-item" onclick="copyBillShareLink('${b.bill_number}'); closeRowMenu('menu-${b.id}'); event.stopPropagation();">
+            &#128279; Copy Link
+          </button>
+          <div class="row-menu-divider"></div>
+          <button class="row-menu-item row-menu-warn" onclick="cancelBill(${b.id}, '${b.bill_number}'); closeRowMenu('menu-${b.id}'); event.stopPropagation();">
+            &#10006; Cancel Bill
+          </button>
+          <button class="row-menu-item row-menu-danger" onclick="deleteBill(${b.id}, '${b.bill_number}'); closeRowMenu('menu-${b.id}'); event.stopPropagation();">
+            &#128465; Delete
+          </button>`;
+
+    const primaryBtns = cancelled
+      ? `<a href="/bills/${b.id}" class="btn btn-secondary btn-sm">View</a>`
+      : `<a href="/bills/${b.id}" class="btn btn-secondary btn-sm">View</a>
+         <a href="/edit-bill/${b.id}" class="btn btn-secondary btn-sm"
+            onclick="event.stopPropagation()">Edit</a>`;
+
+    const actionBtns = `
+      ${primaryBtns}
+      <div class="row-menu-wrap" onclick="event.stopPropagation()">
+        <button class="btn btn-secondary btn-sm row-menu-trigger"
+                onclick="toggleRowMenu('menu-${b.id}')">&#8943;</button>
+        <div class="row-menu" id="menu-${b.id}">
+          ${moreItems}
+        </div>
+      </div>`;
 
     return `
       <tr onclick="location.href='/bills/${b.id}'" style="cursor:pointer;${rowStyle}">
@@ -219,6 +220,28 @@ const debouncedSearch = debounce(doSearch, 400);
 
 // ---- Init
 document.addEventListener('DOMContentLoaded', loadAllBills);
+
+// ----------------------------------------------------------------
+// Row "⋯" dropdown menu helpers
+// ----------------------------------------------------------------
+function toggleRowMenu(menuId) {
+  const menu = document.getElementById(menuId);
+  if (!menu) return;
+  const isOpen = menu.classList.contains('open');
+  // close all open menus first
+  document.querySelectorAll('.row-menu.open').forEach(m => m.classList.remove('open'));
+  if (!isOpen) menu.classList.add('open');
+}
+
+function closeRowMenu(menuId) {
+  const menu = document.getElementById(menuId);
+  if (menu) menu.classList.remove('open');
+}
+
+// Close any open row menu when clicking elsewhere
+document.addEventListener('click', () => {
+  document.querySelectorAll('.row-menu.open').forEach(m => m.classList.remove('open'));
+});
 
 // ----------------------------------------------------------------
 // Cancel bill
