@@ -99,6 +99,10 @@ async function onClothChange(id) {
 
 // Variant used on resize re-render: restores previously selected company
 async function onClothChangeRestoring(id, clothType, selectedCompany) {
+  // Increment generation so any prior in-flight call for this row can detect it's stale
+  clothChangeGen[id] = (clothChangeGen[id] || 0) + 1;
+  const myGen = clothChangeGen[id];
+
   const sel      = document.getElementById(`cloth-${id}`);
   const unitEl   = document.getElementById(`unit-${id}`);
   const compWrap = document.getElementById(`company-wrap-${id}`);
@@ -129,6 +133,10 @@ async function onClothChangeRestoring(id, clothType, selectedCompany) {
 
   compSel.innerHTML = '<option value="">Loading…</option>';
   const list = await fetchCompanies(clothType);
+
+  // Bail if a newer call has taken over for this row (prevents stale results overwriting the correct company)
+  if (clothChangeGen[id] !== myGen) return;
+
   rebuildCompanySelect(compSel, list, selectedCompany);
   recalcRow(id);
 }

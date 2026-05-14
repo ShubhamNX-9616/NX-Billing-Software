@@ -47,6 +47,7 @@ let html5QrScanner  = null;
 let qrScanLock      = false;   // prevents duplicate scans of the same code
 
 const companyCache = {};          // { clothType: [company, ...] }
+const clothChangeGen = {};        // { rowId: latestGenerationNumber } — used to cancel stale onClothChangeRestoring calls
 
 // ---- Utilities ----
 function fmt(amount) {
