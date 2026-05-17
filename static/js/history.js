@@ -399,8 +399,13 @@ function fallbackCopy(text) {
   document.body.removeChild(ta);
 }
 
+function buildShareLink(billNumber) {
+  const base = window.SHARE_BASE_URL || window.location.origin;
+  return base + '/bill/share/' + billNumber;
+}
+
 function copyBillShareLink(billNumber) {
-  const link = window.location.origin + '/bill/share/' + billNumber;
+  const link = buildShareLink(billNumber);
   copyToClipboard(link);
   showToast('Share link copied for ' + billNumber);
 }

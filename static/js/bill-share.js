@@ -26,7 +26,7 @@ function buildWhatsAppMessage(bill) {
   const total     = formatCurrency(bill.final_total);
   const advance   = bill.advance_paid > 0 ? formatCurrency(bill.advance_paid) : null;
   const remaining = bill.remaining > 0    ? formatCurrency(bill.remaining)    : null;
-  const shareLink = window.location.origin + '/bill/share/' + bill.bill_number;
+  const shareLink = buildShareLink(bill.bill_number);
 
   const lines = [];
   lines.push('Dear ' + bill.customer_name + ',');
