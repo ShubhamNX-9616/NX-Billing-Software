@@ -65,7 +65,7 @@ def inventory():
     return render_template("inventory.html")
 
 
-@pages_bp.route("/bill/share/<bill_number>")
+@pages_bp.route("/bill/share/<path:bill_number>")
 def shared_bill(bill_number):
     data = get_bill_by_number(bill_number)
     if not data:
