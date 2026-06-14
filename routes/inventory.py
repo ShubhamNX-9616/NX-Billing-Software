@@ -35,11 +35,16 @@ def list_inventory():
     rows = db.execute(
         """
         SELECT i.id, i.cloth_type, i.company_name, i.quality_number, i.unit_label,
-               i.current_stock, i.min_stock_alert, i.mrp, i.notes, i.item_code,
-               i.supplier_id, s.name AS supplier_name, i.created_at, i.updated_at
+               i.current_stock, i.min_stock_alert, i.mrp, i.cost_price, i.notes, i.item_code,
+               i.supplier_id, s.name AS supplier_name, i.created_at, i.updated_at,
+               i.item_name, i.shade_number, i.invoice_id,
+               inv.invoice_number, inv.invoice_date
         FROM inventory_items i
-        LEFT JOIN suppliers s ON i.supplier_id = s.id
-        ORDER BY i.cloth_type, i.company_name, i.quality_number
+        LEFT JOIN invoices inv ON i.invoice_id = inv.id
+        LEFT JOIN suppliers s ON s.id = COALESCE(i.supplier_id, inv.supplier_id)
+        ORDER BY COALESCE(inv.invoice_date, date(i.created_at)) DESC,
+                 i.invoice_id DESC,
+                 i.id ASC
         """
     ).fetchall()
     return jsonify([dict(r) for r in rows])
@@ -74,11 +79,16 @@ def create_inventory_item():
         quality_number  = (body.get("quality_number")  or "").strip()
         unit_label      = (body.get("unit_label")      or "m").strip()
         mrp             = float(body.get("mrp")        or 0)
+        cost_price      = float(body.get("cost_price") or 0)
         opening_stock   = float(body.get("opening_stock") or 0)
         min_stock_alert = float(body.get("min_stock_alert") or 5)
         notes           = (body.get("notes") or "").strip() or None
         supplier_id_raw = body.get("supplier_id")
         supplier_id     = int(supplier_id_raw) if supplier_id_raw else None
+        item_name       = (body.get("item_name")    or "").strip() or None
+        shade_number    = (body.get("shade_number") or "").strip() or None
+        invoice_id_raw  = body.get("invoice_id")
+        invoice_id      = int(invoice_id_raw) if invoice_id_raw else None
 
         if not cloth_type:
             return jsonify({"error": "cloth_type is required"}), 400
@@ -95,10 +105,12 @@ def create_inventory_item():
             cur = db.execute(
                 """INSERT INTO inventory_items
                    (cloth_type, company_name, quality_number, unit_label,
-                    current_stock, min_stock_alert, mrp, notes, item_code, supplier_id)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    current_stock, min_stock_alert, mrp, cost_price, notes, item_code,
+                    supplier_id, item_name, shade_number, invoice_id)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (cloth_type, company_name, quality_number, unit_label,
-                 opening_stock, min_stock_alert, mrp, notes, item_code, supplier_id),
+                 opening_stock, min_stock_alert, mrp, cost_price, notes, item_code,
+                 supplier_id, item_name, shade_number, invoice_id),
             )
             item_id = cur.lastrowid
         except Exception as e:
@@ -137,19 +149,87 @@ def update_inventory_item(item_id):
             return jsonify({"error": "Item not found"}), 404
 
         mrp             = float(body.get("mrp",             item["mrp"]))
+        cost_price      = float(body.get("cost_price", item["cost_price"] or 0))
         min_stock_alert = float(body.get("min_stock_alert", item["min_stock_alert"]))
         notes           = (body.get("notes") or "").strip() or None
+        item_name       = (body.get("item_name")    or "").strip() or None
+        shade_number    = (body.get("shade_number") or "").strip() or None
 
         db.execute(
             """UPDATE inventory_items
-               SET mrp = ?, min_stock_alert = ?, notes = ?,
+               SET mrp = ?, cost_price = ?, min_stock_alert = ?, notes = ?,
+                   item_name = ?, shade_number = ?,
                    updated_at = datetime('now','localtime')
                WHERE id = ?""",
-            (mrp, min_stock_alert, notes, item_id),
+            (mrp, cost_price, min_stock_alert, notes, item_name, shade_number, item_id),
         )
         db.commit()
         updated = db.execute("SELECT * FROM inventory_items WHERE id = ?", (item_id,)).fetchone()
         return jsonify(dict(updated))
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# ---------------------------------------------------------------------------
+# POST /api/inventory/batch
+# ---------------------------------------------------------------------------
+@inventory_bp.route("/inventory/batch", methods=["POST"])
+@api_admin_required
+def batch_create_inventory_items():
+    try:
+        body       = request.get_json(force=True, silent=True) or {}
+        invoice_id_raw = body.get("invoice_id")
+        invoice_id = int(invoice_id_raw) if invoice_id_raw else None
+        groups     = body.get("groups", [])
+
+        if not groups:
+            return jsonify({"error": "groups cannot be empty"}), 400
+
+        db      = get_db()
+        created = []
+
+        for group in groups:
+            cloth_type   = (group.get("cloth_type")   or "").strip()
+            company_name = (group.get("company_name") or "").strip()
+            if not cloth_type or not company_name:
+                return jsonify({"error": "cloth_type and company_name are required for every group"}), 400
+
+            for item in group.get("items", []):
+                item_name      = (item.get("item_name")    or "").strip() or None
+                shade_number   = (item.get("shade_number") or "").strip() or None
+                quality_number = (item.get("quality_number") or "").strip()
+                cost_price     = float(item.get("cost_price")     or 0)
+                mrp            = float(item.get("mrp")            or 0)
+                opening_stock  = float(item.get("opening_stock")  or 0)
+                min_stock_alert = float(item.get("min_stock_alert") or 5)
+                notes          = (item.get("notes") or "").strip() or None
+                unit_label     = (item.get("unit_label") or "m").strip()
+
+                item_code = _next_item_code(db, cloth_type)
+                cur = db.execute(
+                    """INSERT INTO inventory_items
+                       (cloth_type, company_name, quality_number, unit_label,
+                        current_stock, min_stock_alert, mrp, cost_price, notes, item_code,
+                        item_name, shade_number, invoice_id)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (cloth_type, company_name, quality_number, unit_label,
+                     opening_stock, min_stock_alert, mrp, cost_price, notes, item_code,
+                     item_name, shade_number, invoice_id),
+                )
+                item_id = cur.lastrowid
+
+                if opening_stock > 0:
+                    db.execute(
+                        """INSERT INTO inventory_transactions
+                           (item_id, txn_type, quantity, reference_type, notes, created_by)
+                           VALUES (?, 'opening', ?, 'manual', 'Opening stock', ?)""",
+                        (item_id, opening_stock, session.get("username")),
+                    )
+                created.append(item_id)
+
+        db.commit()
+        return jsonify({"created": len(created), "ids": created}), 201
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -296,7 +376,7 @@ def low_stock():
 def get_inventory_item_by_code(item_code):
     db = get_db()
     item = db.execute(
-        "SELECT * FROM inventory_items WHERE item_code = ?", (item_code,)
+        "SELECT * FROM inventory_items WHERE UPPER(item_code) = UPPER(?)", (item_code,)
     ).fetchone()
     if not item:
         return jsonify({"error": "Item not found"}), 404
@@ -306,18 +386,81 @@ def get_inventory_item_by_code(item_code):
 @inventory_bp.route("/inventory/<int:item_id>/qr", methods=["GET"])
 @api_admin_required
 def get_inventory_qr(item_id):
-    db = get_db()
-    item = db.execute("SELECT * FROM inventory_items WHERE id = ?", (item_id,)).fetchone()
-    if not item:
-        return jsonify({"error": "Item not found"}), 404
+    try:
+        from PIL import Image, ImageDraw, ImageFont
 
-    qr_content = f"inv:{item['item_code']}"
-    img = qrcode.make(qr_content)
-    buf = io.BytesIO()
-    img.save(buf, format="PNG")
-    buf.seek(0)
-    return send_file(buf, mimetype="image/png",
-                     download_name=f"inv-qr-{item['item_code']}.png")
+        db   = get_db()
+        item = db.execute("SELECT * FROM inventory_items WHERE id = ?", (item_id,)).fetchone()
+        if not item:
+            return jsonify({"error": "Item not found"}), 404
+
+        # Label: 64 mm × 34 mm at 300 DPI
+        DPI    = 300
+        W      = round(64 * DPI / 25.4)   # 756 px
+        H      = round(34 * DPI / 25.4)   # 402 px
+        M      = 16   # outer margin
+        PAD    = 12   # inner padding after divider
+
+        # Fonts — Segoe UI has the ₹ glyph; fall back to bitmap
+        FONT_DIR = "C:/Windows/Fonts/"
+        try:
+            font_lbl = ImageFont.truetype(FONT_DIR + "segoeui.ttf",  20)
+            font_val = ImageFont.truetype(FONT_DIR + "segoeuib.ttf", 28)
+        except Exception:
+            font_lbl = font_val = ImageFont.load_default()
+
+        # QR code (square, fills the full height minus margins)
+        code_text = item["item_code"] or f"#{item['id']}"
+        qr = qrcode.QRCode(error_correction=qrcode.constants.ERROR_CORRECT_M, border=1)
+        qr.add_data(f"inv:{code_text}")
+        qr.make(fit=True)
+        qr_pil  = qr.make_image(fill_color="black", back_color="white")
+        qr_size = H - 2 * M
+        qr_img  = qr_pil.get_image().resize((qr_size, qr_size), Image.NEAREST)
+
+        # Canvas
+        label = Image.new("RGB", (W, H), "white")
+        draw  = ImageDraw.Draw(label)
+
+        # Outer border
+        draw.rectangle([0, 0, W - 1, H - 1], outline="black", width=3)
+
+        # QR on left
+        label.paste(qr_img, (M, M))
+
+        # Vertical divider
+        div_x = M + qr_size + M
+        draw.line([(div_x, M), (div_x, H - M)], fill="#bbbbbb", width=2)
+
+        # Text fields
+        mrp   = item["mrp"]   if item["mrp"]   is not None else 0.0
+        stock = item["current_stock"] if item["current_stock"] is not None else 0.0
+        unit  = item["unit_label"] or "m"
+
+        fields = [
+            ("ID",        code_text),
+            ("Item Name", item["item_name"] or "—"),
+            ("Company",   item["company_name"] or "—"),
+            ("Quality",   item["quality_number"] or "—"),
+            ("MRP",       f"₹{float(mrp):.2f} / {unit}"),
+            ("Length",    f"{float(stock):.2f} {unit}"),
+        ]
+
+        tx     = div_x + PAD
+        line_h = (H - 2 * M) // len(fields)
+
+        for idx, (lbl, val) in enumerate(fields):
+            y = M + idx * line_h
+            draw.text((tx, y + 2),      lbl + ":", font=font_lbl, fill="#999999")
+            draw.text((tx, y + 2 + 22), val,       font=font_val, fill="#111111")
+
+        buf = io.BytesIO()
+        label.save(buf, format="PNG", dpi=(DPI, DPI))
+        buf.seek(0)
+        return send_file(buf, mimetype="image/png",
+                         download_name=f"label-{code_text}.png")
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 # ---------------------------------------------------------------------------

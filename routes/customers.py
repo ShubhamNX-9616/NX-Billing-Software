@@ -73,6 +73,46 @@ def suggest_customers():
         return jsonify({"error": str(e)}), 500
 
 
+@customers_bp.route("/customers/summary", methods=["GET"])
+@api_login_required
+def customer_summary():
+    try:
+        raw = request.args.get("mobile", "").strip()
+        if not raw:
+            return jsonify({"error": "mobile required"}), 400
+        norm = normalize_mobile(raw)
+        db   = get_db()
+
+        stats = db.execute("""
+            SELECT COUNT(b.id)                        AS total_bills,
+                   COALESCE(SUM(b.final_total), 0)    AS total_spent
+            FROM   customers c
+            JOIN   bills b ON b.customer_id = c.id
+            WHERE  c.normalized_mobile = ?
+              AND  b.status != 'cancelled'
+        """, (norm,)).fetchone()
+
+        last = db.execute("""
+            SELECT b.bill_number, b.bill_date, b.final_total
+            FROM   bills b
+            JOIN   customers c ON c.id = b.customer_id
+            WHERE  c.normalized_mobile = ?
+              AND  b.status != 'cancelled'
+            ORDER  BY b.bill_date DESC, b.id DESC
+            LIMIT  1
+        """, (norm,)).fetchone()
+
+        return jsonify({
+            "total_bills":       int(stats["total_bills"]  or 0),
+            "total_spent":       round(float(stats["total_spent"] or 0), 2),
+            "last_bill_amount":  round(float(last["final_total"]), 2) if last else None,
+            "last_bill_date":    last["bill_date"]   if last else None,
+            "last_bill_number":  last["bill_number"] if last else None,
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @customers_bp.route("/customers/<int:customer_id>", methods=["GET"])
 @api_admin_required
 def get_customer(customer_id):

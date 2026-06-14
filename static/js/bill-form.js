@@ -30,6 +30,50 @@ async function loadNextBillNumber() {
   }
 }
 
+// ---- Customer summary panel ----
+function fmtINR(amount) {
+  return '₹' + Number(amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+async function fetchAndShowCustomerSummary(mobile) {
+  const el = document.getElementById('customer-summary');
+  if (!el || !mobile) return;
+  try {
+    const res  = await fetch(`/api/customers/summary?mobile=${encodeURIComponent(mobile)}`);
+    const data = await res.json();
+    if (!res.ok || !data.total_bills) { el.style.display = 'none'; return; }
+
+    const lastPart = data.last_bill_amount != null
+      ? `<span style="font-weight:700;color:var(--text);">${fmtINR(data.last_bill_amount)}</span>
+         <span style="color:var(--text-muted);font-size:11px;margin-left:4px;">${data.last_bill_date || ''}</span>`
+      : '<span style="color:var(--text-muted);">—</span>';
+
+    el.innerHTML = `
+      <div style="display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start;">
+        <div>
+          <div style="color:var(--text-muted);font-size:11px;text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px;">Total Bills</div>
+          <div style="font-weight:700;font-size:16px;color:var(--text);">${data.total_bills}</div>
+        </div>
+        <div>
+          <div style="color:var(--text-muted);font-size:11px;text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px;">Total Spent</div>
+          <div style="font-weight:700;font-size:16px;color:var(--text);">${fmtINR(data.total_spent)}</div>
+        </div>
+        <div>
+          <div style="color:var(--text-muted);font-size:11px;text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px;">Last Bill</div>
+          <div style="font-size:14px;">${lastPart}</div>
+        </div>
+      </div>`;
+    el.style.display = '';
+  } catch (_) {
+    el.style.display = 'none';
+  }
+}
+
+function clearCustomerSummary() {
+  const el = document.getElementById('customer-summary');
+  if (el) { el.innerHTML = ''; el.style.display = 'none'; }
+}
+
 // ---- Mobile search ----
 function setupMobileSearch() {
   const input = document.getElementById('customer-mobile');
@@ -63,13 +107,16 @@ async function doMobileSearch() {
         setTimeout(() => { nameEl.style.transition = ''; }, 300);
       }, 700);
       statusEl.innerHTML = '<span class="badge badge-success">&#10003; Existing Customer</span>';
+      fetchAndShowCustomerSummary(norm);
     } else {
       nameEl.value = '';
       statusEl.innerHTML = '<span class="badge badge-info">New Customer</span>';
+      clearCustomerSummary();
       nameEl.focus();
     }
   } catch {
     statusEl.innerHTML = '<span class="text-danger">Search failed</span>';
+    clearCustomerSummary();
   } finally {
     spinner.style.display = 'none';
   }
@@ -118,6 +165,7 @@ async function doNameSuggest() {
         document.getElementById('customer-status').innerHTML =
           '<span class="badge badge-success">&#10003; Existing Customer</span>';
         hideNameSuggestions();
+        fetchAndShowCustomerSummary(c.mobile);
       });
       box.appendChild(item);
     });

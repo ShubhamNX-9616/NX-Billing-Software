@@ -3,6 +3,8 @@
    ============================================================ */
 
 let allItems = [];
+let baGroupCounter = 0;
+let baRowCounters  = {};
 
 const SECTIONS = ['Shirting', 'Suiting', 'Readymade', 'Gift Sets', 'Accessories'];
 
@@ -18,6 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
   loadClothTypesForSelect();
   loadCsClothTypesForSelect();
   loadSuppliersForSelect();
+  loadInvoicesForSelect();
 });
 
 async function loadInventory() {
@@ -317,6 +320,399 @@ function cancelAiSupplierAdd() {
 }
 
 // ----------------------------------------------------------------
+// Invoice select
+// ----------------------------------------------------------------
+async function loadInvoicesForSelect(restoreId) {
+  try {
+    const res  = await fetch('/api/invoices');
+    const list = await res.json();
+    const sel  = document.getElementById('ai-invoice');
+    const prev = sel.value;
+    sel.innerHTML = '<option value="">— No Invoice —</option>';
+    list.forEach(inv => {
+      const opt = document.createElement('option');
+      opt.value = inv.id;
+      opt.textContent = `${inv.invoice_number} (${inv.invoice_date})${inv.supplier_name ? ' — ' + inv.supplier_name : ''}`;
+      opt.dataset.supplierName = inv.supplier_name || '';
+      opt.dataset.supplierId   = inv.supplier_id   || '';
+      sel.appendChild(opt);
+    });
+    if (restoreId) sel.value = restoreId;
+    else if (prev)  sel.value = prev;
+  } catch (_) {}
+}
+
+function onAiInvoiceChange() {
+  const sel     = document.getElementById('ai-invoice');
+  const infoEl  = document.getElementById('ai-invoice-info');
+  const opt     = sel.options[sel.selectedIndex];
+  if (sel.value && opt.dataset.supplierName) {
+    infoEl.textContent = `Supplier: ${opt.dataset.supplierName}`;
+    infoEl.style.display = '';
+  } else {
+    infoEl.style.display = 'none';
+  }
+}
+
+async function loadInvoicesForBatchSelect(restoreId) {
+  try {
+    const res  = await fetch('/api/invoices');
+    const list = await res.json();
+    const sel  = document.getElementById('ba-invoice');
+    sel.innerHTML = '<option value="">— No Invoice —</option>';
+    list.forEach(inv => {
+      const opt = document.createElement('option');
+      opt.value = inv.id;
+      opt.textContent = `${inv.invoice_number} (${inv.invoice_date})${inv.supplier_name ? ' — ' + inv.supplier_name : ''}`;
+      opt.dataset.supplierName = inv.supplier_name || '';
+      sel.appendChild(opt);
+    });
+    if (restoreId) sel.value = restoreId;
+  } catch (_) {}
+}
+
+function onBaInvoiceChange() {
+  const sel    = document.getElementById('ba-invoice');
+  const infoEl = document.getElementById('ba-invoice-info');
+  const opt    = sel.options[sel.selectedIndex];
+  if (sel.value && opt && opt.dataset.supplierName) {
+    infoEl.textContent = `Supplier: ${opt.dataset.supplierName}`;
+    infoEl.style.display = '';
+  } else {
+    infoEl.style.display = 'none';
+  }
+}
+
+// ----------------------------------------------------------------
+// Batch Add Modal
+// ----------------------------------------------------------------
+function openBatchModal(preselectedInvoiceId) {
+  baGroupCounter = 0;
+  baRowCounters  = {};
+  document.getElementById('ba-groups').innerHTML = '';
+  document.getElementById('ba-error').textContent = '';
+  document.getElementById('ba-save-count').textContent = '';
+  loadInvoicesForBatchSelect(preselectedInvoiceId);
+  document.getElementById('batch-add-modal').classList.remove('hidden');
+  addBaGroup();
+}
+
+function closeBatchModal() {
+  document.getElementById('batch-add-modal').classList.add('hidden');
+}
+
+function openNewInvoiceFromBatch() {
+  document.getElementById('batch-add-modal').classList.add('hidden');
+  openNewInvoiceModal(function(inv) {
+    loadInvoicesForSelect(inv.id);
+    loadInvoicesForBatchSelect(inv.id);
+    document.getElementById('ba-invoice').value = inv.id;
+    onBaInvoiceChange();
+    document.getElementById('batch-add-modal').classList.remove('hidden');
+  });
+}
+
+function addBaGroup(preCloth, preCompany) {
+  const gid = ++baGroupCounter;
+  baRowCounters[gid] = 0;
+
+  const container = document.getElementById('ba-groups');
+  const div = document.createElement('div');
+  div.id = `ba-group-${gid}`;
+  div.className = 'ba-group';
+  div.style.cssText = 'border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:14px;';
+
+  const removeBtn = gid > 1
+    ? `<button type="button" class="btn btn-sm" style="color:var(--danger,#ef4444);margin-left:auto;" onclick="removeBaGroup(${gid})">&#215; Remove Group</button>`
+    : '';
+
+  div.innerHTML = `
+    <div style="display:flex;gap:10px;align-items:flex-end;margin-bottom:12px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:140px;">
+        <label style="font-size:12px;font-weight:600;">Cloth Type <span class="text-danger">*</span></label>
+        <select id="ba-cloth-${gid}" class="input select" style="margin-top:4px;" onchange="onBaClothChange(${gid})">
+          <option value="">— Select —</option>
+        </select>
+      </div>
+      <div style="flex:1;min-width:140px;">
+        <label style="font-size:12px;font-weight:600;">Company <span class="text-danger">*</span></label>
+        <select id="ba-company-${gid}" class="input select" style="margin-top:4px;">
+          <option value="">— Select cloth type first —</option>
+        </select>
+      </div>
+      <div style="min-width:70px;">
+        <label style="font-size:12px;font-weight:600;">Unit</label>
+        <select id="ba-unit-${gid}" class="input select" style="margin-top:4px;width:75px;">
+          <option value="m">m</option>
+          <option value="pcs">pcs</option>
+        </select>
+      </div>
+      ${removeBtn}
+    </div>
+    <div style="overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;font-size:13px;min-width:720px;">
+        <thead>
+          <tr style="border-bottom:2px solid var(--border);color:var(--text-muted);font-size:11px;text-transform:uppercase;letter-spacing:.4px;">
+            <th style="padding:4px 6px;text-align:left;min-width:110px;">Item Name</th>
+            <th style="padding:4px 6px;text-align:left;min-width:80px;">Shade No.</th>
+            <th style="padding:4px 6px;text-align:left;min-width:80px;">Quality No.</th>
+            <th style="padding:4px 6px;text-align:right;min-width:75px;">CP (&#8377;)</th>
+            <th style="padding:4px 6px;text-align:right;min-width:75px;">MRP (&#8377;)</th>
+            <th style="padding:4px 6px;text-align:right;min-width:65px;">Stock</th>
+            <th style="padding:4px 6px;text-align:right;min-width:60px;">Alert</th>
+            <th style="padding:4px 6px;text-align:left;min-width:90px;">Notes</th>
+            <th style="width:28px;"></th>
+          </tr>
+        </thead>
+        <tbody id="ba-tbody-${gid}"></tbody>
+      </table>
+    </div>
+    <button type="button" class="btn btn-secondary btn-sm" onclick="addBaRow(${gid})" style="margin-top:8px;">&#43; Add Row</button>
+  `;
+
+  container.appendChild(div);
+  populateClothTypeSelect(`ba-cloth-${gid}`, preCloth || '');
+  if (preCompany) populateCompanySelect(`ba-company-${gid}`, preCloth, preCompany);
+  addBaRow(gid);
+}
+
+function removeBaGroup(gid) {
+  const el = document.getElementById(`ba-group-${gid}`);
+  if (el) el.remove();
+}
+
+function addBaRow(gid) {
+  const rowId = ++baRowCounters[gid];
+  const tbody = document.getElementById(`ba-tbody-${gid}`);
+  if (!tbody) return;
+
+  const s = 'width:100%;padding:4px 6px;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text);font-size:13px;box-sizing:border-box;';
+  const sr = s + 'text-align:right;';
+
+  const tr = document.createElement('tr');
+  tr.id = `ba-row-${gid}-${rowId}`;
+  tr.style.borderBottom = '1px solid var(--border)';
+  tr.innerHTML = `
+    <td style="padding:3px 4px;"><input type="text"   style="${s}"  placeholder="Item name" /></td>
+    <td style="padding:3px 4px;"><input type="text"   style="${s}"  placeholder="Shade no." /></td>
+    <td style="padding:3px 4px;"><input type="text"   style="${s}"  placeholder="Quality no." /></td>
+    <td style="padding:3px 4px;"><input type="number" style="${sr}" placeholder="0.00" min="0" step="0.01" /></td>
+    <td style="padding:3px 4px;"><input type="number" style="${sr}" placeholder="0.00" min="0" step="0.01" /></td>
+    <td style="padding:3px 4px;"><input type="number" style="${sr}" placeholder="0"    min="0" step="0.01" /></td>
+    <td style="padding:3px 4px;"><input type="number" style="${sr}" value="5"           min="0" step="0.01" /></td>
+    <td style="padding:3px 4px;"><input type="text"   style="${s}"  placeholder="Optional" /></td>
+    <td style="padding:3px 4px;text-align:center;">
+      <button type="button" style="background:none;border:none;cursor:pointer;color:var(--danger,#ef4444);font-size:16px;line-height:1;" onclick="removeBaRow(${gid},${rowId})">&#215;</button>
+    </td>
+  `;
+  tbody.appendChild(tr);
+  tr.querySelector('input').focus();
+}
+
+function removeBaRow(gid, rowId) {
+  const el = document.getElementById(`ba-row-${gid}-${rowId}`);
+  if (el) el.remove();
+}
+
+async function onBaClothChange(gid) {
+  const clothType = document.getElementById(`ba-cloth-${gid}`).value;
+  const unitSel   = document.getElementById(`ba-unit-${gid}`);
+  if (clothType === 'Shirting' || clothType === 'Suiting') {
+    unitSel.value = 'm';
+  } else if (clothType) {
+    unitSel.value = 'pcs';
+  }
+  await populateCompanySelect(`ba-company-${gid}`, clothType, '');
+}
+
+async function saveBatch() {
+  const errEl   = document.getElementById('ba-error');
+  const btn     = document.getElementById('btn-ba-save');
+  const cntEl   = document.getElementById('ba-save-count');
+  errEl.textContent = '';
+  cntEl.textContent = '';
+
+  const invoiceRaw = document.getElementById('ba-invoice').value;
+  const invoiceId  = invoiceRaw ? parseInt(invoiceRaw) : null;
+
+  const groups = [];
+  for (const groupEl of document.querySelectorAll('.ba-group')) {
+    const gid        = groupEl.id.replace('ba-group-', '');
+    const clothType  = document.getElementById(`ba-cloth-${gid}`).value;
+    const company    = document.getElementById(`ba-company-${gid}`).value;
+    const unit       = document.getElementById(`ba-unit-${gid}`).value;
+
+    if (!clothType || clothType === '__add__') { errEl.textContent = 'Select a cloth type for every group.'; return; }
+    if (!company   || company   === '__add__') { errEl.textContent = 'Select a company for every group.'; return; }
+
+    const items = [];
+    for (const tr of document.querySelectorAll(`#ba-tbody-${gid} tr`)) {
+      const inp = tr.querySelectorAll('input');
+      const item_name      = inp[0].value.trim();
+      const shade_number   = inp[1].value.trim();
+      const quality_number = inp[2].value.trim();
+      const cost_price     = parseFloat(inp[3].value) || 0;
+      const mrp            = parseFloat(inp[4].value) || 0;
+      const opening_stock  = parseFloat(inp[5].value) || 0;
+      const min_stock_alert = parseFloat(inp[6].value) || 5;
+      const notes          = inp[7].value.trim();
+      if (!item_name && !shade_number && !quality_number && !cost_price && !mrp) continue;
+      items.push({ item_name, shade_number, quality_number, cost_price, mrp,
+                   opening_stock, min_stock_alert, notes, unit_label: unit });
+    }
+    if (items.length) groups.push({ cloth_type: clothType, company_name: company, items });
+  }
+
+  const totalItems = groups.reduce((s, g) => s + g.items.length, 0);
+  if (!totalItems) { errEl.textContent = 'Add at least one item row with some data.'; return; }
+
+  btn.disabled = true;
+  try {
+    const res  = await fetch('/api/inventory/batch', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ invoice_id: invoiceId, groups }),
+    });
+    const data = await res.json();
+    if (!res.ok) { errEl.textContent = data.error || 'Save failed.'; return; }
+    closeBatchModal();
+    await loadInventory();
+  } catch (e) {
+    errEl.textContent = 'Network error: ' + e.message;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+document.getElementById('batch-add-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeBatchModal();
+});
+
+// ----------------------------------------------------------------
+// New Invoice Modal
+// ----------------------------------------------------------------
+async function loadNiSuppliersForSelect(restoreId) {
+  try {
+    const res  = await fetch('/api/suppliers');
+    const list = await res.json();
+    const sel  = document.getElementById('ni-supplier');
+    sel.innerHTML = '<option value="">— None —</option>';
+    list.forEach(s => {
+      const opt = document.createElement('option');
+      opt.value = s.id;
+      opt.textContent = s.name;
+      sel.appendChild(opt);
+    });
+    const addOpt = document.createElement('option');
+    addOpt.value = '__add__';
+    addOpt.textContent = '+ Add new supplier…';
+    sel.appendChild(addOpt);
+    if (restoreId) sel.value = restoreId;
+  } catch (_) {}
+}
+
+function onNiSupplierChange() {
+  const sel    = document.getElementById('ni-supplier');
+  const addRow = document.getElementById('ni-supplier-add-row');
+  if (sel.value === '__add__') {
+    addRow.style.display = '';
+    document.getElementById('ni-supplier-new').focus();
+  } else {
+    addRow.style.display = 'none';
+  }
+}
+
+async function saveNiNewSupplier() {
+  const input = document.getElementById('ni-supplier-new');
+  const name  = input.value.trim();
+  if (!name) { input.focus(); return; }
+  try {
+    const res  = await fetch('/api/suppliers', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name }),
+    });
+    const data = await res.json();
+    if (!res.ok) { alert(data.error || 'Failed to add supplier.'); return; }
+    input.value = '';
+    document.getElementById('ni-supplier-add-row').style.display = 'none';
+    await loadNiSuppliersForSelect(data.id);
+    await loadSuppliersForSelect(data.id);
+  } catch (e) { alert('Network error: ' + e.message); }
+}
+
+function cancelNiSupplierAdd() {
+  document.getElementById('ni-supplier-new').value = '';
+  document.getElementById('ni-supplier-add-row').style.display = 'none';
+  document.getElementById('ni-supplier').value = '';
+}
+
+function openNewInvoiceModal(afterSaveCallback) {
+  document.getElementById('ni-number').value = '';
+  document.getElementById('ni-date').value   = new Date().toISOString().slice(0, 10);
+  document.getElementById('ni-notes').value  = '';
+  document.getElementById('ni-error').textContent = '';
+  document.getElementById('ni-supplier-new').value = '';
+  document.getElementById('ni-supplier-add-row').style.display = 'none';
+  loadNiSuppliersForSelect();
+  document.getElementById('new-invoice-modal')._afterSave = afterSaveCallback || null;
+  document.getElementById('new-invoice-modal').classList.remove('hidden');
+  document.getElementById('ni-number').focus();
+}
+
+function closeNewInvoiceModal() {
+  document.getElementById('new-invoice-modal').classList.add('hidden');
+}
+
+function openNewInvoiceFromAddItem() {
+  closeAddItemModal();
+  openNewInvoiceModal((inv) => {
+    loadInvoicesForSelect(inv.id);
+    openAddItemModal(inv.id);
+  });
+}
+
+async function saveNewInvoice() {
+  const errEl = document.getElementById('ni-error');
+  const btn   = document.getElementById('btn-ni-save');
+  const num   = document.getElementById('ni-number').value.trim();
+  const date  = document.getElementById('ni-date').value.trim();
+  const suppRaw = document.getElementById('ni-supplier').value;
+
+  errEl.textContent = '';
+  if (!num)  { errEl.textContent = 'Invoice number is required.'; return; }
+  if (!date) { errEl.textContent = 'Invoice date is required.'; return; }
+
+  btn.disabled = true;
+  try {
+    const res = await fetch('/api/invoices', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        invoice_number: num,
+        invoice_date:   date,
+        supplier_id:    suppRaw ? parseInt(suppRaw) : null,
+        notes:          document.getElementById('ni-notes').value.trim(),
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) { errEl.textContent = data.error || 'Save failed.'; return; }
+    closeNewInvoiceModal();
+    const cb = document.getElementById('new-invoice-modal')._afterSave;
+    if (cb) cb(data);
+    else await loadInvoicesForSelect(data.id);
+  } catch (e) {
+    errEl.textContent = 'Network error: ' + e.message;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+document.getElementById('new-invoice-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeNewInvoiceModal();
+});
+
+// ----------------------------------------------------------------
 // Render
 // ----------------------------------------------------------------
 function renderStats(items) {
@@ -378,14 +774,21 @@ function renderSections(items) {
       const supplierCell = item.supplier_name
         ? `<td style="font-size:12px;">${esc(item.supplier_name)}</td>`
         : `<td style="color:var(--text-muted);font-size:12px;">—</td>`;
+      const invoiceCell = item.invoice_number
+        ? `<td style="font-size:12px;"><span style="font-weight:600;">${esc(item.invoice_number)}</span><br><span style="color:var(--text-muted);">${esc(item.invoice_date || '')}</span></td>`
+        : `<td style="color:var(--text-muted);font-size:12px;">—</td>`;
       return `<tr data-id="${item.id}">
         <td style="text-align:center;font-weight:700;color:var(--text-muted);font-size:12px;white-space:nowrap;">${esc(code)}</td>
         ${clothCol}
         <td>${esc(item.company_name)}</td>
+        <td>${esc(item.item_name) || '<span style="color:var(--text-muted);">—</span>'}</td>
         ${supplierCell}
+        ${invoiceCell}
         <td>${esc(item.quality_number) || '<span style="color:var(--text-muted);">—</span>'}</td>
+        <td>${esc(item.shade_number) || '<span style="color:var(--text-muted);">—</span>'}</td>
         <td>${esc(item.unit_label)}</td>
         <td class="text-right">&#8377;${Number(item.mrp).toFixed(2)}</td>
+        <td class="text-right">&#8377;${Number(item.cost_price || 0).toFixed(2)}</td>
         <td class="text-right" ${stockClass}>${Number(item.current_stock).toFixed(2)}${stockBadge}</td>
         <td class="text-right">${Number(item.min_stock_alert).toFixed(2)}</td>
         <td style="text-align:center;white-space:nowrap;">
@@ -416,10 +819,14 @@ function renderSections(items) {
               <th style="width:80px;text-align:center;">ID</th>
               ${isOthers ? '<th>Cloth Type</th>' : ''}
               <th>Company</th>
+              <th>Item Name</th>
               <th>Supplier</th>
+              <th>Invoice</th>
               <th>Quality No.</th>
+              <th>Shade No.</th>
               <th>Unit</th>
               <th class="text-right">MRP (&#8377;)</th>
+              <th class="text-right">CP (&#8377;)</th>
               <th class="text-right">Stock</th>
               <th class="text-right">Alert</th>
               <th style="text-align:center;">Actions</th>
@@ -470,8 +877,11 @@ function filterItems() {
     const matchText = !q ||
       item.cloth_type.toLowerCase().includes(q) ||
       item.company_name.toLowerCase().includes(q) ||
+      (item.item_name     || '').toLowerCase().includes(q) ||
+      (item.shade_number  || '').toLowerCase().includes(q) ||
       (item.quality_number || '').toLowerCase().includes(q) ||
-      (item.item_code || '').toLowerCase().includes(q);
+      (item.invoice_number || '').toLowerCase().includes(q) ||
+      (item.item_code      || '').toLowerCase().includes(q);
 
     let matchStatus = true;
     if (status === 'negative') matchStatus = item.current_stock < 0;
@@ -487,11 +897,13 @@ function filterItems() {
 // ----------------------------------------------------------------
 // Add Item Modal
 // ----------------------------------------------------------------
-function openAddItemModal() {
+function openAddItemModal(preselectedInvoiceId) {
+  document.getElementById('ai-invoice').value  = preselectedInvoiceId || '';
+  onAiInvoiceChange();
   document.getElementById('ai-cloth').value   = '';
   document.getElementById('ai-company').innerHTML = '<option value="">— Select cloth type first —</option>';
   document.getElementById('ai-supplier').value = '';
-  ['ai-quality','ai-mrp','ai-opening','ai-notes',
+  ['ai-quality','ai-mrp','ai-opening','ai-notes','ai-item-name','ai-shade',
    'ai-cloth-new','ai-company-new','ai-supplier-new'].forEach(id => {
     document.getElementById(id).value = '';
   });
@@ -540,6 +952,9 @@ async function saveNewItem() {
         min_stock_alert: parseFloat(document.getElementById('ai-alert').value) || 5,
         notes:           document.getElementById('ai-notes').value.trim(),
         supplier_id:     supplierId,
+        item_name:       document.getElementById('ai-item-name').value.trim(),
+        shade_number:    document.getElementById('ai-shade').value.trim(),
+        invoice_id:      document.getElementById('ai-invoice').value ? parseInt(document.getElementById('ai-invoice').value) : null,
       }),
     });
     const data = await res.json();
@@ -563,13 +978,16 @@ document.getElementById('add-item-modal').addEventListener('click', function(e) 
 function openEditItemModal(id) {
   const item = allItems.find(i => i.id === id);
   if (!item) return;
-  document.getElementById('ei-id').value    = item.id;
-  document.getElementById('ei-mrp').value   = item.mrp;
-  document.getElementById('ei-alert').value = item.min_stock_alert;
-  document.getElementById('ei-notes').value = item.notes || '';
+  document.getElementById('ei-id').value        = item.id;
+  document.getElementById('ei-mrp').value       = item.mrp;
+  document.getElementById('ei-cp').value        = item.cost_price || 0;
+  document.getElementById('ei-alert').value     = item.min_stock_alert;
+  document.getElementById('ei-notes').value     = item.notes || '';
+  document.getElementById('ei-item-name').value = item.item_name || '';
+  document.getElementById('ei-shade').value     = item.shade_number || '';
   document.getElementById('ei-error').textContent = '';
   document.getElementById('edit-item-title').textContent =
-    `Edit — ${item.cloth_type} / ${item.company_name}${item.quality_number ? ' / ' + item.quality_number : ''}`;
+    `Edit — ${item.cloth_type} / ${item.company_name}${item.item_name ? ' / ' + item.item_name : ''}${item.quality_number ? ' / ' + item.quality_number : ''}`;
   document.getElementById('edit-item-modal').classList.remove('hidden');
 }
 
@@ -590,8 +1008,11 @@ async function saveEditItem() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         mrp:             parseFloat(document.getElementById('ei-mrp').value) || 0,
+        cost_price:      parseFloat(document.getElementById('ei-cp').value) || 0,
         min_stock_alert: parseFloat(document.getElementById('ei-alert').value) || 5,
         notes:           document.getElementById('ei-notes').value.trim(),
+        item_name:       document.getElementById('ei-item-name').value.trim(),
+        shade_number:    document.getElementById('ei-shade').value.trim(),
       }),
     });
     const data = await res.json();
@@ -745,10 +1166,10 @@ function openQrViewModal(id) {
   if (!item) return;
   const url = `/api/inventory/${id}/qr`;
   document.getElementById('qr-view-title').textContent =
-    `QR — ${item.cloth_type} / ${item.company_name}${item.quality_number ? ' / ' + item.quality_number : ''}`;
+    `Label — ${item.item_code || '#' + id}`;
   document.getElementById('qr-view-img').src = url;
-  document.getElementById('qr-view-code').textContent = item.item_code || `inv:${id}`;
   document.getElementById('qr-download-link').href = url;
+  document.getElementById('qr-download-link').download = `label-${item.item_code || id}.png`;
   document.getElementById('qr-view-modal').classList.remove('hidden');
 }
 

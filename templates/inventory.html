@@ -4,7 +4,7 @@
 {% block page_title %}Inventory{% endblock %}
 
 {% block topbar_actions %}
-  <button type="button" class="btn btn-primary" onclick="openAddItemModal()">&#43; Add Item</button>
+  <button type="button" class="btn btn-primary" onclick="openBatchModal()">&#43; Add Items</button>
   <button type="button" class="btn btn-secondary" style="margin-left:8px;" onclick="openCurrentStockQrModal()">&#128246; Current Stock QR</button>
 {% endblock %}
 
@@ -53,6 +53,88 @@
 </div>
 <div id="sections-container"></div>
 
+<!-- ====== New Invoice Modal ====== -->
+<div class="modal-overlay hidden" id="new-invoice-modal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3>New Invoice</h3>
+      <button class="modal-close" onclick="closeNewInvoiceModal()">&#215;</button>
+    </div>
+    <div class="modal-body" style="display:grid;gap:12px;">
+      <div>
+        <label>Invoice Number <span class="text-danger">*</span></label>
+        <input type="text" id="ni-number" class="input" placeholder="e.g. INV-2024-001" />
+      </div>
+      <div>
+        <label>Invoice Date <span class="text-danger">*</span></label>
+        <input type="date" id="ni-date" class="input" />
+      </div>
+      <div>
+        <label>Supplier</label>
+        <select id="ni-supplier" class="input select" onchange="onNiSupplierChange()">
+          <option value="">— None —</option>
+        </select>
+        <div id="ni-supplier-add-row" style="display:none;margin-top:6px;">
+          <div style="display:flex;gap:6px;align-items:center;">
+            <input type="text" id="ni-supplier-new" class="input" placeholder="New supplier name" style="flex:1;" />
+            <button type="button" class="btn btn-sm btn-primary" onclick="saveNiNewSupplier()">Add</button>
+            <button type="button" class="btn btn-sm btn-secondary" onclick="cancelNiSupplierAdd()">&#215;</button>
+          </div>
+        </div>
+      </div>
+      <div>
+        <label>Notes</label>
+        <input type="text" id="ni-notes" class="input" placeholder="Optional" />
+      </div>
+      <div id="ni-error" class="text-danger" style="font-size:13px;"></div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary" onclick="closeNewInvoiceModal()">Cancel</button>
+      <button type="button" class="btn btn-primary" id="btn-ni-save" onclick="saveNewInvoice()">Save Invoice</button>
+    </div>
+  </div>
+</div>
+
+<!-- ====== Batch Add Items Modal ====== -->
+<div class="modal-overlay hidden" id="batch-add-modal">
+  <div class="modal-box" style="max-width:960px;width:95vw;">
+    <div class="modal-header">
+      <h3>Add Items to Invoice</h3>
+      <button class="modal-close" onclick="closeBatchModal()">&#215;</button>
+    </div>
+    <div class="modal-body">
+
+      <!-- Invoice row -->
+      <div style="display:flex;gap:8px;align-items:flex-end;margin-bottom:20px;flex-wrap:wrap;">
+        <div style="flex:1;min-width:220px;">
+          <label style="font-weight:600;">Invoice</label>
+          <div style="display:flex;gap:8px;margin-top:4px;">
+            <select id="ba-invoice" class="input select" style="flex:1;" onchange="onBaInvoiceChange()">
+              <option value="">— No Invoice —</option>
+            </select>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="openNewInvoiceFromBatch()">+ New</button>
+          </div>
+          <div id="ba-invoice-info" style="font-size:12px;color:var(--text-muted);margin-top:4px;display:none;"></div>
+        </div>
+      </div>
+
+      <!-- Groups -->
+      <div id="ba-groups"></div>
+
+      <button type="button" class="btn btn-secondary btn-sm" onclick="addBaGroup()" style="margin-top:4px;">
+        &#43; Add Another Cloth Type / Company
+      </button>
+
+      <div id="ba-error" class="text-danger" style="font-size:13px;margin-top:10px;min-height:18px;"></div>
+    </div>
+    <div class="modal-footer">
+      <span id="ba-save-count" style="font-size:13px;color:var(--text-muted);margin-right:auto;"></span>
+      <button type="button" class="btn btn-secondary" onclick="closeBatchModal()">Cancel</button>
+      <button type="button" class="btn btn-primary" id="btn-ba-save" onclick="saveBatch()">&#10003; Save All</button>
+    </div>
+  </div>
+</div>
+
 <!-- ====== Add Item Modal ====== -->
 <div class="modal-overlay hidden" id="add-item-modal">
   <div class="modal-box">
@@ -61,6 +143,18 @@
       <button class="modal-close" onclick="closeAddItemModal()">&#215;</button>
     </div>
     <div class="modal-body" style="display:grid;gap:12px;">
+
+      <!-- Invoice selector -->
+      <div>
+        <label>Invoice</label>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <select id="ai-invoice" class="input select" style="flex:1;" onchange="onAiInvoiceChange()">
+            <option value="">— No Invoice —</option>
+          </select>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="openNewInvoiceFromAddItem()">+ New</button>
+        </div>
+        <div id="ai-invoice-info" style="font-size:12px;color:var(--text-muted);margin-top:4px;display:none;"></div>
+      </div>
 
       <!-- Cloth Type -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
@@ -106,6 +200,17 @@
             <button type="button" class="btn btn-sm btn-primary" onclick="saveNewSupplier()">Add</button>
             <button type="button" class="btn btn-sm btn-secondary" onclick="cancelAiSupplierAdd()">&#215;</button>
           </div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div>
+          <label>Item Name</label>
+          <input type="text" id="ai-item-name" class="input" placeholder="Optional" />
+        </div>
+        <div>
+          <label>Shade Number</label>
+          <input type="text" id="ai-shade" class="input" placeholder="Optional" />
         </div>
       </div>
 
@@ -158,14 +263,28 @@
     </div>
     <div class="modal-body" style="display:grid;gap:12px;">
       <input type="hidden" id="ei-id" />
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div>
+            <label>CP (₹)</label>
+            <input type="number" id="ei-cp" class="input" min="0" step="0.01" />
+          </div>
+          <div>
+            <label>MRP (₹)</label>
+            <input type="number" id="ei-mrp" class="input" min="0" step="0.01" />
+          </div>
+        </div>
+      <div>
+        <label>Low Stock Alert Threshold</label>
+        <input type="number" id="ei-alert" class="input" min="0" step="0.01" />
+      </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
         <div>
-          <label>MRP (₹)</label>
-          <input type="number" id="ei-mrp" class="input" min="0" step="0.01" />
+          <label>Item Name</label>
+          <input type="text" id="ei-item-name" class="input" />
         </div>
         <div>
-          <label>Low Stock Alert Threshold</label>
-          <input type="number" id="ei-alert" class="input" min="0" step="0.01" />
+          <label>Shade Number</label>
+          <input type="text" id="ei-shade" class="input" />
         </div>
       </div>
       <div>
@@ -245,18 +364,16 @@
 
 <!-- ====== QR View Modal ====== -->
 <div class="modal-overlay hidden" id="qr-view-modal">
-  <div class="modal-box" style="max-width:340px;text-align:center;">
+  <div class="modal-box" style="max-width:520px;text-align:center;">
     <div class="modal-header">
-      <h3 id="qr-view-title">Inventory QR Code</h3>
+      <h3 id="qr-view-title">Item Label</h3>
       <button class="modal-close" onclick="closeQrViewModal()">&#215;</button>
     </div>
     <div class="modal-body">
-      <img id="qr-view-img" src="" alt="QR Code"
-           style="width:220px;height:220px;border:1px solid var(--border);border-radius:8px;" />
-      <div id="qr-view-code"
-           style="margin-top:10px;font-family:monospace;font-size:14px;font-weight:600;letter-spacing:1px;color:var(--text);"></div>
-      <div style="margin-top:6px;font-size:12px;color:var(--text-muted);">
-        Scan this QR on the bill form to auto-fill and track inventory.
+      <img id="qr-view-img" src="" alt="Item Label"
+           style="width:100%;max-width:480px;height:auto;border:1px solid var(--border);border-radius:6px;" />
+      <div style="margin-top:8px;font-size:12px;color:var(--text-muted);">
+        64 mm &times; 34 mm &mdash; print at actual size for label printers
       </div>
     </div>
     <div class="modal-footer" style="justify-content:center;">

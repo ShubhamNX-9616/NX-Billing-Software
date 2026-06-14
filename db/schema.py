@@ -266,6 +266,38 @@ def _m11_stitching_garment_types(conn):
     )
 
 
+def _m12_invoices_and_item_fields(conn):
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS invoices (
+            id             INTEGER PRIMARY KEY AUTOINCREMENT,
+            invoice_number TEXT NOT NULL,
+            invoice_date   TEXT NOT NULL,
+            supplier_id    INTEGER REFERENCES suppliers(id),
+            notes          TEXT,
+            created_at     TEXT DEFAULT (datetime('now','localtime'))
+        )
+    """)
+    try:
+        conn.execute("ALTER TABLE inventory_items ADD COLUMN invoice_id   INTEGER REFERENCES invoices(id)")
+    except Exception:
+        pass
+    try:
+        conn.execute("ALTER TABLE inventory_items ADD COLUMN item_name    TEXT")
+    except Exception:
+        pass
+    try:
+        conn.execute("ALTER TABLE inventory_items ADD COLUMN shade_number TEXT")
+    except Exception:
+        pass
+
+
+def _m13_cost_price(conn):
+    try:
+        conn.execute("ALTER TABLE inventory_items ADD COLUMN cost_price REAL NOT NULL DEFAULT 0")
+    except Exception:
+        pass
+
+
 MIGRATIONS = [
     (1,  _m01_baseline_schema),
     (2,  _m02_bills_extra_columns),
@@ -278,6 +310,8 @@ MIGRATIONS = [
     (9,  _m09_seed_defaults),
     (10, _m10_stitching_company_dropdown),
     (11, _m11_stitching_garment_types),
+    (12, _m12_invoices_and_item_fields),
+    (13, _m13_cost_price),
 ]
 
 
