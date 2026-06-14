@@ -181,7 +181,55 @@
     </div>
 
   </div><!-- /invoice-card -->
-</div><!-- /invoice-print-area -->
+  </div><!-- /invoice-print-area -->
+
+<!-- Update Payment Modal -->
+<div class="modal-overlay hidden no-print" id="detail-payment-modal">
+  <div class="modal-box" style="max-width:520px;">
+    <div class="modal-header modal-header--primary">
+      <h3>&#128179; Update Payment &mdash; <span id="detail-payment-bill-num"></span></h3>
+      <button class="modal-close" onclick="closePaymentUpdateModal()">&#215;</button>
+    </div>
+    <div class="modal-body">
+      <div class="notice-box" style="background:#eff6ff;border-color:#bfdbfe;color:#1e3a8a;">
+        Record the customer's payment after sending the bill link.
+      </div>
+      <div id="detail-payment-error" class="text-danger mt-2" style="font-size:13px;min-height:18px;"></div>
+      <div style="display:grid;gap:10px;margin-top:8px;">
+        <label style="font-size:13px;font-weight:600;">Payment Mode</label>
+        <select id="detail-payment-mode" class="input select">
+          <option value="">-- Select --</option>
+          <option value="Cash">Cash</option>
+          <option value="Card">Card</option>
+          <option value="UPI">UPI</option>
+          <option value="Combination">Combination</option>
+        </select>
+
+        <div id="detail-payment-single-wrap" style="display:none;">
+          <label style="font-size:13px;font-weight:600;">Amount</label>
+          <input id="detail-payment-single-amount" type="number" class="input" min="0" step="0.01" placeholder="0.00" />
+        </div>
+
+        <div id="detail-payment-combo-wrap" style="display:none;display:grid;gap:8px;">
+          <div style="font-size:13px;font-weight:600;">Split Payment</div>
+          <div style="display:grid;gap:8px;">
+            <label><input type="checkbox" id="detail-combo-cash"> Cash</label>
+            <input id="detail-combo-amt-cash" type="number" class="input" min="0" step="0.01" placeholder="Cash amount" disabled />
+            <label><input type="checkbox" id="detail-combo-card"> Card</label>
+            <input id="detail-combo-amt-card" type="number" class="input" min="0" step="0.01" placeholder="Card amount" disabled />
+            <label><input type="checkbox" id="detail-combo-upi"> UPI</label>
+            <input id="detail-combo-amt-upi" type="number" class="input" min="0" step="0.01" placeholder="UPI amount" disabled />
+          </div>
+          <div id="detail-combo-status" style="font-size:12px;color:var(--text-muted);"></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary" onclick="closePaymentUpdateModal()">Cancel</button>
+      <button type="button" class="btn btn-primary" id="btn-detail-payment-save" onclick="saveDetailPayment()">Save Payment</button>
+    </div>
+  </div>
+</div>
 
 <!-- Cancel Confirmation Modal -->
 <div class="modal-overlay hidden no-print" id="detail-cancel-modal">
@@ -250,6 +298,7 @@
 <script>
   const BILL_ID = {{ bill_id }};
   let CURRENT_BILL = null;
+  let DETAIL_PAYMENT_MODE = '';
 
   /* ---- Formatters ---- */
   function fmt(amount) {
@@ -277,9 +326,9 @@
   }
 
   function paymentBadgeHTML(mode) {
-    const map = { Cash:'badge-success', Card:'badge-info', UPI:'badge-warning', Combination:'badge-neutral' };
-    return `<span class="badge ${map[mode] || 'badge-neutral'}">${mode}</span>`;
-  }
+      const map = { Cash:'badge-success', Card:'badge-info', UPI:'badge-warning', Combination:'badge-neutral', Pending:'badge-secondary' };
+      return `<span class="badge ${map[mode] || 'badge-neutral'}">${mode}</span>`;
+    }
 
   /* ---- WhatsApp / share helpers ---- */
   function formatDateLong(isoStr) {
@@ -330,6 +379,133 @@
     if (m.length === 10)                           m = '91' + m;
     else if (m.length === 11 && m.startsWith('0')) m = '91' + m.slice(1);
     return 'https://wa.me/' + m + '?text=' + encodeURIComponent(message);
+  }
+
+  function openPaymentUpdateModal() {
+    if (!CURRENT_BILL) return;
+    document.getElementById('detail-payment-bill-num').textContent = CURRENT_BILL.bill_number;
+    document.getElementById('detail-payment-error').textContent = '';
+    document.getElementById('detail-payment-mode').value = CURRENT_BILL.payment_mode_type === 'Pending' ? '' : (CURRENT_BILL.payment_mode_type || '');
+    document.getElementById('detail-payment-single-amount').value = '';
+    document.getElementById('detail-payment-single-wrap').style.display = 'none';
+    document.getElementById('detail-payment-combo-wrap').style.display = 'none';
+    ['cash','card','upi'].forEach(m => {
+      const chk = document.getElementById(`detail-combo-${m}`);
+      const amt = document.getElementById(`detail-combo-amt-${m}`);
+      if (chk) chk.checked = false;
+      if (amt) { amt.disabled = true; amt.value = ''; }
+    });
+    document.getElementById('detail-payment-modal').classList.remove('hidden');
+  }
+
+  function closePaymentUpdateModal() {
+    document.getElementById('detail-payment-modal').classList.add('hidden');
+  }
+
+  function syncDetailPaymentUI() {
+    const mode = document.getElementById('detail-payment-mode').value;
+    const singleWrap = document.getElementById('detail-payment-single-wrap');
+    const comboWrap  = document.getElementById('detail-payment-combo-wrap');
+    singleWrap.style.display = 'none';
+    comboWrap.style.display = 'none';
+    document.getElementById('detail-payment-error').textContent = '';
+    if (!mode) return;
+
+    if (mode === 'Combination') {
+      comboWrap.style.display = 'grid';
+      syncDetailCombo();
+    } else {
+      singleWrap.style.display = 'block';
+      document.getElementById('detail-payment-single-amount').value = Number(CURRENT_BILL.final_total || 0).toFixed(2);
+    }
+  }
+
+  function syncDetailCombo() {
+    const methods = ['Cash', 'Card', 'UPI'];
+    const checked = methods.filter(m => document.getElementById(`detail-combo-${m.toLowerCase()}`).checked);
+    methods.forEach(m => {
+      const chk = document.getElementById(`detail-combo-${m.toLowerCase()}`);
+      const amt = document.getElementById(`detail-combo-amt-${m.toLowerCase()}`);
+      if (chk) {
+        amt.disabled = !chk.checked;
+        if (!chk.checked) amt.value = '';
+      }
+    });
+    if (checked.length < 2) {
+      document.getElementById('detail-combo-status').textContent = 'Select at least 2 methods.';
+      return;
+    }
+    const total = Number(CURRENT_BILL.final_total || 0);
+    const sum = checked.reduce((acc, m) => acc + (parseFloat(document.getElementById(`detail-combo-amt-${m.toLowerCase()}`).value) || 0), 0);
+    document.getElementById('detail-combo-status').textContent = Math.abs(sum - total) <= 0.01 ? 'Payment balanced ✓' : `Remaining: ${fmt(total - sum)}`;
+  }
+
+  function collectDetailPayments() {
+    const mode = document.getElementById('detail-payment-mode').value;
+    if (!mode) return { payment_mode_type: '', payments: [] };
+    if (mode === 'Combination') {
+      const payments = [];
+      ['Cash', 'Card', 'UPI'].forEach(m => {
+        const chk = document.getElementById(`detail-combo-${m.toLowerCase()}`);
+        if (chk && chk.checked) {
+          payments.push({
+            payment_method: m,
+            amount: parseFloat(document.getElementById(`detail-combo-amt-${m.toLowerCase()}`).value) || 0,
+          });
+        }
+      });
+      return { payment_mode_type: mode, payments };
+    }
+    return {
+      payment_mode_type: mode,
+      payments: [{ payment_method: mode, amount: parseFloat(document.getElementById('detail-payment-single-amount').value) || 0 }],
+    };
+  }
+
+  async function saveDetailPayment() {
+    const btn = document.getElementById('btn-detail-payment-save');
+    const err = document.getElementById('detail-payment-error');
+    const payload = collectDetailPayments();
+    err.textContent = '';
+
+    if (!payload.payment_mode_type) {
+      err.textContent = 'Select a payment mode.';
+      return;
+    }
+    if (!payload.payments.length) {
+      err.textContent = 'Enter at least one payment amount.';
+      return;
+    }
+
+    const total = Number(CURRENT_BILL.final_total || 0);
+    const sum = payload.payments.reduce((acc, p) => acc + Number(p.amount || 0), 0);
+    if (payload.payment_mode_type === 'Combination' && Math.abs(sum - total) > 0.01) {
+      err.textContent = `Payment sum (${fmt(sum)}) must equal final total (${fmt(total)}).`;
+      return;
+    }
+    if (payload.payment_mode_type !== 'Combination' && Math.abs(sum - total) > 0.01) {
+      err.textContent = `Amount must equal final total (${fmt(total)}).`;
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+    try {
+      const res = await fetch(`/api/bills/${BILL_ID}/payment`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to update payment.');
+      closePaymentUpdateModal();
+      await loadBill();
+    } catch (e) {
+      err.textContent = e.message;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Save Payment';
+    }
   }
 
   function copyToClipboard(text) {
@@ -388,6 +564,8 @@
     // Screen bar
     document.getElementById('screen-bill-number').textContent = bill.bill_number;
     document.getElementById('screen-payment-badge').innerHTML = paymentBadgeHTML(bill.payment_mode_type);
+    const payBtn = document.getElementById('detail-payment-btn');
+    if (payBtn) payBtn.style.display = bill.status === 'cancelled' ? 'none' : '';
 
     // Header fields
     document.getElementById('inv-bill-number').textContent    = bill.bill_number;
@@ -438,7 +616,7 @@
         `<div class="inv-payment-pill"><strong>${p.payment_method}</strong>: ${fmt(p.amount)}</div>`
       ).join('');
     } else {
-      paymentsEl.innerHTML = `<span class="text-muted">—</span>`;
+      paymentsEl.innerHTML = `<span class="text-muted">Payment pending</span>`;
     }
 
     // Show invoice
@@ -466,6 +644,17 @@
       };
     }
     wireShareBtn('detail-share-btn', 'detail-link-copied');
+
+    const modeSel = document.getElementById('detail-payment-mode');
+    if (modeSel) modeSel.onchange = syncDetailPaymentUI;
+    ['detail-combo-cash', 'detail-combo-card', 'detail-combo-upi'].forEach(id => {
+      const chk = document.getElementById(id);
+      if (chk) chk.onchange = syncDetailCombo;
+    });
+    ['detail-combo-amt-cash', 'detail-combo-amt-card', 'detail-combo-amt-upi', 'detail-payment-single-amount'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.oninput = id === 'detail-payment-single-amount' ? null : syncDetailCombo;
+    });
 
     // Auto-print if ?print=1
     if (new URLSearchParams(window.location.search).get('print') === '1') {

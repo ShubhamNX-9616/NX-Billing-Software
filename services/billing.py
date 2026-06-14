@@ -101,8 +101,12 @@ def calculate_bill_totals(calculated_items, round_off_raw):
 def validate_payments(payments, final_total):
     """Validate payments list and confirm they sum to final_total.
     Raises ValueError on any invalid input."""
-    if not payments or not isinstance(payments, list):
-        raise ValueError("payments array cannot be empty")
+    if payments is None:
+        payments = []
+    if not isinstance(payments, list):
+        raise ValueError("payments must be an array")
+    if not payments:
+        return
     for p in payments:
         if (p.get("payment_method") or "") not in VALID_PAYMENT_METHODS:
             raise ValueError(f"payment_method must be one of {sorted(VALID_PAYMENT_METHODS)}")

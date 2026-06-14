@@ -277,12 +277,19 @@
   <!-- Payment -->
   <div class="shared-card">
     <div class="shared-section-title">Payment</div>
+    {% if bill.payment_mode_type and bill.payment_mode_type != 'Pending' %}
     {% for payment in payments %}
     <div class="shared-summary-row">
       <span>{{ payment.payment_method }}</span>
       <span>₹{{ "%.2f"|format(payment.amount) }}</span>
     </div>
     {% endfor %}
+    {% else %}
+    <div class="shared-summary-row">
+      <span>Status</span>
+      <span>Payment pending</span>
+    </div>
+    {% endif %}
   </div>
 
   <!-- Footer -->

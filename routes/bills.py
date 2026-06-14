@@ -16,6 +16,7 @@ from services.inventory import deduct_stock, restore_stock
 bills_bp = Blueprint("bills", __name__)
 
 VALID_PAYMENT_MODES = {"Cash", "Card", "UPI", "Combination"}
+PENDING_PAYMENT_MODE = "Pending"
 
 
 # ---------------------------------------------------------------------------
@@ -177,7 +178,7 @@ def create_bill():
         if not customer_mobile:  errors.append("customer_mobile is required")
         if not bill_date:        errors.append("bill_date is required")
         if not salesperson_name: errors.append("salesperson_name is required")
-        if payment_mode_type not in VALID_PAYMENT_MODES:
+        if payment_mode_type and payment_mode_type not in VALID_PAYMENT_MODES:
             errors.append(f"payment_mode_type must be one of {sorted(VALID_PAYMENT_MODES)}")
         if errors:
             return jsonify({"error": "; ".join(errors)}), 400
@@ -201,6 +202,7 @@ def create_bill():
         advance_paid, remaining   = parse_advance(body.get("advance_paid"), totals["final_total"])
         customer_id               = find_or_create_customer(db, customer_name, norm_mobile)
         bill_number               = generate_bill_number(db)
+        stored_payment_mode       = payment_mode_type or PENDING_PAYMENT_MODE
 
         # Attach inventory_item_id from raw request to calculated items
         for raw, calc in zip(items, calculated_items):
@@ -222,7 +224,7 @@ def create_bill():
                 customer_name, norm_mobile, bill_date,
                 totals["subtotal"], totals["total_discount"], totals["final_total"],
                 totals["total_savings"], advance_paid, remaining,
-                salesperson_name, payment_mode_type,
+                salesperson_name, stored_payment_mode,
                 totals["round_off"],
             ),
         )
@@ -248,10 +250,11 @@ def create_bill():
                 for i in calculated_items
             ],
         )
-        db.executemany(
-            "INSERT INTO bill_payments (bill_id, payment_method, amount) VALUES (?, ?, ?)",
-            [(bill_id, p["payment_method"], float(p["amount"])) for p in payments],
-        )
+        if payments:
+            db.executemany(
+                "INSERT INTO bill_payments (bill_id, payment_method, amount) VALUES (?, ?, ?)",
+                [(bill_id, p["payment_method"], float(p["amount"])) for p in payments],
+            )
 
         # Deduct inventory stock for linked items (soft warn — never blocks)
         username = session.get("username")
@@ -279,7 +282,8 @@ def create_bill():
             "advance_paid":             advance_paid,
             "remaining":                remaining,
             "salesperson_name":         salesperson_name,
-            "payment_mode_type":        payment_mode_type,
+            "payment_mode_type":        stored_payment_mode,
+            "share_link":               f"/bill/share/{bill_number}",
         }), 201
 
     except ValueError as e:
@@ -316,7 +320,7 @@ def update_bill(bill_id):
         if not customer_mobile:  errors.append("customer_mobile is required")
         if not bill_date:        errors.append("bill_date is required")
         if not salesperson_name: errors.append("salesperson_name is required")
-        if payment_mode_type not in VALID_PAYMENT_MODES:
+        if payment_mode_type and payment_mode_type not in VALID_PAYMENT_MODES:
             errors.append(f"payment_mode_type must be one of {sorted(VALID_PAYMENT_MODES)}")
         if errors:
             return jsonify({"error": "; ".join(errors)}), 400
@@ -343,6 +347,7 @@ def update_bill(bill_id):
         validate_payments(payments, totals["final_total"])
         advance_paid, remaining = parse_advance(body.get("advance_paid"), totals["final_total"])
         customer_id             = find_or_create_customer(db, customer_name, norm_mobile)
+        stored_payment_mode     = payment_mode_type or existing_bill["payment_mode_type"] or PENDING_PAYMENT_MODE
 
         # Attach inventory_item_id from raw request to calculated items
         for raw, calc in zip(items, calculated_items):
@@ -382,10 +387,10 @@ def update_bill(bill_id):
             customer_id, customer_name, norm_mobile, bill_date,
             totals["subtotal"], totals["total_discount"], totals["final_total"],
             totals["total_savings"], advance_paid, remaining,
-            salesperson_name, payment_mode_type,
-            totals["round_off"],
-            bill_id,
-        ))
+                salesperson_name, stored_payment_mode,
+                totals["round_off"],
+                bill_id,
+            ))
 
         db.executemany(
             """
@@ -407,10 +412,11 @@ def update_bill(bill_id):
                 for i in calculated_items
             ],
         )
-        db.executemany(
-            "INSERT INTO bill_payments (bill_id, payment_method, amount) VALUES (?, ?, ?)",
-            [(bill_id, p["payment_method"], float(p["amount"])) for p in payments],
-        )
+        if payments:
+            db.executemany(
+                "INSERT INTO bill_payments (bill_id, payment_method, amount) VALUES (?, ?, ?)",
+                [(bill_id, p["payment_method"], float(p["amount"])) for p in payments],
+            )
 
         # Deduct inventory stock for newly linked items
         for i in calculated_items:
@@ -435,9 +441,64 @@ def update_bill(bill_id):
             "advance_paid":             advance_paid,
             "remaining":                remaining,
             "salesperson_name":         salesperson_name,
-            "payment_mode_type":        payment_mode_type,
+            "payment_mode_type":        stored_payment_mode,
         }), 200
 
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        if db:
+            try:
+                db.rollback()
+            except Exception:
+                pass
+        return jsonify({"error": str(e)}), 500
+
+
+# ---------------------------------------------------------------------------
+# PATCH /api/bills/<id>/payment
+# ---------------------------------------------------------------------------
+@bills_bp.route("/bills/<int:bill_id>/payment", methods=["PATCH"])
+@api_admin_required
+def update_bill_payment(bill_id):
+    db = None
+    try:
+        body = request.get_json(force=True, silent=True) or {}
+        payment_mode_type = (body.get("payment_mode_type") or "").strip()
+        payments = body.get("payments", [])
+
+        if payment_mode_type not in VALID_PAYMENT_MODES:
+            return jsonify({"error": f"payment_mode_type must be one of {sorted(VALID_PAYMENT_MODES)}"}), 400
+        if not payments or not isinstance(payments, list):
+            return jsonify({"error": "payments array cannot be empty"}), 400
+
+        db = get_db()
+        bill = db.execute("SELECT * FROM bills WHERE id = ?", (bill_id,)).fetchone()
+        if not bill:
+            return jsonify({"error": "Bill not found"}), 404
+
+        validate_payments(payments, float(bill["final_total"] or 0))
+
+        db.execute("DELETE FROM bill_payments WHERE bill_id = ?", (bill_id,))
+        db.executemany(
+            "INSERT INTO bill_payments (bill_id, payment_method, amount) VALUES (?, ?, ?)",
+            [(bill_id, p["payment_method"], float(p["amount"])) for p in payments],
+        )
+        db.execute(
+            """
+            UPDATE bills SET
+                payment_mode_type = ?,
+                updated_at = datetime('now','localtime')
+            WHERE id = ?
+            """,
+            (payment_mode_type, bill_id),
+        )
+        db.commit()
+        return jsonify({
+            "id": bill_id,
+            "payment_mode_type": payment_mode_type,
+            "payments": payments,
+        }), 200
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
     except Exception as e:
@@ -620,4 +681,3 @@ def restore_bill(bill_id):
         except Exception:
             pass
         return jsonify({"error": str(e)}), 500
-

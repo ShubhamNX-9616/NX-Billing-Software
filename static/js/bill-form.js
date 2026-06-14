@@ -102,7 +102,7 @@ function collectBillData() {
                         amount: parseFloat(document.getElementById(`combo-amt-${m}`).value) || 0 });
       }
     });
-  } else {
+  } else if (mode && mode !== 'Pending') {
     payments.push({ payment_method: mode,
                     amount: parseFloat(document.getElementById('payment-single-amount').value) || 0 });
   }
@@ -256,11 +256,11 @@ async function setItemRowValues(id, item) {
 }
 
 function setPaymentMode(mode, payments) {
-  currentMode = mode;
+  currentMode = mode || '';
   document.querySelectorAll('.payment-mode-tab').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.mode === mode);
   });
-  onPaymentModeChange(mode);
+  if (mode && mode !== 'Pending') onPaymentModeChange(mode);
 
   if (mode === 'Combination') {
     ['Cash', 'Card', 'UPI'].forEach(m => {

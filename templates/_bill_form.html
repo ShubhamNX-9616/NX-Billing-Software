@@ -241,6 +241,15 @@
       Copy Share Link
     </button>
 
+    <!-- Update Payment Button -->
+    <button id="update-payment-btn"
+            type="button"
+            class="btn btn-primary"
+            style="display:none;"
+            onclick="openInlinePaymentUpdateModal()">
+      &#128179; Update Payment
+    </button>
+
     <!-- Copy confirmation (hidden) -->
     <span id="link-copied-msg" style="display:none">
       ✓ Link copied to clipboard!
@@ -256,6 +265,52 @@
           onclick="saveBill()">
     &#10003; Save Bill
   </button>
+</div>
+
+<!-- Inline payment update modal for new bill flow -->
+<div class="modal-overlay hidden no-print" id="inline-payment-modal">
+  <div class="modal-box" style="max-width:520px;">
+    <div class="modal-header modal-header--primary">
+      <h3>Update Payment &mdash; <span id="inline-payment-bill-num"></span></h3>
+      <button class="modal-close" type="button" onclick="closeInlinePaymentUpdateModal()">&#215;</button>
+    </div>
+    <div class="modal-body">
+      <div class="notice-box" style="background:#eff6ff;border-color:#bfdbfe;color:#1e3a8a;">
+        Record payment after sending the bill link to the customer.
+      </div>
+      <div id="inline-payment-error" class="text-danger mt-2" style="font-size:13px;min-height:18px;"></div>
+      <div style="display:grid;gap:10px;margin-top:8px;">
+        <label style="font-size:13px;font-weight:600;">Payment Mode</label>
+        <select id="inline-payment-mode" class="input select" onchange="syncInlinePaymentMode()">
+          <option value="">-- Select --</option>
+          <option value="Cash">Cash</option>
+          <option value="Card">Card</option>
+          <option value="UPI">UPI</option>
+          <option value="Combination">Combination</option>
+        </select>
+
+        <div id="inline-payment-single-wrap" style="display:none;">
+          <label style="font-size:13px;font-weight:600;">Amount</label>
+          <input id="inline-payment-single-amount" type="number" class="input" min="0" step="0.01" placeholder="0.00" />
+        </div>
+
+        <div id="inline-payment-combo-wrap" style="display:none;display:grid;gap:8px;">
+          <div style="font-size:13px;font-weight:600;">Split Payment</div>
+          <label><input type="checkbox" id="inline-combo-cash" onchange="syncInlineCombo()"> Cash</label>
+          <input id="inline-combo-amt-cash" type="number" class="input" min="0" step="0.01" placeholder="Cash amount" disabled />
+          <label><input type="checkbox" id="inline-combo-card" onchange="syncInlineCombo()"> Card</label>
+          <input id="inline-combo-amt-card" type="number" class="input" min="0" step="0.01" placeholder="Card amount" disabled />
+          <label><input type="checkbox" id="inline-combo-upi" onchange="syncInlineCombo()"> UPI</label>
+          <input id="inline-combo-amt-upi" type="number" class="input" min="0" step="0.01" placeholder="UPI amount" disabled />
+          <div id="inline-combo-status" style="font-size:12px;color:var(--text-muted);"></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary" onclick="closeInlinePaymentUpdateModal()">Cancel</button>
+      <button type="button" class="btn btn-primary" id="btn-inline-payment-save" onclick="saveInlinePayment()">Save Payment</button>
+    </div>
+  </div>
 </div>
 
 <!-- ====== Add Cloth Type Modal ====== -->

@@ -9,7 +9,7 @@ const EDIT_MODE = !!BILL_ID;
 // ---- Global state ----
 let rowCounter       = 0;
 let savedBillId      = null;
-let currentMode      = 'Cash';
+let currentMode      = '';
 let addCompanyCtx    = null;
 let addClothTypeCtx  = null;
 let salespersons     = [];
@@ -1058,7 +1058,7 @@ function collectBillData() {
                         amount: parseFloat(document.getElementById(`combo-amt-${m}`).value) || 0 });
       }
     });
-  } else {
+  } else if (mode && mode !== 'Pending') {
     payments.push({ payment_method: mode,
                     amount: parseFloat(document.getElementById('payment-single-amount').value) || 0 });
   }
@@ -1228,11 +1228,11 @@ async function setItemRowValues(id, item) {
 }
 
 function setPaymentMode(mode, payments) {
-  currentMode = mode;
+  currentMode = mode || '';
   document.querySelectorAll('.payment-mode-tab').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.mode === mode);
   });
-  onPaymentModeChange(mode);
+  if (mode && mode !== 'Pending') onPaymentModeChange(mode);
 
   if (mode === 'Combination') {
     // Reset first
@@ -1465,6 +1465,19 @@ async function saveBill() {
       document.getElementById('btn-print').disabled = false;
       saveBtn.textContent = '\u2713 Saved';
       showPostSaveActions(result);
+      if (result.share_link) {
+        const shareBtn = document.getElementById('share-link-btn');
+        if (shareBtn) {
+          shareBtn.onclick = function () {
+            copyToClipboard((window.SHARE_BASE_URL || window.location.origin) + result.share_link);
+            const msg = document.getElementById('link-copied-msg');
+            if (msg) {
+              msg.style.display = 'inline-flex';
+              setTimeout(() => { msg.style.display = 'none'; }, 3000);
+            }
+          };
+        }
+      }
     }
 
   } catch (err) {

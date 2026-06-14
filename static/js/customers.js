@@ -16,6 +16,7 @@ function paymentBadge(mode) {
     Card:        'badge-info',
     UPI:         'badge-warning',
     Combination: 'badge-neutral',
+    Pending:     'badge-secondary',
   };
   return `<span class="badge ${map[mode] || 'badge-neutral'}">${mode}</span>`;
 }

@@ -82,6 +82,14 @@ function showPostSaveActions(bill) {
     };
   }
 
+  const paymentBtn = document.getElementById('update-payment-btn');
+  if (paymentBtn) {
+    paymentBtn.style.display = '';
+    paymentBtn.dataset.billId = bill.id;
+    paymentBtn.dataset.billNumber = bill.bill_number;
+    paymentBtn.dataset.finalTotal = bill.final_total;
+  }
+
   const section = document.getElementById('post-save-actions');
   if (section) section.style.display = 'flex';
 }
@@ -103,4 +111,131 @@ function fallbackCopy(text) {
   ta.select();
   try { document.execCommand('copy'); } catch (e) { console.warn('Copy failed:', e); }
   document.body.removeChild(ta);
+}
+
+function openInlinePaymentUpdateModal() {
+  const btn = document.getElementById('update-payment-btn');
+  if (!btn) return;
+  const billNum = btn.dataset.billNumber || '';
+  document.getElementById('inline-payment-bill-num').textContent = billNum;
+  document.getElementById('inline-payment-error').textContent = '';
+  document.getElementById('inline-payment-mode').value = '';
+  document.getElementById('inline-payment-single-wrap').style.display = 'none';
+  document.getElementById('inline-payment-combo-wrap').style.display = 'none';
+  ['cash', 'card', 'upi'].forEach(m => {
+    const chk = document.getElementById(`inline-combo-${m}`);
+    const amt = document.getElementById(`inline-combo-amt-${m}`);
+    if (chk) chk.checked = false;
+    if (amt) { amt.disabled = true; amt.value = ''; }
+  });
+  document.getElementById('inline-payment-modal').classList.remove('hidden');
+}
+
+function closeInlinePaymentUpdateModal() {
+  document.getElementById('inline-payment-modal').classList.add('hidden');
+}
+
+function syncInlinePaymentMode() {
+  const btn = document.getElementById('update-payment-btn');
+  const total = Number(btn?.dataset.finalTotal || 0);
+  const mode = document.getElementById('inline-payment-mode').value;
+  const singleWrap = document.getElementById('inline-payment-single-wrap');
+  const comboWrap = document.getElementById('inline-payment-combo-wrap');
+  document.getElementById('inline-payment-error').textContent = '';
+  singleWrap.style.display = 'none';
+  comboWrap.style.display = 'none';
+  if (!mode) return;
+  if (mode === 'Combination') {
+    comboWrap.style.display = 'grid';
+    syncInlineCombo();
+  } else {
+    singleWrap.style.display = 'block';
+    document.getElementById('inline-payment-single-amount').value = total.toFixed(2);
+  }
+}
+
+function syncInlineCombo() {
+  const total = Number(document.getElementById('update-payment-btn')?.dataset.finalTotal || 0);
+  const methods = ['Cash', 'Card', 'UPI'];
+  const checked = methods.filter(m => document.getElementById(`inline-combo-${m.toLowerCase()}`).checked);
+  methods.forEach(m => {
+    const chk = document.getElementById(`inline-combo-${m.toLowerCase()}`);
+    const amt = document.getElementById(`inline-combo-amt-${m.toLowerCase()}`);
+    if (amt) {
+      amt.disabled = !chk.checked;
+      if (!chk.checked) amt.value = '';
+    }
+  });
+  const status = document.getElementById('inline-combo-status');
+  if (!status) return;
+  if (checked.length < 2) {
+    status.textContent = 'Select at least 2 methods.';
+    return;
+  }
+  const sum = checked.reduce((acc, m) => acc + (parseFloat(document.getElementById(`inline-combo-amt-${m.toLowerCase()}`).value) || 0), 0);
+  status.textContent = Math.abs(sum - total) <= 0.01 ? 'Payment balanced ✓' : `Remaining: ${fmt(total - sum)}`;
+}
+
+async function saveInlinePayment() {
+  const btn = document.getElementById('btn-inline-payment-save');
+  const err = document.getElementById('inline-payment-error');
+  const billBtn = document.getElementById('update-payment-btn');
+  const billId = billBtn?.dataset.billId;
+  const total = Number(billBtn?.dataset.finalTotal || 0);
+  const mode = document.getElementById('inline-payment-mode').value;
+  err.textContent = '';
+
+  if (!billId) {
+    err.textContent = 'Missing bill id.';
+    return;
+  }
+  if (!mode) {
+    err.textContent = 'Select a payment mode.';
+    return;
+  }
+
+  let payments = [];
+  if (mode === 'Combination') {
+    ['Cash', 'Card', 'UPI'].forEach(m => {
+      const chk = document.getElementById(`inline-combo-${m.toLowerCase()}`);
+      if (chk && chk.checked) {
+        payments.push({
+          payment_method: m,
+          amount: parseFloat(document.getElementById(`inline-combo-amt-${m.toLowerCase()}`).value) || 0,
+        });
+      }
+    });
+  } else {
+    payments = [{ payment_method: mode, amount: parseFloat(document.getElementById('inline-payment-single-amount').value) || 0 }];
+  }
+
+  if (!payments.length) {
+    err.textContent = 'Enter at least one payment amount.';
+    return;
+  }
+
+  const sum = payments.reduce((acc, p) => acc + Number(p.amount || 0), 0);
+  if (Math.abs(sum - total) > 0.01) {
+    err.textContent = `Payment sum (${fmt(sum)}) must equal final total (${fmt(total)}).`;
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Saving...';
+  try {
+    const res = await fetch(`/api/bills/${billId}/payment`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ payment_mode_type: mode, payments }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to update payment.');
+    closeInlinePaymentUpdateModal();
+    window.location.href = `/bills/${billId}`;
+  } catch (e) {
+    err.textContent = e.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Save Payment';
+  }
 }
