@@ -32,6 +32,7 @@ app.config['SESSION_PERMANENT'] = False         # session cookie expires when br
 app.config['SESSION_COOKIE_HTTPONLY'] = True    # JS cannot read the cookie
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # Protects against CSRF
 app.config['TEMPLATES_AUTO_RELOAD'] = True
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0  # disable static file caching
 
 # Initialize bcrypt
 bcrypt.init_app(app)
