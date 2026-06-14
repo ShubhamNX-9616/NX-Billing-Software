@@ -26,9 +26,7 @@ def analytics_summary():
                 COUNT(DISTINCT b.customer_id)                                            AS total_customers,
                 COALESCE(SUM(cp.cash), 0)                                                AS total_cash,
                 COALESCE(SUM(cp.card), 0)                                                AS total_card,
-                COALESCE(SUM(cp.upi), 0)                                                 AS total_upi,
-                COALESCE(SUM(CASE WHEN b.payment_mode_type='Combination'
-                                  THEN b.final_total ELSE 0 END), 0)                     AS total_combination
+                COALESCE(SUM(cp.upi), 0)                                                 AS total_upi
             FROM bills b
             LEFT JOIN (
                 SELECT bill_id,
@@ -40,17 +38,40 @@ def analytics_summary():
             WHERE b.status != 'cancelled'
         """).fetchone()
 
-        today_row = db.execute(
-            "SELECT COUNT(*) AS cnt, COALESCE(SUM(final_total),0) AS sales "
-            "FROM bills WHERE status != 'cancelled' AND bill_date = ?",
-            (today_str,)
-        ).fetchone()
+        today_row = db.execute("""
+            SELECT
+                COUNT(b.id)                  AS cnt,
+                COALESCE(SUM(b.final_total), 0) AS sales,
+                COALESCE(SUM(cp.cash), 0)    AS cash,
+                COALESCE(SUM(cp.card), 0)    AS card,
+                COALESCE(SUM(cp.upi), 0)     AS upi
+            FROM bills b
+            LEFT JOIN (
+                SELECT bill_id,
+                    SUM(CASE WHEN payment_method='Cash' THEN amount ELSE 0 END) AS cash,
+                    SUM(CASE WHEN payment_method='Card' THEN amount ELSE 0 END) AS card,
+                    SUM(CASE WHEN payment_method='UPI'  THEN amount ELSE 0 END) AS upi
+                FROM bill_payments GROUP BY bill_id
+            ) cp ON cp.bill_id = b.id
+            WHERE b.status != 'cancelled' AND b.bill_date = ?
+        """, (today_str,)).fetchone()
 
-        month_row = db.execute(
-            "SELECT COALESCE(SUM(final_total),0) AS sales "
-            "FROM bills WHERE status != 'cancelled' AND strftime('%Y-%m', bill_date) = ?",
-            (this_month,)
-        ).fetchone()
+        month_row = db.execute("""
+            SELECT
+                COALESCE(SUM(b.final_total), 0) AS sales,
+                COALESCE(SUM(cp.cash), 0)    AS cash,
+                COALESCE(SUM(cp.card), 0)    AS card,
+                COALESCE(SUM(cp.upi), 0)     AS upi
+            FROM bills b
+            LEFT JOIN (
+                SELECT bill_id,
+                    SUM(CASE WHEN payment_method='Cash' THEN amount ELSE 0 END) AS cash,
+                    SUM(CASE WHEN payment_method='Card' THEN amount ELSE 0 END) AS card,
+                    SUM(CASE WHEN payment_method='UPI'  THEN amount ELSE 0 END) AS upi
+                FROM bill_payments GROUP BY bill_id
+            ) cp ON cp.bill_id = b.id
+            WHERE b.status != 'cancelled' AND strftime('%Y-%m', b.bill_date) = ?
+        """, (this_month,)).fetchone()
 
         year_row = db.execute(
             "SELECT COALESCE(SUM(final_total),0) AS sales "
@@ -65,11 +86,16 @@ def analytics_summary():
             "total_cash":        round(float(overall["total_cash"] or 0), 2),
             "total_card":        round(float(overall["total_card"] or 0), 2),
             "total_upi":         round(float(overall["total_upi"] or 0), 2),
-            "total_combination": round(float(overall["total_combination"] or 0), 2),
             "today_bills":       int(today_row["cnt"] or 0),
             "today_sales":       round(float(today_row["sales"] or 0), 2),
+            "today_cash":        round(float(today_row["cash"]  or 0), 2),
+            "today_card":        round(float(today_row["card"]  or 0), 2),
+            "today_upi":         round(float(today_row["upi"]   or 0), 2),
             "this_month_sales":  round(float(month_row["sales"] or 0), 2),
-            "this_year_sales":   round(float(year_row["sales"] or 0), 2),
+            "month_cash":        round(float(month_row["cash"]  or 0), 2),
+            "month_card":        round(float(month_row["card"]  or 0), 2),
+            "month_upi":         round(float(month_row["upi"]   or 0), 2),
+            "this_year_sales":   round(float(year_row["sales"]  or 0), 2),
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -138,9 +164,7 @@ def get_analytics():
                 COUNT(b.id)                                                               AS bill_count,
                 COALESCE(SUM(cp.cash), 0)                                                AS cash,
                 COALESCE(SUM(cp.card), 0)                                                AS card,
-                COALESCE(SUM(cp.upi), 0)                                                 AS upi,
-                COALESCE(SUM(CASE WHEN b.payment_mode_type='Combination'
-                                  THEN b.final_total ELSE 0 END), 0)                     AS combination
+                COALESCE(SUM(cp.upi), 0)                                                 AS upi
             FROM bills b
             LEFT JOIN (
                 SELECT bill_id,
@@ -172,7 +196,6 @@ def get_analytics():
                 "cash":        round(float(row.get("cash") or 0), 2),
                 "card":        round(float(row.get("card") or 0), 2),
                 "upi":         round(float(row.get("upi") or 0), 2),
-                "combination": round(float(row.get("combination") or 0), 2),
                 "bill_count":  int(row.get("bill_count") or 0),
             })
         return jsonify(result)

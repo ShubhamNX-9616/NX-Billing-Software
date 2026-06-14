@@ -38,6 +38,18 @@ function removeSkeleton(id) {
   if (el) el.classList.remove('skeleton-val');
 }
 
+function renderPaymentSplit(containerId, cash, card, upi) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  const parts = [];
+  if (cash > 0) parts.push(`<span style="color:#10b981;font-weight:600;">Cash</span> <span>${fmtCurrency(cash)}</span>`);
+  if (card > 0) parts.push(`<span style="color:#3b82f6;font-weight:600;">Card</span> <span>${fmtCurrency(card)}</span>`);
+  if (upi  > 0) parts.push(`<span style="color:#8b5cf6;font-weight:600;">UPI</span> <span>${fmtCurrency(upi)}</span>`);
+  el.innerHTML = parts.map(p => `<span style="white-space:nowrap;">${p}</span>`).join(
+    '<span style="color:var(--border);margin:0 2px;">|</span>'
+  );
+}
+
 function renderSummary(data) {
   ['val-total-bills', 'val-total-customers', 'val-today-sales', 'val-month-sales'].forEach(removeSkeleton);
   document.getElementById('val-total-bills').textContent      = data.total_bills ?? '—';
@@ -46,6 +58,8 @@ function renderSummary(data) {
   document.getElementById('val-today-bills-count').textContent =
     data.today_bills ? `${data.today_bills} bill${data.today_bills !== 1 ? 's' : ''} today` : '';
   document.getElementById('val-month-sales').textContent      = fmtCurrency(data.this_month_sales);
+  renderPaymentSplit('val-today-split', data.today_cash, data.today_card, data.today_upi);
+  renderPaymentSplit('val-month-split', data.month_cash, data.month_card, data.month_upi);
 }
 
 // ---- Section 2 & 3: Period Tabs + Chart ----
@@ -99,7 +113,7 @@ function setActiveTab(period) {
   setCustomRangeVisibility(period === 'custom');
 }
 
-function buildChart(labels, cashData, cardData, upiData, comboData) {
+function buildChart(labels, cashData, cardData, upiData) {
   const ctx = document.getElementById('sales-chart').getContext('2d');
   if (salesChart) salesChart.destroy();
   salesChart = new Chart(ctx, {
@@ -107,10 +121,9 @@ function buildChart(labels, cashData, cardData, upiData, comboData) {
     data: {
       labels,
       datasets: [
-        { label: 'Cash',        data: cashData,  backgroundColor: '#10b981', stack: 'sales' },
-        { label: 'Card',        data: cardData,  backgroundColor: '#3b82f6', stack: 'sales' },
-        { label: 'UPI',         data: upiData,   backgroundColor: '#8b5cf6', stack: 'sales' },
-        { label: 'Combination', data: comboData, backgroundColor: '#f59e0b', stack: 'sales' },
+        { label: 'Cash', data: cashData, backgroundColor: '#10b981', stack: 'sales' },
+        { label: 'Card', data: cardData, backgroundColor: '#3b82f6', stack: 'sales' },
+        { label: 'UPI',  data: upiData,  backgroundColor: '#8b5cf6', stack: 'sales' },
       ],
     },
     options: {
@@ -147,38 +160,34 @@ function buildChart(labels, cashData, cardData, upiData, comboData) {
   });
 }
 
-function updateChart(labels, cashData, cardData, upiData, comboData) {
+function updateChart(labels, cashData, cardData, upiData) {
   if (!salesChart) {
-    buildChart(labels, cashData, cardData, upiData, comboData);
+    buildChart(labels, cashData, cardData, upiData);
     return;
   }
-  salesChart.data.labels              = labels;
-  salesChart.data.datasets[0].data    = cashData;
-  salesChart.data.datasets[1].data    = cardData;
-  salesChart.data.datasets[2].data    = upiData;
-  salesChart.data.datasets[3].data    = comboData;
+  salesChart.data.labels           = labels;
+  salesChart.data.datasets[0].data = cashData;
+  salesChart.data.datasets[1].data = cardData;
+  salesChart.data.datasets[2].data = upiData;
   salesChart.update();
 }
 
 // ---- Section 4: Payment Method Cards ----
 function renderPaymentCards(data) {
-  ['pcard-cash-amount', 'pcard-card-amount', 'pcard-upi-amount', 'pcard-combo-amount'].forEach(removeSkeleton);
+  ['pcard-cash-amount', 'pcard-card-amount', 'pcard-upi-amount'].forEach(removeSkeleton);
 
   const totalSales = data.reduce((s, d) => s + d.total_sales, 0);
   const totalCash  = data.reduce((s, d) => s + d.cash, 0);
   const totalCard  = data.reduce((s, d) => s + d.card, 0);
   const totalUpi   = data.reduce((s, d) => s + d.upi, 0);
-  const totalCombo = data.reduce((s, d) => s + d.combination, 0);
 
-  document.getElementById('pcard-cash-amount').textContent  = fmtCurrency(totalCash);
-  document.getElementById('pcard-card-amount').textContent  = fmtCurrency(totalCard);
-  document.getElementById('pcard-upi-amount').textContent   = fmtCurrency(totalUpi);
-  document.getElementById('pcard-combo-amount').textContent = fmtCurrency(totalCombo);
+  document.getElementById('pcard-cash-amount').textContent = fmtCurrency(totalCash);
+  document.getElementById('pcard-card-amount').textContent = fmtCurrency(totalCard);
+  document.getElementById('pcard-upi-amount').textContent  = fmtCurrency(totalUpi);
 
-  document.getElementById('pcard-cash-pct').textContent  = `${pct(totalCash,  totalSales)} of period sales`;
-  document.getElementById('pcard-card-pct').textContent  = `${pct(totalCard,  totalSales)} of period sales`;
-  document.getElementById('pcard-upi-pct').textContent   = `${pct(totalUpi,   totalSales)} of period sales`;
-  document.getElementById('pcard-combo-pct').textContent = `${pct(totalCombo, totalSales)} of period sales`;
+  document.getElementById('pcard-cash-pct').textContent = `${pct(totalCash, totalSales)} of period sales`;
+  document.getElementById('pcard-card-pct').textContent = `${pct(totalCard, totalSales)} of period sales`;
+  document.getElementById('pcard-upi-pct').textContent  = `${pct(totalUpi,  totalSales)} of period sales`;
 }
 
 function periodLabel(period) {
@@ -293,13 +302,12 @@ async function loadPeriodData(period) {
     if (isMobile && period === 'monthly') data = data.slice(-6);
     if (isMobile && period === 'custom' && data.length > 7) data = data.slice(-7);
 
-    const labels    = data.map(d => d.label);
-    const cashData  = data.map(d => d.cash);
-    const cardData  = data.map(d => d.card);
-    const upiData   = data.map(d => d.upi);
-    const comboData = data.map(d => d.combination);
+    const labels   = data.map(d => d.label);
+    const cashData = data.map(d => d.cash);
+    const cardData = data.map(d => d.card);
+    const upiData  = data.map(d => d.upi);
 
-    updateChart(labels, cashData, cardData, upiData, comboData);
+    updateChart(labels, cashData, cardData, upiData);
     renderPaymentCards(data);
     renderSalespersonTable(salespersonRows, period);
   } catch (err) {

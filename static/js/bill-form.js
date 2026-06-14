@@ -75,6 +75,58 @@ async function doMobileSearch() {
   }
 }
 
+// ---- Name search (suggestion dropdown) ----
+function setupNameSearch() {
+  const input = document.getElementById('customer-name');
+  if (!input) return;
+  input.addEventListener('input', debounce(doNameSuggest, 250));
+  input.addEventListener('blur', () => setTimeout(hideNameSuggestions, 150));
+}
+
+function hideNameSuggestions() {
+  const box = document.getElementById('name-suggestions');
+  if (box) { box.innerHTML = ''; box.style.display = 'none'; }
+}
+
+async function doNameSuggest() {
+  const input = document.getElementById('customer-name');
+  const q = input.value.trim();
+  const box = document.getElementById('name-suggestions');
+  if (!box) return;
+  if (q.length < 2) { hideNameSuggestions(); return; }
+  try {
+    const res  = await fetch(`/api/customers/suggest?q=${encodeURIComponent(q)}`);
+    const list = await res.json();
+    if (!Array.isArray(list) || !list.length) { hideNameSuggestions(); return; }
+    box.innerHTML = '';
+    list.forEach(c => {
+      const item = document.createElement('div');
+      item.style.cssText = 'padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border);font-size:14px;color:var(--text);';
+      const nameSpan = document.createElement('strong');
+      nameSpan.textContent = c.name;
+      nameSpan.style.cssText = 'color:var(--text);';
+      const mobileSpan = document.createElement('span');
+      mobileSpan.textContent = c.mobile ? ` ${c.mobile}` : '';
+      mobileSpan.style.cssText = 'color:var(--text-muted);font-size:12px;margin-left:6px;';
+      item.appendChild(nameSpan);
+      item.appendChild(mobileSpan);
+      item.addEventListener('mouseover', () => { item.style.background = 'var(--bg)'; item.style.color = 'var(--text)'; });
+      item.addEventListener('mouseout',  () => { item.style.background = ''; item.style.color = 'var(--text)'; });
+      item.addEventListener('mousedown', () => {
+        document.getElementById('customer-name').value   = c.name;
+        document.getElementById('customer-mobile').value = c.mobile || '';
+        document.getElementById('customer-status').innerHTML =
+          '<span class="badge badge-success">&#10003; Existing Customer</span>';
+        hideNameSuggestions();
+      });
+      box.appendChild(item);
+    });
+    box.style.display = 'block';
+  } catch {
+    hideNameSuggestions();
+  }
+}
+
 // ---- Collect bill data ----
 function collectBillData() {
   const mobile = normalizeMobile(document.getElementById('customer-mobile').value.trim());
@@ -351,6 +403,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     addItemRow();
   }
   setupMobileSearch();
+  setupNameSearch();
   setupPaymentTabs();
   window.addEventListener('resize', debounce(handleResponsiveItemsLayout, 150));
   lastIsMobile = isMobile();

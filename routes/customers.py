@@ -50,6 +50,29 @@ def search_customer_by_mobile():
         return jsonify({"error": str(e)}), 500
 
 
+@customers_bp.route("/customers/suggest", methods=["GET"])
+@api_login_required
+def suggest_customers():
+    try:
+        q = request.args.get("q", "").strip()
+        if not q:
+            return jsonify([])
+        db = get_db()
+        like = f"%{q}%"
+        rows = db.execute(
+            """
+            SELECT name, mobile FROM customers
+            WHERE name LIKE ?
+            ORDER BY name
+            LIMIT 8
+            """,
+            (like,),
+        ).fetchall()
+        return jsonify([dict(r) for r in rows])
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @customers_bp.route("/customers/<int:customer_id>", methods=["GET"])
 @api_admin_required
 def get_customer(customer_id):

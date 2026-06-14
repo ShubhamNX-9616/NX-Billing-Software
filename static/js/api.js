@@ -40,6 +40,14 @@ async function searchCustomerByMobile(mobile) {
 }
 
 /**
+ * Suggest customers by name prefix/substring (max 8 results).
+ * Returns array of { name, mobile } objects.
+ */
+async function searchCustomersByName(q) {
+  return _apiFetch(`/api/customers/suggest?q=${encodeURIComponent(q)}`);
+}
+
+/**
  * Get all customers, with optional text search on name/mobile.
  * Returns array of customer objects.
  */

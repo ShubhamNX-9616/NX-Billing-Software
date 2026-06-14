@@ -40,10 +40,11 @@
       </div>
       <div id="mobile-error" class="text-danger" style="font-size:12px;margin-top:4px;"></div>
     </div>
-    <div>
+    <div style="position:relative;">
       <label>Customer Name <span class="text-danger">*</span></label>
       <input type="text" id="customer-name" class="input"
-             placeholder="Enter or auto-filled from mobile" />
+             placeholder="Enter name or search…" autocomplete="off" />
+      <div id="name-suggestions" style="display:none;position:absolute;z-index:200;background:var(--surface);border:1px solid var(--border);border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,.15);width:100%;top:calc(100% + 2px);left:0;max-height:220px;overflow-y:auto;"></div>
       <div id="name-error" class="text-danger" style="font-size:12px;margin-top:4px;"></div>
     </div>
   </div>

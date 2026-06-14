@@ -104,6 +104,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     addItemRow();
   }
   setupMobileSearch();
+  setupNameSearch();
   setupPaymentTabs();
   window.addEventListener('resize', debounce(handleResponsiveItemsLayout, 150));
   lastIsMobile = isMobile();
@@ -181,6 +182,58 @@ async function loadNextBillNumber() {
 function setupMobileSearch() {
   const input = document.getElementById('customer-mobile');
   input.addEventListener('input', debounce(doMobileSearch, 300));
+}
+
+// ----------------------------------------------------------------
+// Name search (suggestion dropdown)
+// ----------------------------------------------------------------
+function setupNameSearch() {
+  const input = document.getElementById('customer-name');
+  if (!input) return;
+  input.addEventListener('input', debounce(doNameSuggest, 250));
+  input.addEventListener('blur', () => setTimeout(hideNameSuggestions, 150));
+}
+
+function hideNameSuggestions() {
+  const box = document.getElementById('name-suggestions');
+  if (box) { box.innerHTML = ''; box.style.display = 'none'; }
+}
+
+async function doNameSuggest() {
+  const input = document.getElementById('customer-name');
+  const q = input.value.trim();
+  const box = document.getElementById('name-suggestions');
+  if (!box) return;
+  if (q.length < 2) { hideNameSuggestions(); return; }
+  try {
+    const list = await searchCustomersByName(q);
+    if (!Array.isArray(list) || !list.length) { hideNameSuggestions(); return; }
+    box.innerHTML = '';
+    list.forEach(c => {
+      const item = document.createElement('div');
+      item.style.cssText = 'padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border);font-size:14px;';
+      const nameSpan = document.createElement('strong');
+      nameSpan.textContent = c.name;
+      const mobileSpan = document.createElement('span');
+      mobileSpan.textContent = c.mobile ? ` ${c.mobile}` : '';
+      mobileSpan.style.cssText = 'color:var(--text-muted);font-size:12px;margin-left:6px;';
+      item.appendChild(nameSpan);
+      item.appendChild(mobileSpan);
+      item.addEventListener('mouseover', () => { item.style.background = 'var(--bg)'; });
+      item.addEventListener('mouseout',  () => { item.style.background = ''; });
+      item.addEventListener('mousedown', () => {
+        document.getElementById('customer-name').value   = c.name;
+        document.getElementById('customer-mobile').value = c.mobile || '';
+        document.getElementById('customer-status').innerHTML =
+          '<span class="badge badge-success">&#10003; Existing Customer</span>';
+        hideNameSuggestions();
+      });
+      box.appendChild(item);
+    });
+    box.style.display = 'block';
+  } catch {
+    hideNameSuggestions();
+  }
 }
 
 async function doMobileSearch() {
