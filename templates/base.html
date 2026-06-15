@@ -92,7 +92,9 @@
     <div class="topbar">
       <div class="topbar-title">{% block page_title %}{% endblock %}</div>
       <div class="topbar-actions">
-        {% block topbar_actions %}{% endblock %}
+        <div class="topbar-page-actions">
+          {% block topbar_actions %}{% endblock %}
+        </div>
         {% if current_user.username %}
         <div class="topbar-user-block">
           <div class="topbar-avatar">{{ current_user.username[0]|upper }}</div>

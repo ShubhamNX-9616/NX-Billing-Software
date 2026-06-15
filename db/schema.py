@@ -298,6 +298,48 @@ def _m13_cost_price(conn):
         pass
 
 
+def _m14_drop_item_unique_constraint(conn):
+    """Remove UNIQUE(cloth_type, company_name, quality_number) so items with identical
+    specs but different stock quantities can coexist as separate entries."""
+    conn.execute("PRAGMA foreign_keys = OFF")
+    conn.executescript("""
+        CREATE TABLE inventory_items_new (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            cloth_type      TEXT NOT NULL,
+            company_name    TEXT NOT NULL,
+            quality_number  TEXT NOT NULL DEFAULT '',
+            unit_label      TEXT NOT NULL DEFAULT 'm',
+            current_stock   REAL NOT NULL DEFAULT 0,
+            min_stock_alert REAL NOT NULL DEFAULT 5,
+            mrp             REAL NOT NULL DEFAULT 0,
+            notes           TEXT,
+            item_code       TEXT UNIQUE,
+            supplier_id     INTEGER REFERENCES suppliers(id),
+            created_at      TEXT DEFAULT (datetime('now','localtime')),
+            updated_at      TEXT DEFAULT (datetime('now','localtime')),
+            item_name       TEXT,
+            shade_number    TEXT,
+            invoice_id      INTEGER REFERENCES invoices(id),
+            cost_price      REAL NOT NULL DEFAULT 0
+        );
+
+        INSERT INTO inventory_items_new
+            (id, cloth_type, company_name, quality_number, unit_label,
+             current_stock, min_stock_alert, mrp, notes, item_code,
+             supplier_id, created_at, updated_at, item_name, shade_number,
+             invoice_id, cost_price)
+        SELECT id, cloth_type, company_name, quality_number, unit_label,
+               current_stock, min_stock_alert, mrp, notes, item_code,
+               supplier_id, created_at, updated_at, item_name, shade_number,
+               invoice_id, cost_price
+        FROM inventory_items;
+
+        DROP TABLE inventory_items;
+        ALTER TABLE inventory_items_new RENAME TO inventory_items;
+    """)
+    conn.execute("PRAGMA foreign_keys = ON")
+
+
 MIGRATIONS = [
     (1,  _m01_baseline_schema),
     (2,  _m02_bills_extra_columns),
@@ -312,6 +354,7 @@ MIGRATIONS = [
     (11, _m11_stitching_garment_types),
     (12, _m12_invoices_and_item_fields),
     (13, _m13_cost_price),
+    (14, _m14_drop_item_unique_constraint),
 ]
 
 

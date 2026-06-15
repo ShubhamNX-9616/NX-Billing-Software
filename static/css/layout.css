@@ -314,9 +314,21 @@
     font-size: 16px;
   }
 
-  /* Hide topbar action buttons on mobile (nav is bottom bar) */
-  .topbar-actions {
+  /* Hide user block on mobile (login/profile accessible via sidebar on desktop) */
+  .topbar-user-block {
     display: none;
+  }
+
+  /* Keep page-specific action buttons visible but compact */
+  .topbar-page-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .topbar-page-actions .btn {
+    font-size: 12px;
+    padding: 5px 10px;
   }
 
   /* Page body */

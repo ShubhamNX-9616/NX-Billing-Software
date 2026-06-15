@@ -115,7 +115,7 @@ def create_inventory_item():
             item_id = cur.lastrowid
         except Exception as e:
             if "UNIQUE constraint" in str(e):
-                return jsonify({"error": "An inventory item with these details already exists"}), 409
+                return jsonify({"error": "Item code conflict — please try again"}), 409
             raise
 
         if opening_stock > 0:
