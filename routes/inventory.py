@@ -401,11 +401,29 @@ def get_inventory_qr(item_id):
         M      = 16   # outer margin
         PAD    = 12   # inner padding after divider
 
-        # Fonts — Segoe UI has the ₹ glyph; fall back to bitmap
-        FONT_DIR = "C:/Windows/Fonts/"
+        # Resolve fonts cross-platform (Windows → Linux fallbacks)
+        def _find_font(*candidates):
+            import os
+            for p in candidates:
+                if os.path.isfile(p):
+                    return p
+            return None
+
+        regular = _find_font(
+            "C:/Windows/Fonts/segoeui.ttf",                                   # Windows
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",                # Ubuntu/Debian
+            "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",# RHEL/CentOS
+            "/usr/share/fonts/truetype/freefont/FreeSans.ttf",                # fallback
+        )
+        bold = _find_font(
+            "C:/Windows/Fonts/segoeuib.ttf",
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+            "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+            "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf",
+        )
         try:
-            font_lbl = ImageFont.truetype(FONT_DIR + "segoeui.ttf",  20)
-            font_val = ImageFont.truetype(FONT_DIR + "segoeuib.ttf", 28)
+            font_lbl = ImageFont.truetype(regular, 20) if regular else ImageFont.load_default()
+            font_val = ImageFont.truetype(bold,    28) if bold    else ImageFont.load_default()
         except Exception:
             font_lbl = font_val = ImageFont.load_default()
 
@@ -437,12 +455,13 @@ def get_inventory_qr(item_id):
         stock = item["current_stock"] if item["current_stock"] is not None else 0.0
         unit  = item["unit_label"] or "m"
 
+        rupee  = "Rs." if not regular or "segoe" not in regular.lower() else "₹"
         fields = [
             ("ID",        code_text),
             ("Item Name", item["item_name"] or "—"),
             ("Company",   item["company_name"] or "—"),
             ("Quality",   item["quality_number"] or "—"),
-            ("MRP",       f"₹{float(mrp):.2f} / {unit}"),
+            ("MRP",       f"{rupee}{float(mrp):.2f} / {unit}"),
             ("Length",    f"{float(stock):.2f} {unit}"),
         ]
 
