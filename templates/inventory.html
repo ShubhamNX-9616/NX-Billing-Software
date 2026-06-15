@@ -300,35 +300,16 @@
   </div>
 </div>
 
-<!-- ====== Restock Modal ====== -->
-<div class="modal-overlay hidden" id="restock-modal">
-  <div class="modal-box">
+<!-- ====== Info Modal ====== -->
+<div class="modal-overlay hidden" id="info-modal">
+  <div class="modal-box" style="max-width:480px;">
     <div class="modal-header">
-      <h3 id="restock-title">Restock</h3>
-      <button class="modal-close" onclick="closeRestockModal()">&#215;</button>
+      <h3 id="info-title">Item Details</h3>
+      <button class="modal-close" onclick="closeInfoModal()">&#215;</button>
     </div>
-    <div class="modal-body" style="display:grid;gap:12px;">
-      <input type="hidden" id="rs-id" />
-      <div>
-        <label>Type</label>
-        <select id="rs-type" class="input select">
-          <option value="purchase">Purchase (new stock received)</option>
-          <option value="opening">Opening Stock (initial count)</option>
-        </select>
-      </div>
-      <div>
-        <label>Quantity <span class="text-danger">*</span></label>
-        <input type="number" id="rs-qty" class="input" min="0.01" step="0.01" placeholder="0" />
-      </div>
-      <div>
-        <label>Notes</label>
-        <input type="text" id="rs-notes" class="input" placeholder="Optional" />
-      </div>
-      <div id="rs-error" class="text-danger" style="font-size:13px;"></div>
-    </div>
+    <div class="modal-body" id="info-body" style="display:grid;gap:10px;"></div>
     <div class="modal-footer">
-      <button type="button" class="btn btn-secondary" onclick="closeRestockModal()">Cancel</button>
-      <button type="button" class="btn btn-primary" id="btn-rs-save" onclick="saveRestock()">Add Stock</button>
+      <button type="button" class="btn btn-secondary" onclick="closeInfoModal()">Close</button>
     </div>
   </div>
 </div>

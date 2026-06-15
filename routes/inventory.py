@@ -262,46 +262,6 @@ def delete_inventory_item(item_id):
 
 
 # ---------------------------------------------------------------------------
-# POST /api/inventory/<id>/restock
-# ---------------------------------------------------------------------------
-@inventory_bp.route("/inventory/<int:item_id>/restock", methods=["POST"])
-@api_admin_required
-def restock_item(item_id):
-    try:
-        body     = request.get_json(force=True, silent=True) or {}
-        quantity = float(body.get("quantity") or 0)
-        txn_type = body.get("txn_type", "purchase")
-        notes    = (body.get("notes") or "").strip() or None
-
-        if quantity <= 0:
-            return jsonify({"error": "quantity must be > 0"}), 400
-        if txn_type not in ("purchase", "opening"):
-            return jsonify({"error": "txn_type must be 'purchase' or 'opening'"}), 400
-
-        db = get_db()
-        item = db.execute("SELECT current_stock FROM inventory_items WHERE id = ?", (item_id,)).fetchone()
-        if not item:
-            return jsonify({"error": "Item not found"}), 404
-
-        new_stock = r2(item["current_stock"] + quantity)
-        db.execute(
-            "UPDATE inventory_items SET current_stock = ?, updated_at = datetime('now','localtime') WHERE id = ?",
-            (new_stock, item_id),
-        )
-        db.execute(
-            """INSERT INTO inventory_transactions
-               (item_id, txn_type, quantity, reference_type, notes, created_by)
-               VALUES (?, ?, ?, 'manual', ?, ?)""",
-            (item_id, txn_type, quantity, notes, session.get("username")),
-        )
-        db.commit()
-        return jsonify({"success": True, "new_stock": new_stock})
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
-# ---------------------------------------------------------------------------
 # POST /api/inventory/<id>/adjust
 # ---------------------------------------------------------------------------
 @inventory_bp.route("/inventory/<int:item_id>/adjust", methods=["POST"])

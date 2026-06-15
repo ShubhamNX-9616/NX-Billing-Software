@@ -771,9 +771,6 @@ function renderSections(items) {
           ? `<span style="font-size:10px;background:#fffbeb;color:#f59e0b;padding:1px 5px;border-radius:4px;margin-left:4px;">LOW</span>`
           : '';
       const clothCol    = isOthers ? `<td>${esc(item.cloth_type)}</td>` : '';
-      const supplierCell = item.supplier_name
-        ? `<td style="font-size:12px;">${esc(item.supplier_name)}</td>`
-        : `<td style="color:var(--text-muted);font-size:12px;">—</td>`;
       const invoiceCell = item.invoice_number
         ? `<td style="font-size:12px;"><span style="font-weight:600;">${esc(item.invoice_number)}</span><br><span style="color:var(--text-muted);">${esc(item.invoice_date || '')}</span></td>`
         : `<td style="color:var(--text-muted);font-size:12px;">—</td>`;
@@ -782,21 +779,19 @@ function renderSections(items) {
         ${clothCol}
         <td>${esc(item.company_name)}</td>
         <td>${esc(item.item_name) || '<span style="color:var(--text-muted);">—</span>'}</td>
-        ${supplierCell}
         ${invoiceCell}
         <td>${esc(item.quality_number) || '<span style="color:var(--text-muted);">—</span>'}</td>
         <td>${esc(item.shade_number) || '<span style="color:var(--text-muted);">—</span>'}</td>
         <td>${esc(item.unit_label)}</td>
         <td class="text-right">&#8377;${Number(item.mrp).toFixed(2)}</td>
-        <td class="text-right">&#8377;${Number(item.cost_price || 0).toFixed(2)}</td>
         <td class="text-right" ${stockClass}>${Number(item.current_stock).toFixed(2)}${stockBadge}</td>
         <td class="text-right">${Number(item.min_stock_alert).toFixed(2)}</td>
         <td style="text-align:center;white-space:nowrap;">
           <button class="btn btn-sm btn-secondary" onclick="openQrViewModal(${item.id})" title="QR">&#128246; QR</button>
-          <button class="btn btn-sm btn-secondary" onclick="openRestockModal(${item.id})" title="Restock" style="margin-left:4px;">&#8679; Stock</button>
           <button class="btn btn-sm btn-secondary" onclick="openAdjustModal(${item.id})" title="Adjust" style="margin-left:4px;">&#8651; Adjust</button>
           <button class="btn btn-sm btn-secondary" onclick="openTxnModal(${item.id})" title="History" style="margin-left:4px;">&#128196;</button>
           <button class="btn btn-sm btn-secondary" onclick="openEditItemModal(${item.id})" title="Edit" style="margin-left:4px;">&#9998;</button>
+          <button class="btn btn-sm btn-secondary" onclick="openInfoModal(${item.id})" title="More Info" style="margin-left:4px;">&#8505;</button>
           <button class="btn btn-sm" style="margin-left:4px;color:var(--danger,#ef4444);" onclick="deleteItem(${item.id})" title="Delete">&#215;</button>
         </td>
       </tr>`;
@@ -820,13 +815,11 @@ function renderSections(items) {
               ${isOthers ? '<th>Cloth Type</th>' : ''}
               <th>Company</th>
               <th>Item Name</th>
-              <th>Supplier</th>
               <th>Invoice</th>
               <th>Quality No.</th>
               <th>Shade No.</th>
               <th>Unit</th>
               <th class="text-right">MRP (&#8377;)</th>
-              <th class="text-right">CP (&#8377;)</th>
               <th class="text-right">Stock</th>
               <th class="text-right">Alert</th>
               <th style="text-align:center;">Actions</th>
@@ -1031,59 +1024,61 @@ document.getElementById('edit-item-modal').addEventListener('click', function(e)
 });
 
 // ----------------------------------------------------------------
-// Restock Modal
+// Info Modal
 // ----------------------------------------------------------------
-function openRestockModal(id) {
+function openInfoModal(id) {
   const item = allItems.find(i => i.id === id);
   if (!item) return;
-  document.getElementById('rs-id').value = id;
-  document.getElementById('rs-qty').value = '';
-  document.getElementById('rs-notes').value = '';
-  document.getElementById('rs-error').textContent = '';
-  document.getElementById('rs-type').value = 'purchase';
-  document.getElementById('restock-title').textContent =
-    `Restock — ${item.cloth_type} / ${item.company_name}${item.quality_number ? ' / ' + item.quality_number : ''}`;
-  document.getElementById('restock-modal').classList.remove('hidden');
-  document.getElementById('rs-qty').focus();
-}
 
-function closeRestockModal() {
-  document.getElementById('restock-modal').classList.add('hidden');
-}
+  document.getElementById('info-title').textContent =
+    `${item.cloth_type} / ${item.company_name}` + (item.item_code ? ` — ${item.item_code}` : '');
 
-async function saveRestock() {
-  const id    = parseInt(document.getElementById('rs-id').value);
-  const qty   = parseFloat(document.getElementById('rs-qty').value);
-  const errEl = document.getElementById('rs-error');
-  const btn   = document.getElementById('btn-rs-save');
-
-  errEl.textContent = '';
-  if (isNaN(qty) || qty <= 0) { errEl.textContent = 'Enter a valid quantity.'; return; }
-
-  btn.disabled = true;
-  try {
-    const res = await fetch(`/api/inventory/${id}/restock`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        quantity: qty,
-        txn_type: document.getElementById('rs-type').value,
-        notes:    document.getElementById('rs-notes').value.trim(),
-      }),
-    });
-    const data = await res.json();
-    if (!res.ok) { errEl.textContent = data.error || 'Failed.'; return; }
-    closeRestockModal();
-    await loadInventory();
-  } catch (e) {
-    errEl.textContent = 'Network error: ' + e.message;
-  } finally {
-    btn.disabled = false;
+  function row(label, value) {
+    if (value === null || value === undefined || value === '') return '';
+    return `<div style="display:flex;gap:8px;font-size:13px;">
+      <span style="color:var(--text-muted);min-width:140px;flex-shrink:0;">${label}</span>
+      <span style="font-weight:500;">${esc(String(value))}</span>
+    </div>`;
   }
+
+  const stockStyle = item.current_stock < 0
+    ? 'color:var(--danger,#ef4444);font-weight:700;'
+    : item.current_stock <= item.min_stock_alert
+      ? 'color:var(--warning,#f59e0b);font-weight:700;'
+      : 'font-weight:700;';
+
+  const invoiceText = item.invoice_number
+    ? `${item.invoice_number}${item.invoice_date ? ' (' + item.invoice_date + ')' : ''}`
+    : null;
+
+  document.getElementById('info-body').innerHTML = [
+    row('Item Code',      item.item_code),
+    row('Cloth Type',     item.cloth_type),
+    row('Company',        item.company_name),
+    row('Item Name',      item.item_name),
+    row('Quality No.',    item.quality_number),
+    row('Shade No.',      item.shade_number),
+    row('Unit',           item.unit_label),
+    `<div style="display:flex;gap:8px;font-size:13px;"><span style="color:var(--text-muted);min-width:140px;flex-shrink:0;">MRP</span><span style="font-weight:500;">&#8377;${Number(item.mrp).toFixed(2)}</span></div>`,
+    `<div style="display:flex;gap:8px;font-size:13px;"><span style="color:var(--text-muted);min-width:140px;flex-shrink:0;">Cost Price</span><span style="font-weight:500;">&#8377;${Number(item.cost_price || 0).toFixed(2)}</span></div>`,
+    `<div style="display:flex;gap:8px;font-size:13px;"><span style="color:var(--text-muted);min-width:140px;flex-shrink:0;">Current Stock</span><span style="${stockStyle}">${Number(item.current_stock).toFixed(2)} ${esc(item.unit_label)}</span></div>`,
+    `<div style="display:flex;gap:8px;font-size:13px;"><span style="color:var(--text-muted);min-width:140px;flex-shrink:0;">Low Stock Alert</span><span style="font-weight:500;">${Number(item.min_stock_alert).toFixed(2)}</span></div>`,
+    row('Supplier',       item.supplier_name),
+    row('Invoice',        invoiceText),
+    row('Notes',          item.notes),
+    row('Added',          item.created_at),
+    row('Last Updated',   item.updated_at),
+  ].filter(Boolean).join('');
+
+  document.getElementById('info-modal').classList.remove('hidden');
 }
 
-document.getElementById('restock-modal').addEventListener('click', function(e) {
-  if (e.target === this) closeRestockModal();
+function closeInfoModal() {
+  document.getElementById('info-modal').classList.add('hidden');
+}
+
+document.getElementById('info-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeInfoModal();
 });
 
 // ----------------------------------------------------------------
