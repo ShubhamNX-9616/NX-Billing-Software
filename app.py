@@ -1,4 +1,5 @@
 import os
+import subprocess
 from flask import Flask, session
 from extensions import bcrypt
 from db import init_db, seed_default_users, close_db
@@ -16,6 +17,19 @@ from routes.suppliers import suppliers_bp
 from routes.invoices import invoices_bp
 
 app = Flask(__name__)
+
+# Cache-busting version derived from the current git commit hash.
+# Every deploy (git pull + reload) gets a new hash, forcing browsers
+# to fetch the latest JS/CSS instead of serving a stale cached copy.
+try:
+    _ver = subprocess.check_output(
+        ["git", "rev-parse", "--short", "HEAD"],
+        cwd=os.path.dirname(__file__),
+        stderr=subprocess.DEVNULL,
+    ).decode().strip()
+except Exception:
+    _ver = "1"
+STATIC_VERSION = _ver
 
 # Secret key for signing session cookies
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-only-change-in-production')
@@ -60,6 +74,7 @@ def format_date_filter(date_str):
 def inject_globals():
     return {
         'share_base_url': SHARE_BASE_URL,
+        'sv': STATIC_VERSION,
         'current_user': {
             'id': session.get('user_id'),
             'username': session.get('username'),
