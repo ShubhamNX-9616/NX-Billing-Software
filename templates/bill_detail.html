@@ -147,6 +147,10 @@
 
       <!-- Totals (right) -->
       <div style="width:260px;">
+        <div id="inv-subtotal-row" style="display:flex;justify-content:space-between;padding:2px 0;font-size:13px;">
+          <span style="color:var(--text-muted);">MRP Total</span>
+          <span id="inv-subtotal" style="color:var(--text-muted);">—</span>
+        </div>
         <div style="display:flex;justify-content:space-between;padding:2px 0;font-size:13.5px;font-weight:600;">
           <span>Total</span>
           <span id="inv-final">—</span>
@@ -602,10 +606,18 @@
     }).join('');
 
     // Totals
+    const subtotal = Number(bill.subtotal || 0);
+    const subtotalRow = document.getElementById('inv-subtotal-row');
+    if (subtotal > grossFinalTotal) {
+      document.getElementById('inv-subtotal').textContent = fmt(subtotal);
+      subtotalRow.style.display = 'flex';
+    } else {
+      subtotalRow.style.display = 'none';
+    }
     document.getElementById('inv-final').textContent        = fmt(grossFinalTotal);
     document.getElementById('inv-roundoff').textContent     = roundOff > 0 ? `−${fmt(roundOff)}` : '—';
     document.getElementById('inv-finalpayable').textContent = fmt(Number(bill.final_total || 0));
-    document.getElementById('inv-savings').textContent   = fmt(bill.total_savings);
+    document.getElementById('inv-savings').textContent      = fmt(bill.total_savings);
 
     const advancePaid = bill.advance_paid || 0;
     const advRow = document.getElementById('inv-advance-row');
