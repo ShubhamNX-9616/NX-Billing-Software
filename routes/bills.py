@@ -123,13 +123,14 @@ def get_bill(bill_id):
 
         items = db.execute(
             """
-            SELECT cloth_type, company_name, quality_number,
-                   quantity, unit_label, mrp, rate_after_disc,
-                   discount_percent, discount_amount, line_total, final_amount,
-                   inventory_item_id
-            FROM bill_items
-            WHERE bill_id = ?
-            ORDER BY id
+            SELECT bi.cloth_type, bi.company_name, bi.quality_number,
+                   bi.quantity, bi.unit_label, bi.mrp, bi.rate_after_disc,
+                   bi.discount_percent, bi.discount_amount, bi.line_total, bi.final_amount,
+                   bi.inventory_item_id, ii.item_code
+            FROM bill_items bi
+            LEFT JOIN inventory_items ii ON ii.id = bi.inventory_item_id
+            WHERE bi.bill_id = ?
+            ORDER BY bi.id
             """,
             (bill_id,),
         ).fetchall()

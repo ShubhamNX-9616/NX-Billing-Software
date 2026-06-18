@@ -1182,7 +1182,7 @@ document.getElementById('qr-view-modal').addEventListener('click', function(e) {
 function openCurrentStockQrModal() {
   document.getElementById('cs-cloth').value = '';
   document.getElementById('cs-company').innerHTML = '<option value="">— Select cloth type first —</option>';
-  ['cs-quality','cs-mrp','cs-cloth-new','cs-company-new'].forEach(id => {
+  ['cs-quality','cs-mrp','cs-cloth-new','cs-company-new','cs-item-name','cs-shade','cs-notes'].forEach(id => {
     document.getElementById(id).value = '';
   });
   ['cs-cloth-add-row','cs-company-add-row'].forEach(id => {
@@ -1219,6 +1219,9 @@ async function generateCsQr() {
         quality_number: document.getElementById('cs-quality').value.trim(),
         mrp:            parseFloat(document.getElementById('cs-mrp').value) || 0,
         unit_label:     document.getElementById('cs-unit').value,
+        item_name:      document.getElementById('cs-item-name').value.trim(),
+        shade_number:   document.getElementById('cs-shade').value.trim(),
+        notes:          document.getElementById('cs-notes').value.trim(),
       }),
     });
     if (!res.ok) { errEl.textContent = 'Failed to generate QR.'; return; }
@@ -1228,6 +1231,7 @@ async function generateCsQr() {
     document.getElementById('cs-qr-img').src       = url;
     document.getElementById('cs-qr-download').href = url;
     document.getElementById('cs-qr-result').style.display = '';
+    await loadInventory();
   } catch (e) {
     errEl.textContent = 'Network error: ' + e.message;
   } finally {

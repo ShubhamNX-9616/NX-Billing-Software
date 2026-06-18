@@ -1,5 +1,4 @@
 import io
-import json
 import qrcode
 from flask import Blueprint, jsonify, request, send_file, session
 from db import get_db
@@ -23,6 +22,84 @@ def _next_item_code(db, cloth_type):
     else:
         next_num = 1
     return f"{prefix}-{next_num:03d}"
+
+
+def _generate_label_png(item):
+    """Render a 64×34 mm inventory label PNG and return a Flask send_file response."""
+    from PIL import Image, ImageDraw, ImageFont
+    import os
+
+    DPI = 300
+    W   = round(64 * DPI / 25.4)
+    H   = round(34 * DPI / 25.4)
+    M   = 16
+    PAD = 12
+
+    def _find_font(*candidates):
+        for p in candidates:
+            if os.path.isfile(p):
+                return p
+        return None
+
+    regular = _find_font(
+        "C:/Windows/Fonts/segoeui.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+        "/usr/share/fonts/truetype/freefont/FreeSans.ttf",
+    )
+    bold = _find_font(
+        "C:/Windows/Fonts/segoeuib.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+        "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf",
+    )
+    try:
+        font_lbl = ImageFont.truetype(regular, 20) if regular else ImageFont.load_default()
+        font_val = ImageFont.truetype(bold,    28) if bold    else ImageFont.load_default()
+    except Exception:
+        font_lbl = font_val = ImageFont.load_default()
+
+    code_text = item["item_code"] or f"#{item['id']}"
+    qr = qrcode.QRCode(error_correction=qrcode.constants.ERROR_CORRECT_M, border=1)
+    qr.add_data(f"inv:{code_text}")
+    qr.make(fit=True)
+    qr_pil  = qr.make_image(fill_color="black", back_color="white")
+    qr_size = H - 2 * M
+    qr_img  = qr_pil.get_image().resize((qr_size, qr_size), Image.NEAREST)
+
+    label = Image.new("RGB", (W, H), "white")
+    draw  = ImageDraw.Draw(label)
+    draw.rectangle([0, 0, W - 1, H - 1], outline="black", width=3)
+    label.paste(qr_img, (M, M))
+
+    div_x = M + qr_size + M
+    draw.line([(div_x, M), (div_x, H - M)], fill="#bbbbbb", width=2)
+
+    mrp   = item["mrp"]           if item["mrp"]           is not None else 0.0
+    stock = item["current_stock"] if item["current_stock"] is not None else 0.0
+    unit  = item["unit_label"] or "m"
+    rupee = "Rs." if not regular or "segoe" not in regular.lower() else "₹"
+
+    fields = [
+        ("ID",        code_text),
+        ("Item Name", item["item_name"] or "—"),
+        ("Company",   item["company_name"] or "—"),
+        ("Quality",   item["quality_number"] or "—"),
+        ("MRP",       f"{rupee}{float(mrp):.2f} / {unit}"),
+        ("Length",    f"{float(stock):.2f} {unit}"),
+    ]
+
+    tx     = div_x + PAD
+    line_h = (H - 2 * M) // len(fields)
+    for idx, (lbl, val) in enumerate(fields):
+        y = M + idx * line_h
+        draw.text((tx, y + 2),      lbl + ":", font=font_lbl, fill="#999999")
+        draw.text((tx, y + 2 + 22), val,       font=font_val, fill="#111111")
+
+    buf = io.BytesIO()
+    label.save(buf, format="PNG", dpi=(DPI, DPI))
+    buf.seek(0)
+    return send_file(buf, mimetype="image/png", download_name=f"label-{code_text}.png")
 
 
 # ---------------------------------------------------------------------------
@@ -347,97 +424,11 @@ def get_inventory_item_by_code(item_code):
 @api_admin_required
 def get_inventory_qr(item_id):
     try:
-        from PIL import Image, ImageDraw, ImageFont
-
         db   = get_db()
         item = db.execute("SELECT * FROM inventory_items WHERE id = ?", (item_id,)).fetchone()
         if not item:
             return jsonify({"error": "Item not found"}), 404
-
-        # Label: 64 mm × 34 mm at 300 DPI
-        DPI    = 300
-        W      = round(64 * DPI / 25.4)   # 756 px
-        H      = round(34 * DPI / 25.4)   # 402 px
-        M      = 16   # outer margin
-        PAD    = 12   # inner padding after divider
-
-        # Resolve fonts cross-platform (Windows → Linux fallbacks)
-        def _find_font(*candidates):
-            import os
-            for p in candidates:
-                if os.path.isfile(p):
-                    return p
-            return None
-
-        regular = _find_font(
-            "C:/Windows/Fonts/segoeui.ttf",                                   # Windows
-            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",                # Ubuntu/Debian
-            "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",# RHEL/CentOS
-            "/usr/share/fonts/truetype/freefont/FreeSans.ttf",                # fallback
-        )
-        bold = _find_font(
-            "C:/Windows/Fonts/segoeuib.ttf",
-            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-            "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
-            "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf",
-        )
-        try:
-            font_lbl = ImageFont.truetype(regular, 20) if regular else ImageFont.load_default()
-            font_val = ImageFont.truetype(bold,    28) if bold    else ImageFont.load_default()
-        except Exception:
-            font_lbl = font_val = ImageFont.load_default()
-
-        # QR code (square, fills the full height minus margins)
-        code_text = item["item_code"] or f"#{item['id']}"
-        qr = qrcode.QRCode(error_correction=qrcode.constants.ERROR_CORRECT_M, border=1)
-        qr.add_data(f"inv:{code_text}")
-        qr.make(fit=True)
-        qr_pil  = qr.make_image(fill_color="black", back_color="white")
-        qr_size = H - 2 * M
-        qr_img  = qr_pil.get_image().resize((qr_size, qr_size), Image.NEAREST)
-
-        # Canvas
-        label = Image.new("RGB", (W, H), "white")
-        draw  = ImageDraw.Draw(label)
-
-        # Outer border
-        draw.rectangle([0, 0, W - 1, H - 1], outline="black", width=3)
-
-        # QR on left
-        label.paste(qr_img, (M, M))
-
-        # Vertical divider
-        div_x = M + qr_size + M
-        draw.line([(div_x, M), (div_x, H - M)], fill="#bbbbbb", width=2)
-
-        # Text fields
-        mrp   = item["mrp"]   if item["mrp"]   is not None else 0.0
-        stock = item["current_stock"] if item["current_stock"] is not None else 0.0
-        unit  = item["unit_label"] or "m"
-
-        rupee  = "Rs." if not regular or "segoe" not in regular.lower() else "₹"
-        fields = [
-            ("ID",        code_text),
-            ("Item Name", item["item_name"] or "—"),
-            ("Company",   item["company_name"] or "—"),
-            ("Quality",   item["quality_number"] or "—"),
-            ("MRP",       f"{rupee}{float(mrp):.2f} / {unit}"),
-            ("Length",    f"{float(stock):.2f} {unit}"),
-        ]
-
-        tx     = div_x + PAD
-        line_h = (H - 2 * M) // len(fields)
-
-        for idx, (lbl, val) in enumerate(fields):
-            y = M + idx * line_h
-            draw.text((tx, y + 2),      lbl + ":", font=font_lbl, fill="#999999")
-            draw.text((tx, y + 2 + 22), val,       font=font_val, fill="#111111")
-
-        buf = io.BytesIO()
-        label.save(buf, format="PNG", dpi=(DPI, DPI))
-        buf.seek(0)
-        return send_file(buf, mimetype="image/png",
-                         download_name=f"label-{code_text}.png")
+        return _generate_label_png(dict(item))
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -450,29 +441,48 @@ def get_inventory_qr(item_id):
 def current_stock_qr():
     try:
         body = request.get_json(force=True, silent=True) or {}
-        cloth_type    = (body.get("cloth_type")    or "").strip()
-        company_name  = (body.get("company_name")  or "").strip()
+        cloth_type     = (body.get("cloth_type")     or "").strip()
+        company_name   = (body.get("company_name")   or "").strip()
         quality_number = (body.get("quality_number") or "").strip()
-        mrp           = float(body.get("mrp") or 0)
-        unit_label    = (body.get("unit_label") or "m").strip()
+        mrp            = float(body.get("mrp") or 0)
+        unit_label   = (body.get("unit_label")   or "m").strip()
+        item_name    = (body.get("item_name")    or "").strip()
+        shade_number = (body.get("shade_number") or "").strip()
+        notes        = (body.get("notes")        or "").strip()
 
         if not cloth_type:
             return jsonify({"error": "cloth_type is required"}), 400
 
-        data = {
-            "cloth_type":    cloth_type,
-            "company_name":  company_name,
-            "quality_number": quality_number,
-            "mrp":           mrp,
-            "unit_label":    unit_label,
-        }
-        qr_content = "cs:" + json.dumps(data, separators=(",", ":"))
-        img = qrcode.make(qr_content)
+        db = get_db()
+
+        # Save to inventory for visibility — find or create, never overwrite existing stock
+        existing = db.execute(
+            """SELECT id FROM inventory_items
+               WHERE cloth_type = ? AND company_name = ? AND COALESCE(quality_number,'') = ?""",
+            (cloth_type, company_name, quality_number),
+        ).fetchone()
+
+        if not existing:
+            item_code = _next_item_code(db, cloth_type)
+            db.execute(
+                """INSERT INTO inventory_items
+                   (cloth_type, company_name, quality_number, unit_label, mrp,
+                    current_stock, min_stock_alert, item_code, item_name, shade_number, notes)
+                   VALUES (?, ?, ?, ?, ?, 0, 5, ?, ?, ?, ?)""",
+                (cloth_type, company_name, quality_number, unit_label, mrp,
+                 item_code, item_name or None, shade_number or None, notes or None),
+            )
+            db.commit()
+
+        # Generate a cs: QR so scanning on a bill fills fields but does NOT deduct stock
+        import json
+        data = {"cloth_type": cloth_type, "company_name": company_name,
+                "quality_number": quality_number, "mrp": mrp, "unit_label": unit_label}
+        img = qrcode.make("cs:" + json.dumps(data, separators=(",", ":")))
         buf = io.BytesIO()
         img.save(buf, format="PNG")
         buf.seek(0)
-        return send_file(buf, mimetype="image/png",
-                         download_name="current-stock-qr.png")
+        return send_file(buf, mimetype="image/png", download_name="current-stock-qr.png")
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500

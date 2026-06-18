@@ -430,7 +430,7 @@ function recalcRow(id) {
   const lineTotal        = round2(mrp * qty);
   const discAmt          = round2(lineTotal - finalAmt);
 
-  itemDataStore[id] = { lineTotal, discPerUnit, rateAfterDisc, discAmt, finalAmt, effectiveDiscPct };
+  itemDataStore[id] = { lineTotal, discPerUnit, rateAfterDisc, discAmt, finalAmt, effectiveDiscPct, inventoryItemId: itemDataStore[id]?.inventoryItemId ?? null };
   updateItemDisplay(id, mrp, discPerUnit, rateAfterDisc, finalAmt);
   updateSummary();
 }

@@ -578,8 +578,11 @@
     const tbody = document.getElementById('inv-items-body');
     tbody.innerHTML = bill.items.map((item, i) => {
       const desc = `${item.cloth_type} &mdash; ${item.company_name}`;
-      const quality = item.quality_number
-        ? `<br><span class="text-muted" style="font-size:11px;">Quality: ${item.quality_number}</span>`
+      const qualityParts = [];
+      if (item.quality_number) qualityParts.push(`Quality: ${item.quality_number}`);
+      if (item.item_code) qualityParts.push(item.item_code);
+      const quality = qualityParts.length
+        ? `<br><span class="text-muted" style="font-size:11px;">${qualityParts.join(' &nbsp;|&nbsp; ')}</span>`
         : '';
       const discDisplay = item.discount_percent > 0
         ? `${Number(item.discount_percent).toFixed(1)}%`
