@@ -383,8 +383,11 @@ def adjust_item(item_id):
 def get_item_transactions(item_id):
     db = get_db()
     rows = db.execute(
-        """SELECT * FROM inventory_transactions WHERE item_id = ?
-           ORDER BY created_at DESC""",
+        """SELECT t.*, b.bill_number
+           FROM inventory_transactions t
+           LEFT JOIN bills b ON b.id = t.reference_id AND t.reference_type = 'bill'
+           WHERE t.item_id = ?
+           ORDER BY t.created_at DESC""",
         (item_id,),
     ).fetchall()
     return jsonify([dict(r) for r in rows])

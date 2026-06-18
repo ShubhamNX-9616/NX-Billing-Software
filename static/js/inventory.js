@@ -1284,7 +1284,7 @@ async function openTxnModal(id) {
         <td style="font-size:12px;">${(t.created_at || '').slice(0,16)}</td>
         <td>${label}</td>
         <td class="text-right" style="${col}font-weight:600;">${sign}${qty.toFixed(2)}</td>
-        <td style="font-size:12px;">${t.reference_type === 'bill' ? 'Bill #' + t.reference_id : 'Manual'}</td>
+        <td style="font-size:12px;">${t.reference_type === 'bill' ? (t.bill_number || 'Bill #' + t.reference_id) : 'Manual'}</td>
         <td style="font-size:12px;">${esc(t.notes) || '—'}</td>
         <td style="font-size:12px;">${esc(t.created_by) || '—'}</td>
       `;
