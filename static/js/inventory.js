@@ -293,6 +293,45 @@ function onAiSupplierChange() {
   } else {
     addRow.style.display = 'none';
   }
+  updateAiSpecialCode();
+}
+
+// ----------------------------------------------------------------
+// Special Code (RAYMONDSUI cipher)
+// ----------------------------------------------------------------
+const _CIPHER = 'RAYMONDSUI'; // index = digit 0-9
+
+function _encodeCp(cp) {
+  const n = Math.round(Math.abs(parseFloat(cp) || 0));
+  return String(n).split('').map(d => _CIPHER[parseInt(d)]).join('');
+}
+
+function _supplierInitials(name) {
+  return (name || '').trim().split(/\s+/).filter(Boolean)
+    .map(w => w[0].toUpperCase()).join('');
+}
+
+function computeSpecialCode(cp, supplierName) {
+  const encoded  = _encodeCp(cp);
+  const initials = _supplierInitials(supplierName);
+  return initials ? `${initials}-${encoded}` : encoded;
+}
+
+function updateAiSpecialCode() {
+  const cp = document.getElementById('ai-cp').value;
+
+  // Prefer directly selected supplier; fall back to invoice's supplier
+  const supSel = document.getElementById('ai-supplier');
+  const supOpt = supSel.options[supSel.selectedIndex];
+  let supName  = (supSel.value && supSel.value !== '__add__') ? (supOpt ? supOpt.textContent : '') : '';
+
+  if (!supName) {
+    const invSel = document.getElementById('ai-invoice');
+    const invOpt = invSel.options[invSel.selectedIndex];
+    supName = (invSel.value && invOpt) ? (invOpt.dataset.supplierName || '') : '';
+  }
+
+  document.getElementById('ai-special-code').value = computeSpecialCode(cp, supName) || '';
 }
 
 async function saveNewSupplier() {
@@ -352,6 +391,7 @@ function onAiInvoiceChange() {
   } else {
     infoEl.style.display = 'none';
   }
+  updateAiSpecialCode();
 }
 
 async function loadInvoicesForBatchSelect(restoreId) {
@@ -896,8 +936,8 @@ function openAddItemModal(preselectedInvoiceId) {
   document.getElementById('ai-cloth').value   = '';
   document.getElementById('ai-company').innerHTML = '<option value="">— Select cloth type first —</option>';
   document.getElementById('ai-supplier').value = '';
-  ['ai-quality','ai-mrp','ai-opening','ai-notes','ai-item-name','ai-shade',
-   'ai-cloth-new','ai-company-new','ai-supplier-new'].forEach(id => {
+  ['ai-quality','ai-mrp','ai-cp','ai-opening','ai-notes','ai-item-name','ai-shade',
+   'ai-cloth-new','ai-company-new','ai-supplier-new','ai-special-code'].forEach(id => {
     document.getElementById(id).value = '';
   });
   ['ai-cloth-add-row','ai-company-add-row','ai-supplier-add-row'].forEach(id => {
@@ -941,6 +981,7 @@ async function saveNewItem() {
         quality_number:  document.getElementById('ai-quality').value.trim(),
         unit_label:      document.getElementById('ai-unit').value,
         mrp:             mrp,
+        cost_price:      parseFloat(document.getElementById('ai-cp').value) || 0,
         opening_stock:   parseFloat(document.getElementById('ai-opening').value) || 0,
         min_stock_alert: parseFloat(document.getElementById('ai-alert').value) || 5,
         notes:           document.getElementById('ai-notes').value.trim(),
@@ -948,6 +989,7 @@ async function saveNewItem() {
         item_name:       document.getElementById('ai-item-name').value.trim(),
         shade_number:    document.getElementById('ai-shade').value.trim(),
         invoice_id:      document.getElementById('ai-invoice').value ? parseInt(document.getElementById('ai-invoice').value) : null,
+        special_code:    document.getElementById('ai-special-code').value.trim(),
       }),
     });
     const data = await res.json();
@@ -968,6 +1010,14 @@ document.getElementById('add-item-modal').addEventListener('click', function(e) 
 // ----------------------------------------------------------------
 // Edit Item Modal
 // ----------------------------------------------------------------
+function updateEiSpecialCode() {
+  const id   = parseInt(document.getElementById('ei-id').value);
+  const item = allItems.find(i => i.id === id);
+  const cp   = document.getElementById('ei-cp').value;
+  const supName = item ? (item.supplier_name || '') : '';
+  document.getElementById('ei-special-code').value = computeSpecialCode(cp, supName);
+}
+
 function openEditItemModal(id) {
   const item = allItems.find(i => i.id === id);
   if (!item) return;
@@ -981,6 +1031,7 @@ function openEditItemModal(id) {
   document.getElementById('ei-error').textContent = '';
   document.getElementById('edit-item-title').textContent =
     `Edit — ${item.cloth_type} / ${item.company_name}${item.item_name ? ' / ' + item.item_name : ''}${item.quality_number ? ' / ' + item.quality_number : ''}`;
+  updateEiSpecialCode();
   document.getElementById('edit-item-modal').classList.remove('hidden');
 }
 
@@ -1006,6 +1057,7 @@ async function saveEditItem() {
         notes:           document.getElementById('ei-notes').value.trim(),
         item_name:       document.getElementById('ei-item-name').value.trim(),
         shade_number:    document.getElementById('ei-shade').value.trim(),
+        special_code:    document.getElementById('ei-special-code').value.trim(),
       }),
     });
     const data = await res.json();

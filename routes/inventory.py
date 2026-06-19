@@ -59,18 +59,40 @@ def _generate_label_png(item):
     except Exception:
         font_lbl = font_val = ImageFont.load_default()
 
-    code_text = item["item_code"] or f"#{item['id']}"
+    code_text    = item["item_code"] or f"#{item['id']}"
+    special_code = (item.get("special_code") or "").strip()
+
+    # Reserve space below the QR for the special code text
+    CODE_GAP  = 6   # px between QR bottom and code text
+    CODE_H    = 34  # px reserved for code text line
+    qr_size   = H - 2 * M - CODE_GAP - CODE_H
+
     qr = qrcode.QRCode(error_correction=qrcode.constants.ERROR_CORRECT_M, border=1)
     qr.add_data(f"inv:{code_text}")
     qr.make(fit=True)
-    qr_pil  = qr.make_image(fill_color="black", back_color="white")
-    qr_size = H - 2 * M
-    qr_img  = qr_pil.get_image().resize((qr_size, qr_size), Image.NEAREST)
+    qr_pil = qr.make_image(fill_color="black", back_color="white")
+    qr_img = qr_pil.get_image().resize((qr_size, qr_size), Image.NEAREST)
 
     label = Image.new("RGB", (W, H), "white")
     draw  = ImageDraw.Draw(label)
     draw.rectangle([0, 0, W - 1, H - 1], outline="black", width=3)
     label.paste(qr_img, (M, M))
+
+    # Special code centered below the QR
+    if special_code:
+        try:
+            font_code = ImageFont.truetype(bold, 22) if bold else ImageFont.load_default()
+        except Exception:
+            font_code = ImageFont.load_default()
+        code_y      = M + qr_size + CODE_GAP
+        qr_center_x = M + qr_size // 2
+        try:
+            bb     = draw.textbbox((0, 0), special_code, font=font_code)
+            text_w = bb[2] - bb[0]
+        except Exception:
+            text_w = len(special_code) * 13
+        draw.text((qr_center_x - text_w // 2, code_y), special_code,
+                  font=font_code, fill="#111111")
 
     div_x = M + qr_size + M
     draw.line([(div_x, M), (div_x, H - M)], fill="#bbbbbb", width=2)
@@ -81,12 +103,12 @@ def _generate_label_png(item):
     rupee = "Rs." if not regular or "segoe" not in regular.lower() else "₹"
 
     fields = [
-        ("ID",        code_text),
-        ("Item Name", item["item_name"] or "—"),
-        ("Company",   item["company_name"] or "—"),
-        ("Quality",   item["quality_number"] or "—"),
-        ("MRP",       f"{rupee}{float(mrp):.2f} / {unit}"),
-        ("Length",    f"{float(stock):.2f} {unit}"),
+        ("ID",      code_text),
+        ("Item",    item["item_name"] or "—"),
+        ("Company", item["company_name"] or "—"),
+        ("Quality", item["quality_number"] or "—"),
+        ("MRP",     f"{rupee}{float(mrp):.2f} / {unit}"),
+        ("Length",  f"{float(stock):.2f} {unit}"),
     ]
 
     tx     = div_x + PAD
@@ -102,6 +124,81 @@ def _generate_label_png(item):
     return send_file(buf, mimetype="image/png", download_name=f"label-{code_text}.png")
 
 
+def _generate_cs_label_png(qr_text, cloth_type, company_name, quality_number,
+                            item_name, shade_number, mrp, unit_label):
+    """Same 64×34 mm label as _generate_label_png but for current-stock (cs:) QR codes."""
+    from PIL import Image, ImageDraw, ImageFont
+    import os
+
+    DPI = 300
+    W   = round(64 * DPI / 25.4)
+    H   = round(34 * DPI / 25.4)
+    M   = 16
+    PAD = 12
+
+    def _find_font(*candidates):
+        for p in candidates:
+            if os.path.isfile(p):
+                return p
+        return None
+
+    regular = _find_font(
+        "C:/Windows/Fonts/segoeui.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+        "/usr/share/fonts/truetype/freefont/FreeSans.ttf",
+    )
+    bold = _find_font(
+        "C:/Windows/Fonts/segoeuib.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+        "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf",
+    )
+    try:
+        font_lbl = ImageFont.truetype(regular, 20) if regular else ImageFont.load_default()
+        font_val = ImageFont.truetype(bold,    28) if bold    else ImageFont.load_default()
+    except Exception:
+        font_lbl = font_val = ImageFont.load_default()
+
+    qr = qrcode.QRCode(error_correction=qrcode.constants.ERROR_CORRECT_M, border=1)
+    qr.add_data(qr_text)
+    qr.make(fit=True)
+    qr_pil  = qr.make_image(fill_color="black", back_color="white")
+    qr_size = H - 2 * M
+    qr_img  = qr_pil.get_image().resize((qr_size, qr_size), Image.NEAREST)
+
+    label = Image.new("RGB", (W, H), "white")
+    draw  = ImageDraw.Draw(label)
+    draw.rectangle([0, 0, W - 1, H - 1], outline="black", width=3)
+    label.paste(qr_img, (M, M))
+
+    div_x = M + qr_size + M
+    draw.line([(div_x, M), (div_x, H - M)], fill="#bbbbbb", width=2)
+
+    rupee = "Rs." if not regular or "segoe" not in regular.lower() else "₹"
+
+    fields = [
+        ("Cloth",   cloth_type or "—"),
+        ("Company", company_name or "—"),
+        ("Item",    item_name or "—"),
+        ("Quality", quality_number or "—"),
+        ("Shade",   shade_number or "—"),
+        ("MRP",     f"{rupee}{float(mrp):.2f} / {unit_label or 'm'}"),
+    ]
+
+    tx     = div_x + PAD
+    line_h = (H - 2 * M) // len(fields)
+    for idx, (lbl, val) in enumerate(fields):
+        y = M + idx * line_h
+        draw.text((tx, y + 2),      lbl + ":", font=font_lbl, fill="#999999")
+        draw.text((tx, y + 2 + 22), val,       font=font_val, fill="#111111")
+
+    buf = io.BytesIO()
+    label.save(buf, format="PNG", dpi=(DPI, DPI))
+    buf.seek(0)
+    return send_file(buf, mimetype="image/png", download_name="current-stock-label.png")
+
+
 # ---------------------------------------------------------------------------
 # GET /api/inventory
 # ---------------------------------------------------------------------------
@@ -114,7 +211,7 @@ def list_inventory():
         SELECT i.id, i.cloth_type, i.company_name, i.quality_number, i.unit_label,
                i.current_stock, i.min_stock_alert, i.mrp, i.cost_price, i.notes, i.item_code,
                i.supplier_id, s.name AS supplier_name, i.created_at, i.updated_at,
-               i.item_name, i.shade_number, i.invoice_id,
+               i.item_name, i.shade_number, i.invoice_id, i.special_code,
                inv.invoice_number, inv.invoice_date
         FROM inventory_items i
         LEFT JOIN invoices inv ON i.invoice_id = inv.id
@@ -166,6 +263,7 @@ def create_inventory_item():
         shade_number    = (body.get("shade_number") or "").strip() or None
         invoice_id_raw  = body.get("invoice_id")
         invoice_id      = int(invoice_id_raw) if invoice_id_raw else None
+        special_code    = (body.get("special_code") or "").strip() or None
 
         if not cloth_type:
             return jsonify({"error": "cloth_type is required"}), 400
@@ -183,11 +281,11 @@ def create_inventory_item():
                 """INSERT INTO inventory_items
                    (cloth_type, company_name, quality_number, unit_label,
                     current_stock, min_stock_alert, mrp, cost_price, notes, item_code,
-                    supplier_id, item_name, shade_number, invoice_id)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    supplier_id, item_name, shade_number, invoice_id, special_code)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (cloth_type, company_name, quality_number, unit_label,
                  opening_stock, min_stock_alert, mrp, cost_price, notes, item_code,
-                 supplier_id, item_name, shade_number, invoice_id),
+                 supplier_id, item_name, shade_number, invoice_id, special_code),
             )
             item_id = cur.lastrowid
         except Exception as e:
@@ -231,14 +329,16 @@ def update_inventory_item(item_id):
         notes           = (body.get("notes") or "").strip() or None
         item_name       = (body.get("item_name")    or "").strip() or None
         shade_number    = (body.get("shade_number") or "").strip() or None
+        special_code    = (body.get("special_code") or "").strip() or None
 
         db.execute(
             """UPDATE inventory_items
                SET mrp = ?, cost_price = ?, min_stock_alert = ?, notes = ?,
-                   item_name = ?, shade_number = ?,
+                   item_name = ?, shade_number = ?, special_code = ?,
                    updated_at = datetime('now','localtime')
                WHERE id = ?""",
-            (mrp, cost_price, min_stock_alert, notes, item_name, shade_number, item_id),
+            (mrp, cost_price, min_stock_alert, notes, item_name, shade_number,
+             special_code, item_id),
         )
         db.commit()
         updated = db.execute("SELECT * FROM inventory_items WHERE id = ?", (item_id,)).fetchone()
@@ -481,11 +581,9 @@ def current_stock_qr():
         import json
         data = {"cloth_type": cloth_type, "company_name": company_name,
                 "quality_number": quality_number, "mrp": mrp, "unit_label": unit_label}
-        img = qrcode.make("cs:" + json.dumps(data, separators=(",", ":")))
-        buf = io.BytesIO()
-        img.save(buf, format="PNG")
-        buf.seek(0)
-        return send_file(buf, mimetype="image/png", download_name="current-stock-qr.png")
+        qr_text = "cs:" + json.dumps(data, separators=(",", ":"))
+        return _generate_cs_label_png(qr_text, cloth_type, company_name, quality_number,
+                                      item_name, shade_number, mrp, unit_label)
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500

@@ -298,6 +298,13 @@ def _m13_cost_price(conn):
         pass
 
 
+def _m15_special_code(conn):
+    try:
+        conn.execute("ALTER TABLE inventory_items ADD COLUMN special_code TEXT")
+    except Exception:
+        pass
+
+
 def _m14_drop_item_unique_constraint(conn):
     """Remove UNIQUE(cloth_type, company_name, quality_number) so items with identical
     specs but different stock quantities can coexist as separate entries."""
@@ -355,6 +362,7 @@ MIGRATIONS = [
     (12, _m12_invoices_and_item_fields),
     (13, _m13_cost_price),
     (14, _m14_drop_item_unique_constraint),
+    (15, _m15_special_code),
 ]
 
 
