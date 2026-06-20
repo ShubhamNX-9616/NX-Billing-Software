@@ -5,17 +5,23 @@
 
 // ---- Summary totals — reads from itemDataStore (layout-agnostic) ----
 function updateSummary() {
+  let mrpTotal = 0;
   let totalDisc = 0;
   let grossFinal = 0;
 
   activeItemIds.forEach(id => {
     const d = itemDataStore[id] || {};
-    totalDisc += d.discAmt || 0;
-    grossFinal += d.finalAmt || 0;
+    mrpTotal   += d.lineTotal || 0;
+    totalDisc  += d.discAmt   || 0;
+    grossFinal += d.finalAmt  || 0;
   });
 
+  mrpTotal   = round2(mrpTotal);
   totalDisc  = round2(totalDisc);
   grossFinal = round2(grossFinal);
+
+  const mrpTotalEl = document.getElementById('sum-mrptotal');
+  if (mrpTotalEl) mrpTotalEl.textContent = fmt(mrpTotal);
 
   const roundOff    = round2(parseFloat(document.getElementById('sum-roundoff')?.value) || 0);
   const netPayable  = round2(grossFinal - roundOff);

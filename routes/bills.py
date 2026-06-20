@@ -1,4 +1,5 @@
 import re
+from collections import defaultdict
 from flask import Blueprint, jsonify, request, session
 from db import get_db, generate_bill_number
 from db.connection import _current_fy
@@ -22,6 +23,22 @@ PENDING_PAYMENT_MODE = "Pending"
 # ---------------------------------------------------------------------------
 # GET /api/bills
 # ---------------------------------------------------------------------------
+@bills_bp.route("/bills/next-number", methods=["GET"])
+@api_login_required
+def get_next_bill_number():
+    try:
+        db  = get_db()
+        fy  = _current_fy()
+        row = db.execute("SELECT next_val, fy FROM bill_number_seq WHERE id = 1").fetchone()
+        if row["fy"] != fy:
+            next_val = 1
+        else:
+            next_val = row["next_val"] + 1
+        return jsonify({"next_number": f"SHN-{next_val:04d}/{fy}"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @bills_bp.route("/bills", methods=["GET"])
 @api_admin_required
 def get_bills():
@@ -32,29 +49,35 @@ def get_bills():
             like = f"%{search}%"
             rows = db.execute(
                 """
-                SELECT id, bill_number, customer_id, customer_name_snapshot,
-                       customer_mobile_snapshot, bill_date,
-                       subtotal, total_discount, final_total, total_savings,
-                       payment_mode_type, salesperson_name, advance_paid, remaining,
-                       status, created_at
-                FROM bills
-                WHERE bill_number LIKE ?
-                   OR customer_name_snapshot LIKE ?
-                   OR customer_mobile_snapshot LIKE ?
-                ORDER BY created_at DESC
+                SELECT b.id, b.bill_number, b.customer_id, b.customer_name_snapshot,
+                       b.customer_mobile_snapshot, b.bill_date,
+                       b.subtotal, b.total_discount, b.final_total, b.total_savings,
+                       b.payment_mode_type, b.salesperson_name, b.advance_paid, b.remaining,
+                       b.status, b.created_at,
+                       COUNT(bi.id) AS item_count
+                FROM bills b
+                LEFT JOIN bill_items bi ON bi.bill_id = b.id
+                WHERE b.bill_number LIKE ?
+                   OR b.customer_name_snapshot LIKE ?
+                   OR b.customer_mobile_snapshot LIKE ?
+                GROUP BY b.id
+                ORDER BY b.created_at DESC
                 """,
                 (like, like, like),
             ).fetchall()
         else:
             rows = db.execute(
                 """
-                SELECT id, bill_number, customer_id, customer_name_snapshot,
-                       customer_mobile_snapshot, bill_date,
-                       subtotal, total_discount, final_total, total_savings,
-                       payment_mode_type, salesperson_name, advance_paid, remaining,
-                       status, created_at
-                FROM bills
-                ORDER BY created_at DESC
+                SELECT b.id, b.bill_number, b.customer_id, b.customer_name_snapshot,
+                       b.customer_mobile_snapshot, b.bill_date,
+                       b.subtotal, b.total_discount, b.final_total, b.total_savings,
+                       b.payment_mode_type, b.salesperson_name, b.advance_paid, b.remaining,
+                       b.status, b.created_at,
+                       COUNT(bi.id) AS item_count
+                FROM bills b
+                LEFT JOIN bill_items bi ON bi.bill_id = b.id
+                GROUP BY b.id
+                ORDER BY b.created_at DESC
                 """
             ).fetchall()
         return jsonify([dict(r) for r in rows])
@@ -91,14 +114,17 @@ def search_bills():
         where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
         rows = db.execute(
             f"""
-            SELECT id, bill_number, customer_name_snapshot,
-                   customer_mobile_snapshot, bill_date,
-                   subtotal, total_discount, final_total, total_savings,
-                   payment_mode_type, salesperson_name, advance_paid, remaining,
-                   status, created_at
-            FROM bills
+            SELECT b.id, b.bill_number, b.customer_name_snapshot,
+                   b.customer_mobile_snapshot, b.bill_date,
+                   b.subtotal, b.total_discount, b.final_total, b.total_savings,
+                   b.payment_mode_type, b.salesperson_name, b.advance_paid, b.remaining,
+                   b.status, b.created_at,
+                   COUNT(bi.id) AS item_count
+            FROM bills b
+            LEFT JOIN bill_items bi ON bi.bill_id = b.id
             {where}
-            ORDER BY created_at DESC
+            GROUP BY b.id
+            ORDER BY b.created_at DESC
             """,
             params,
         ).fetchall()
@@ -355,14 +381,21 @@ def update_bill(bill_id):
             inv_id = raw.get("inventory_item_id")
             calc["inventory_item_id"] = int(inv_id) if inv_id else None
 
-        # Restore stock for old linked items before deleting them
+        # Build net inventory diff — only record what actually changed
         username = session.get("username")
         old_items = db.execute(
             "SELECT inventory_item_id, quantity FROM bill_items WHERE bill_id = ? AND inventory_item_id IS NOT NULL",
             (bill_id,),
         ).fetchall()
+
+        old_qty_map = defaultdict(float)
         for old in old_items:
-            restore_stock(db, old["inventory_item_id"], old["quantity"], bill_id, username)
+            old_qty_map[old["inventory_item_id"]] += float(old["quantity"])
+
+        new_qty_map = defaultdict(float)
+        for new_item in calculated_items:
+            if new_item["inventory_item_id"]:
+                new_qty_map[new_item["inventory_item_id"]] += float(new_item["quantity"])
 
         db.execute("DELETE FROM bill_items    WHERE bill_id = ?", (bill_id,))
         db.execute("DELETE FROM bill_payments WHERE bill_id = ?", (bill_id,))
@@ -419,10 +452,15 @@ def update_bill(bill_id):
                 [(bill_id, p["payment_method"], float(p["amount"])) for p in payments],
             )
 
-        # Deduct inventory stock for newly linked items
-        for i in calculated_items:
-            if i["inventory_item_id"]:
-                deduct_stock(db, i["inventory_item_id"], i["quantity"], bill_id, username)
+        # Apply only the net change per inventory item
+        for inv_id in set(old_qty_map) | set(new_qty_map):
+            old_qty = r2(old_qty_map.get(inv_id, 0))
+            new_qty = r2(new_qty_map.get(inv_id, 0))
+            diff    = r2(new_qty - old_qty)
+            if diff > 0:
+                deduct_stock(db, inv_id, diff, bill_id, username)
+            elif diff < 0:
+                restore_stock(db, inv_id, -diff, bill_id, username)
 
         db.commit()
 

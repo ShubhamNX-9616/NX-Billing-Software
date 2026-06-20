@@ -17,7 +17,6 @@ def analytics_summary():
         now = datetime.now()
         today_str  = now.strftime("%Y-%m-%d")
         this_month = now.strftime("%Y-%m")
-        this_year  = now.strftime("%Y")
 
         overall = db.execute("""
             SELECT
@@ -73,12 +72,6 @@ def analytics_summary():
             WHERE b.status != 'cancelled' AND strftime('%Y-%m', b.bill_date) = ?
         """, (this_month,)).fetchone()
 
-        year_row = db.execute(
-            "SELECT COALESCE(SUM(final_total),0) AS sales "
-            "FROM bills WHERE status != 'cancelled' AND strftime('%Y', bill_date) = ?",
-            (this_year,)
-        ).fetchone()
-
         return jsonify({
             "total_bills":       int(overall["total_bills"] or 0),
             "total_sales":       round(float(overall["total_sales"] or 0), 2),
@@ -95,7 +88,6 @@ def analytics_summary():
             "month_cash":        round(float(month_row["cash"]  or 0), 2),
             "month_card":        round(float(month_row["card"]  or 0), 2),
             "month_upi":         round(float(month_row["upi"]   or 0), 2),
-            "this_year_sales":   round(float(year_row["sales"]  or 0), 2),
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500

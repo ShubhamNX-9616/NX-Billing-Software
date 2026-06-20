@@ -16,17 +16,11 @@ function clearErrors() {
 // ---- Load next bill number ----
 async function loadNextBillNumber() {
   try {
-    const res   = await fetch('/api/bills');
-    const bills = await res.json();
-    let next = 'SHN-0001';
-    if (bills.length) {
-      const last = bills.sort((a, b) => b.bill_number.localeCompare(a.bill_number))[0].bill_number;
-      const num  = parseInt(last.split('-')[1] || '0', 10);
-      next = `SHN-${String(num + 1).padStart(4, '0')}`;
-    }
-    document.getElementById('bill-number').value = next;
+    const res  = await fetch('/api/bills/next-number');
+    const data = await res.json();
+    document.getElementById('bill-number').value = data.next_number || 'Auto';
   } catch {
-    document.getElementById('bill-number').value = 'SHN-0001';
+    document.getElementById('bill-number').value = 'Auto';
   }
 }
 

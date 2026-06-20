@@ -10,10 +10,6 @@ function formatDate(isoStr) {
   return `${parseInt(d, 10)} ${months[parseInt(m, 10) - 1]} ${y}`;
 }
 
-function formatCurrency(amount) {
-  return fmt(amount);
-}
-
 function buildWhatsAppMessage(bill) {
   const shopName    = 'SHUBHAM NX';
   const shopAddress = 'Krishna Chowk, New Sangvi, Pune - 411061';
@@ -23,9 +19,9 @@ function buildWhatsAppMessage(bill) {
     ? formatDate(bill.bill_date)
     : new Date().toLocaleDateString('en-IN');
 
-  const total     = formatCurrency(bill.final_total);
-  const advance   = bill.advance_paid > 0 ? formatCurrency(bill.advance_paid) : null;
-  const remaining = bill.remaining > 0    ? formatCurrency(bill.remaining)    : null;
+  const total     = fmt(bill.final_total);
+  const advance   = bill.advance_paid > 0 ? fmt(bill.advance_paid) : null;
+  const remaining = bill.remaining > 0    ? fmt(bill.remaining)    : null;
   const shareLink = buildShareLink(bill.bill_number);
 
   const lines = [];

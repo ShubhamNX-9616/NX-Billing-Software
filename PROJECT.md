@@ -73,9 +73,13 @@ shubham-nx-billing-inventory/
 ├── static/
 │   ├── css/
 │   └── js/
-│       ├── api.js            # Centralised fetch wrappers
-│       ├── utils.js          # Shared helpers (currency, date, toast)
-│       ├── bill.js           # New/Edit bill page logic (~1600 lines)
+│       ├── bill-state.js     # Shared state, constants & utilities for bill pages
+│       ├── bill-items.js     # Item rows, cloth types, inventory links
+│       ├── bill-payments.js  # Payment tabs, combo split, summary totals
+│       ├── bill-modals.js    # Add cloth type / company / salesperson modals
+│       ├── bill-qr.js        # QR / barcode scanner logic
+│       ├── bill-share.js     # WhatsApp message builder & share-link helpers
+│       ├── bill-form.js      # Form init, validation, save, mobile search
 │       ├── dashboard.js      # Analytics dashboard
 │       ├── inventory.js      # Inventory page
 │       ├── customers.js      # Customers page
@@ -616,9 +620,13 @@ Download a formatted `.xlsx` file for any period:
 
 | File | Responsibility |
 |---|---|
-| `api.js` | Centralised fetch wrappers — all HTTP calls go through here |
-| `utils.js` | `formatCurrency()`, `formatDate()`, `debounce()`, toast alerts, spinner |
-| `bill.js` | Full bill form logic: item rows, payment tabs, QR scanner, WhatsApp |
+| `bill-state.js` | Shared state, constants & utilities (fmt, round2, debounce, normalizeMobile) |
+| `bill-items.js` | Item rows, cloth types, inventory links |
+| `bill-payments.js` | Payment tabs, combo split, summary totals |
+| `bill-modals.js` | Add cloth type / company / salesperson modals |
+| `bill-qr.js` | QR / barcode scanner logic |
+| `bill-share.js` | WhatsApp message builder & share-link helpers |
+| `bill-form.js` | Form init, validation, save, mobile search |
 | `dashboard.js` | Chart.js charts, summary cards, analytics period switching |
 | `inventory.js` | Section-grouped list, add/edit/restock modals, QR generation |
 | `customers.js` | Customer list search and display |
