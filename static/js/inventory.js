@@ -5,6 +5,8 @@
 let allItems = [];
 let baGroupCounter = 0;
 let baRowCounters  = {};
+let csGroupCounter = 0;
+let csRowCounters  = {};
 
 const SECTIONS = ['Shirting', 'Suiting', 'Readymade', 'Gift Sets', 'Accessories'];
 
@@ -18,7 +20,6 @@ function sKey(name) {
 document.addEventListener('DOMContentLoaded', () => {
   loadInventory();
   loadClothTypesForSelect();
-  loadCsClothTypesForSelect();
   loadSuppliersForSelect();
   loadInvoicesForSelect();
 });
@@ -62,10 +63,6 @@ async function populateClothTypeSelect(selId, restoreValue) {
 
 async function loadClothTypesForSelect(restoreValue) {
   return populateClothTypeSelect('ai-cloth', restoreValue);
-}
-
-async function loadCsClothTypesForSelect(restoreValue) {
-  return populateClothTypeSelect('cs-cloth', restoreValue);
 }
 
 function onAiClothChange() {
@@ -137,10 +134,6 @@ async function loadCompaniesForSelect(clothType, restoreValue) {
   return populateCompanySelect('ai-company', clothType, restoreValue);
 }
 
-async function loadCsCompaniesForSelect(clothType, restoreValue) {
-  return populateCompanySelect('cs-company', clothType, restoreValue);
-}
-
 function onAiCompanyChange() {
   const sel    = document.getElementById('ai-company');
   const addRow = document.getElementById('ai-company-add-row');
@@ -179,86 +172,117 @@ function cancelAiCompanyAdd() {
 }
 
 // ----------------------------------------------------------------
-// CS QR modal — cloth type + company selects
+// CS QR modal — group-based (cloth type + company per group)
 // ----------------------------------------------------------------
-function onCsClothChange() {
-  const sel    = document.getElementById('cs-cloth');
-  const addRow = document.getElementById('cs-cloth-add-row');
-  if (sel.value === '__add__') {
-    addRow.style.display = '';
-    document.getElementById('cs-cloth-new').focus();
-  } else {
-    addRow.style.display = 'none';
-    loadCsCompaniesForSelect(sel.value);
+function addCsGroup(preCloth, preCompany) {
+  const gid = ++csGroupCounter;
+  csRowCounters[gid] = 0;
+
+  const container = document.getElementById('cs-groups');
+  const div = document.createElement('div');
+  div.id = `cs-group-${gid}`;
+  div.className = 'cs-group';
+  div.style.cssText = 'border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:14px;';
+
+  const removeBtn = gid > 1
+    ? `<button type="button" class="btn btn-sm" style="color:var(--danger,#ef4444);margin-left:auto;" onclick="removeCsGroup(${gid})">&#215; Remove Group</button>`
+    : '';
+
+  div.innerHTML = `
+    <div style="display:flex;gap:10px;align-items:flex-end;margin-bottom:12px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:140px;">
+        <label style="font-size:12px;font-weight:600;">Cloth Type <span class="text-danger">*</span></label>
+        <select id="cs-cloth-${gid}" class="input select" style="margin-top:4px;" onchange="onCsGroupClothChange(${gid})">
+          <option value="">— Select —</option>
+        </select>
+      </div>
+      <div style="flex:1;min-width:140px;">
+        <label style="font-size:12px;font-weight:600;">Company</label>
+        <select id="cs-company-${gid}" class="input select" style="margin-top:4px;">
+          <option value="">— Select cloth type first —</option>
+        </select>
+      </div>
+      <div style="min-width:70px;">
+        <label style="font-size:12px;font-weight:600;">Unit</label>
+        <select id="cs-unit-${gid}" class="input select" style="margin-top:4px;width:75px;">
+          <option value="m">m</option>
+          <option value="pcs">pcs</option>
+        </select>
+      </div>
+      ${removeBtn}
+    </div>
+    <div style="overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;font-size:13px;min-width:520px;">
+        <thead>
+          <tr style="border-bottom:2px solid var(--border);color:var(--text-muted);font-size:11px;text-transform:uppercase;letter-spacing:.4px;">
+            <th style="padding:4px 6px;text-align:left;min-width:110px;">Item Name</th>
+            <th style="padding:4px 6px;text-align:left;min-width:80px;">Shade No.</th>
+            <th style="padding:4px 6px;text-align:left;min-width:80px;">Quality No.</th>
+            <th style="padding:4px 6px;text-align:right;min-width:75px;">MRP (&#8377;)</th>
+            <th style="padding:4px 6px;text-align:left;min-width:90px;">Notes</th>
+            <th style="width:28px;"></th>
+          </tr>
+        </thead>
+        <tbody id="cs-tbody-${gid}"></tbody>
+      </table>
+    </div>
+    <button type="button" class="btn btn-secondary btn-sm" onclick="addCsRow(${gid})" style="margin-top:8px;">&#43; Add Row</button>
+  `;
+
+  container.appendChild(div);
+  populateClothTypeSelect(`cs-cloth-${gid}`, preCloth || '');
+  if (preCloth && preCompany) populateCompanySelect(`cs-company-${gid}`, preCloth, preCompany);
+  addCsRow(gid);
+}
+
+function removeCsGroup(gid) {
+  const el = document.getElementById(`cs-group-${gid}`);
+  if (el) el.remove();
+}
+
+function addCsRow(gid) {
+  const rowId = ++csRowCounters[gid];
+  const tbody = document.getElementById(`cs-tbody-${gid}`);
+  if (!tbody) return;
+
+  const s  = 'width:100%;padding:4px 6px;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text);font-size:13px;box-sizing:border-box;';
+  const sr = s + 'text-align:right;';
+
+  const tr = document.createElement('tr');
+  tr.id = `cs-row-${gid}-${rowId}`;
+  tr.style.borderBottom = '1px solid var(--border)';
+  tr.innerHTML = `
+    <td style="padding:3px 4px;"><input type="text"   style="${s}"  placeholder="Item name" /></td>
+    <td style="padding:3px 4px;"><input type="text"   style="${s}"  placeholder="Shade no." /></td>
+    <td style="padding:3px 4px;"><input type="text"   style="${s}"  placeholder="Quality no." /></td>
+    <td style="padding:3px 4px;"><input type="number" style="${sr}" placeholder="0.00" min="0" step="0.01" /></td>
+    <td style="padding:3px 4px;"><input type="text"   style="${s}"  placeholder="Optional" /></td>
+    <td style="padding:3px 4px;text-align:center;">
+      <button type="button" style="background:none;border:none;cursor:pointer;color:var(--danger,#ef4444);font-size:16px;line-height:1;" onclick="removeCsRow(${gid},${rowId})">&#215;</button>
+    </td>
+  `;
+  tbody.appendChild(tr);
+  tr.querySelector('input').focus();
+}
+
+function removeCsRow(gid, rowId) {
+  const el = document.getElementById(`cs-row-${gid}-${rowId}`);
+  if (el) el.remove();
+}
+
+async function onCsGroupClothChange(gid) {
+  const clothType = document.getElementById(`cs-cloth-${gid}`).value;
+  const unitSel   = document.getElementById(`cs-unit-${gid}`);
+  if (clothType === 'Shirting' || clothType === 'Suiting') {
+    unitSel.value = 'm';
+  } else if (clothType && clothType !== '__add__') {
+    unitSel.value = 'pcs';
   }
-}
-
-async function saveCsNewClothType() {
-  const input = document.getElementById('cs-cloth-new');
-  const name  = input.value.trim();
-  if (!name) { input.focus(); return; }
-  try {
-    const res  = await fetch('/api/cloth-types', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type_name: name }),
-    });
-    const data = await res.json();
-    if (!res.ok) { alert(data.error || 'Failed to add cloth type.'); return; }
-    input.value = '';
-    document.getElementById('cs-cloth-add-row').style.display = 'none';
-    await Promise.all([
-      loadCsClothTypesForSelect(data.type_name),
-      loadClothTypesForSelect(),
-    ]);
-    loadCsCompaniesForSelect(data.type_name);
-  } catch (e) { alert('Network error: ' + e.message); }
-}
-
-function cancelCsClothAdd() {
-  document.getElementById('cs-cloth-new').value = '';
-  document.getElementById('cs-cloth-add-row').style.display = 'none';
-  document.getElementById('cs-cloth').value = '';
-  loadCsCompaniesForSelect('');
-}
-
-function onCsCompanyChange() {
-  const sel    = document.getElementById('cs-company');
-  const addRow = document.getElementById('cs-company-add-row');
-  if (sel.value === '__add__') {
-    addRow.style.display = '';
-    document.getElementById('cs-company-new').focus();
-  } else {
-    addRow.style.display = 'none';
+  if (!clothType || clothType === '__add__') {
+    document.getElementById(`cs-company-${gid}`).innerHTML = '<option value="">— Select cloth type first —</option>';
+    return;
   }
-}
-
-async function saveCsNewCompany() {
-  const cloth = document.getElementById('cs-cloth').value;
-  const input = document.getElementById('cs-company-new');
-  const name  = input.value.trim();
-  if (!cloth || cloth === '__add__') { alert('Select a cloth type first.'); return; }
-  if (!name) { input.focus(); return; }
-  try {
-    const res  = await fetch('/api/companies', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ cloth_type: cloth, company_name: name }),
-    });
-    const data = await res.json();
-    if (!res.ok) { alert(data.error || 'Failed to add company.'); return; }
-    input.value = '';
-    document.getElementById('cs-company-add-row').style.display = 'none';
-    await loadCsCompaniesForSelect(cloth, data.company_name);
-    const aiCloth = document.getElementById('ai-cloth').value;
-    if (aiCloth === cloth) await loadCompaniesForSelect(cloth);
-  } catch (e) { alert('Network error: ' + e.message); }
-}
-
-function cancelCsCompanyAdd() {
-  document.getElementById('cs-company-new').value = '';
-  document.getElementById('cs-company-add-row').style.display = 'none';
-  document.getElementById('cs-company').value = '';
+  await populateCompanySelect(`cs-company-${gid}`, clothType, '');
 }
 
 // ----------------------------------------------------------------
@@ -1249,18 +1273,14 @@ document.getElementById('qr-view-modal').addEventListener('click', function(e) {
 // Current Stock QR Modal
 // ----------------------------------------------------------------
 function openCurrentStockQrModal() {
-  document.getElementById('cs-cloth').value = '';
-  document.getElementById('cs-company').innerHTML = '<option value="">— Select cloth type first —</option>';
-  ['cs-quality','cs-mrp','cs-cloth-new','cs-company-new','cs-item-name','cs-shade','cs-notes'].forEach(id => {
-    document.getElementById(id).value = '';
-  });
-  ['cs-cloth-add-row','cs-company-add-row'].forEach(id => {
-    document.getElementById(id).style.display = 'none';
-  });
-  document.getElementById('cs-unit').value = 'm';
+  csGroupCounter = 0;
+  csRowCounters  = {};
+  document.getElementById('cs-groups').innerHTML = '';
   document.getElementById('cs-error').textContent = '';
-  document.getElementById('cs-qr-result').style.display = 'none';
+  document.getElementById('cs-qr-results').style.display = 'none';
+  document.getElementById('cs-qr-results-grid').innerHTML = '';
   document.getElementById('cs-qr-modal').classList.remove('hidden');
+  addCsGroup();
 }
 
 function closeCsQrModal() {
@@ -1268,41 +1288,80 @@ function closeCsQrModal() {
 }
 
 async function generateCsQr() {
-  const cloth   = document.getElementById('cs-cloth').value;
-  const company = document.getElementById('cs-company').value;
-  const errEl   = document.getElementById('cs-error');
-  const btn     = document.getElementById('btn-cs-generate');
-
+  const errEl = document.getElementById('cs-error');
+  const btn   = document.getElementById('btn-cs-generate');
   errEl.textContent = '';
-  document.getElementById('cs-qr-result').style.display = 'none';
-  if (!cloth || cloth === '__add__') { errEl.textContent = 'Select a cloth type.'; return; }
+  document.getElementById('cs-qr-results').style.display = 'none';
+  document.getElementById('cs-qr-results-grid').innerHTML = '';
+
+  const items = [];
+  for (const groupEl of document.querySelectorAll('.cs-group')) {
+    const gid       = groupEl.id.replace('cs-group-', '');
+    const clothType = document.getElementById(`cs-cloth-${gid}`).value;
+    const company   = document.getElementById(`cs-company-${gid}`).value;
+    const unit      = document.getElementById(`cs-unit-${gid}`).value;
+
+    if (!clothType || clothType === '__add__') { errEl.textContent = 'Select a cloth type for every group.'; return; }
+
+    for (const tr of document.querySelectorAll(`#cs-tbody-${gid} tr`)) {
+      const inp = tr.querySelectorAll('input');
+      const item_name      = inp[0].value.trim();
+      const shade_number   = inp[1].value.trim();
+      const quality_number = inp[2].value.trim();
+      const mrp            = parseFloat(inp[3].value) || 0;
+      const notes          = inp[4].value.trim();
+      if (!item_name && !shade_number && !quality_number && !mrp) continue;
+      items.push({
+        cloth_type:     clothType,
+        company_name:   (company && company !== '__add__') ? company : '',
+        quality_number, mrp, unit_label: unit,
+        item_name, shade_number, notes,
+      });
+    }
+  }
+
+  if (!items.length) { errEl.textContent = 'Add at least one item row with some data.'; return; }
 
   btn.disabled = true;
-  try {
-    const res = await fetch('/api/inventory/current-stock-qr', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        cloth_type:     cloth,
-        company_name:   (company && company !== '__add__') ? company : '',
-        quality_number: document.getElementById('cs-quality').value.trim(),
-        mrp:            parseFloat(document.getElementById('cs-mrp').value) || 0,
-        unit_label:     document.getElementById('cs-unit').value,
-        item_name:      document.getElementById('cs-item-name').value.trim(),
-        shade_number:   document.getElementById('cs-shade').value.trim(),
-        notes:          document.getElementById('cs-notes').value.trim(),
-      }),
-    });
-    if (!res.ok) { errEl.textContent = 'Failed to generate QR.'; return; }
+  const resultsGrid = document.getElementById('cs-qr-results-grid');
+  let successCount = 0;
 
-    const blob = await res.blob();
-    const url  = URL.createObjectURL(blob);
-    document.getElementById('cs-qr-img').src       = url;
-    document.getElementById('cs-qr-download').href = url;
-    document.getElementById('cs-qr-result').style.display = '';
-    await loadInventory();
-  } catch (e) {
-    errEl.textContent = 'Network error: ' + e.message;
+  try {
+    for (const item of items) {
+      try {
+        const res = await fetch('/api/inventory/current-stock-qr', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(item),
+        });
+        if (!res.ok) {
+          const label = item.item_name || item.quality_number || item.cloth_type;
+          errEl.textContent = `Failed to generate QR for "${label}".`;
+          continue;
+        }
+        const blob = await res.blob();
+        const url  = URL.createObjectURL(blob);
+        const label = [item.cloth_type, item.company_name, item.item_name, item.quality_number].filter(Boolean).join(' / ');
+        const fname = label.replace(/\s*\/\s*/g, '-').replace(/\s+/g, '_');
+
+        const card = document.createElement('div');
+        card.style.cssText = 'text-align:center;border:1px solid var(--border);border-radius:8px;padding:12px;';
+        card.innerHTML = `
+          <img src="${url}" alt="QR" style="width:160px;height:160px;border-radius:4px;" />
+          <div style="font-size:11px;color:var(--text-muted);margin-top:6px;word-break:break-word;">${esc(label)}</div>
+          <a href="${url}" download="${esc(fname)}.png" class="btn btn-sm btn-primary" style="margin-top:6px;display:inline-block;">&#8595; Download</a>
+        `;
+        resultsGrid.appendChild(card);
+        successCount++;
+      } catch (itemErr) {
+        errEl.textContent = 'Error: ' + itemErr.message;
+      }
+    }
+
+    if (successCount > 0) {
+      document.getElementById('cs-qr-results').style.display = '';
+      await loadInventory();
+    }
   } finally {
     btn.disabled = false;
   }

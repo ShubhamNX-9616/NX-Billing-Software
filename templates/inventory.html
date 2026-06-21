@@ -384,89 +384,35 @@
 
 <!-- ====== Current Stock QR Modal ====== -->
 <div class="modal-overlay hidden" id="cs-qr-modal">
-  <div class="modal-box">
+  <div class="modal-box" style="max-width:960px;width:95vw;">
     <div class="modal-header">
       <h3>Generate Current Stock QR</h3>
       <button class="modal-close" onclick="closeCsQrModal()">&#215;</button>
     </div>
-    <div class="modal-body" style="display:grid;gap:12px;">
-      <div style="font-size:13px;color:var(--text-muted);">
-        Generate a QR label for physical stock. The item will be saved to inventory so you can track it.
-        When scanned on a bill, it will deduct stock automatically.
+    <div class="modal-body">
+      <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">
+        Generate QR labels for physical stock. Items are saved to inventory so you can track them.
+        When scanned on a bill, they will deduct stock automatically.
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-        <div>
-          <label>Cloth Type <span class="text-danger">*</span></label>
-          <select id="cs-cloth" class="input select" onchange="onCsClothChange()">
-            <option value="">— Select cloth type —</option>
-          </select>
-          <div id="cs-cloth-add-row" style="display:none;margin-top:6px;">
-            <div style="display:flex;gap:6px;align-items:center;">
-              <input type="text" id="cs-cloth-new" class="input" placeholder="New cloth type name" style="flex:1;" />
-              <button type="button" class="btn btn-sm btn-primary" onclick="saveCsNewClothType()">Add</button>
-              <button type="button" class="btn btn-sm btn-secondary" onclick="cancelCsClothAdd()">&#215;</button>
-            </div>
-          </div>
-        </div>
-        <div>
-          <label>Company</label>
-          <select id="cs-company" class="input select" onchange="onCsCompanyChange()">
-            <option value="">— Select cloth type first —</option>
-          </select>
-          <div id="cs-company-add-row" style="display:none;margin-top:6px;">
-            <div style="display:flex;gap:6px;align-items:center;">
-              <input type="text" id="cs-company-new" class="input" placeholder="New company name" style="flex:1;" />
-              <button type="button" class="btn btn-sm btn-primary" onclick="saveCsNewCompany()">Add</button>
-              <button type="button" class="btn btn-sm btn-secondary" onclick="cancelCsCompanyAdd()">&#215;</button>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-        <div>
-          <label>Quality Number</label>
-          <input type="text" id="cs-quality" class="input" placeholder="Optional" />
-        </div>
-        <div>
-          <label>Unit</label>
-          <select id="cs-unit" class="input select">
-            <option value="m">m (metres)</option>
-            <option value="pcs">pcs (pieces)</option>
-          </select>
-        </div>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-        <div>
-          <label>Item Name</label>
-          <input type="text" id="cs-item-name" class="input" placeholder="Optional" />
-        </div>
-        <div>
-          <label>Shade Number</label>
-          <input type="text" id="cs-shade" class="input" placeholder="Optional" />
-        </div>
-      </div>
-      <div>
-        <label>MRP (₹)</label>
-        <input type="number" id="cs-mrp" class="input" min="0" step="0.01" placeholder="0.00" />
-      </div>
-      <div>
-        <label>Notes</label>
-        <input type="text" id="cs-notes" class="input" placeholder="Optional" />
-      </div>
-      <div id="cs-error" class="text-danger" style="font-size:13px;"></div>
-      <div id="cs-qr-result" style="display:none;text-align:center;">
-        <img id="cs-qr-img" src="" alt="QR Code"
-             style="width:200px;height:200px;border:1px solid var(--border);border-radius:8px;margin-top:8px;" />
-        <div style="margin-top:8px;">
-          <a id="cs-qr-download" href="#" download="current-stock-qr.png" class="btn btn-primary btn-sm">
-            &#8595; Download PNG
-          </a>
-        </div>
+
+      <!-- Groups -->
+      <div id="cs-groups"></div>
+
+      <button type="button" class="btn btn-secondary btn-sm" onclick="addCsGroup()" style="margin-top:4px;">
+        &#43; Add Another Cloth Type / Company
+      </button>
+
+      <div id="cs-error" class="text-danger" style="font-size:13px;margin-top:10px;min-height:18px;"></div>
+
+      <!-- QR Results -->
+      <div id="cs-qr-results" style="display:none;margin-top:20px;">
+        <div style="font-weight:600;margin-bottom:10px;border-top:1px solid var(--border);padding-top:14px;">Generated QR Codes</div>
+        <div id="cs-qr-results-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px;"></div>
       </div>
     </div>
     <div class="modal-footer">
       <button type="button" class="btn btn-secondary" onclick="closeCsQrModal()">Close</button>
-      <button type="button" class="btn btn-primary" id="btn-cs-generate" onclick="generateCsQr()">Generate QR</button>
+      <button type="button" class="btn btn-primary" id="btn-cs-generate" onclick="generateCsQr()">&#128246; Generate QRs</button>
     </div>
   </div>
 </div>
