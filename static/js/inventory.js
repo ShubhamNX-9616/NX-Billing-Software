@@ -1430,16 +1430,19 @@ function renderMcCompanies(list) {
   list.forEach(c => {
     const row = document.createElement('div');
     row.id = `mc-company-${c.id}`;
+    row.dataset.name = c.company_name;
     row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);';
     row.innerHTML = `
       <span style="flex:1;font-size:14px;">${esc(c.company_name)}</span>
-      <button type="button" class="btn btn-sm" style="color:var(--danger,#ef4444);" onclick="deleteMcCompany(${c.id}, ${JSON.stringify(c.company_name)})">&#215; Delete</button>
+      <button type="button" class="btn btn-sm" style="color:var(--danger,#ef4444);" onclick="deleteMcCompany(${c.id})">&#215; Delete</button>
     `;
     el.appendChild(row);
   });
 }
 
-async function deleteMcCompany(id, name) {
+async function deleteMcCompany(id) {
+  const rowEl = document.getElementById(`mc-company-${id}`);
+  const name  = rowEl ? rowEl.dataset.name : 'this company';
   if (!confirm(`Delete company "${name}"?\n\nIt will be removed from dropdowns. Existing bills and inventory items using this company name are not affected.`)) return;
   const errEl = document.getElementById('mc-error');
   errEl.textContent = '';
