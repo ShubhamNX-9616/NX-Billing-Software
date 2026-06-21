@@ -27,6 +27,21 @@ def get_companies():
         return jsonify({"error": str(e)}), 500
 
 
+@companies_bp.route("/companies/<int:company_id>", methods=["DELETE"])
+@api_login_required
+def delete_company(company_id):
+    try:
+        db = get_db()
+        row = db.execute("SELECT id FROM companies WHERE id = ?", (company_id,)).fetchone()
+        if not row:
+            return jsonify({"error": "Company not found"}), 404
+        db.execute("DELETE FROM companies WHERE id = ?", (company_id,))
+        db.commit()
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @companies_bp.route("/companies", methods=["POST"])
 @api_login_required
 def add_company():

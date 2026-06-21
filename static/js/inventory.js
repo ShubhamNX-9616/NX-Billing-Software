@@ -1372,6 +1372,124 @@ document.getElementById('cs-qr-modal').addEventListener('click', function(e) {
 });
 
 // ----------------------------------------------------------------
+// Manage Companies Modal
+// ----------------------------------------------------------------
+async function openManageCompaniesModal() {
+  document.getElementById('mc-companies-section').style.display = 'none';
+  document.getElementById('mc-companies-items').innerHTML = '';
+  document.getElementById('mc-new-name').value = '';
+  document.getElementById('mc-error').textContent = '';
+
+  try {
+    const res  = await fetch('/api/cloth-types');
+    const list = await res.json();
+    const sel  = document.getElementById('mc-cloth');
+    sel.innerHTML = '<option value="">— Select cloth type —</option>';
+    list.forEach(ct => {
+      const opt = document.createElement('option');
+      opt.value = ct.type_name;
+      opt.textContent = ct.type_name;
+      sel.appendChild(opt);
+    });
+  } catch (_) {}
+
+  document.getElementById('manage-companies-modal').classList.remove('hidden');
+}
+
+function closeManageCompaniesModal() {
+  document.getElementById('manage-companies-modal').classList.add('hidden');
+}
+
+async function onMcClothChange() {
+  const cloth   = document.getElementById('mc-cloth').value;
+  const section = document.getElementById('mc-companies-section');
+  const errEl   = document.getElementById('mc-error');
+
+  document.getElementById('mc-new-name').value = '';
+  errEl.textContent = '';
+  section.style.display = 'none';
+  if (!cloth) return;
+
+  try {
+    const res  = await fetch(`/api/companies?clothType=${encodeURIComponent(cloth)}`);
+    const list = await res.json();
+    renderMcCompanies(list);
+    section.style.display = '';
+  } catch (e) {
+    errEl.textContent = 'Failed to load: ' + e.message;
+  }
+}
+
+function renderMcCompanies(list) {
+  const el = document.getElementById('mc-companies-items');
+  if (!list.length) {
+    el.innerHTML = '<div style="font-size:13px;color:var(--text-muted);padding:4px 0;">No companies yet.</div>';
+    return;
+  }
+  el.innerHTML = '';
+  list.forEach(c => {
+    const row = document.createElement('div');
+    row.id = `mc-company-${c.id}`;
+    row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);';
+    row.innerHTML = `
+      <span style="flex:1;font-size:14px;">${esc(c.company_name)}</span>
+      <button type="button" class="btn btn-sm" style="color:var(--danger,#ef4444);" onclick="deleteMcCompany(${c.id}, ${JSON.stringify(c.company_name)})">&#215; Delete</button>
+    `;
+    el.appendChild(row);
+  });
+}
+
+async function deleteMcCompany(id, name) {
+  if (!confirm(`Delete company "${name}"?\n\nIt will be removed from dropdowns. Existing bills and inventory items using this company name are not affected.`)) return;
+  const errEl = document.getElementById('mc-error');
+  errEl.textContent = '';
+  try {
+    const res  = await fetch(`/api/companies/${id}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (!res.ok) { errEl.textContent = data.error || 'Delete failed.'; return; }
+    const rowEl = document.getElementById(`mc-company-${id}`);
+    if (rowEl) rowEl.remove();
+    const remaining = document.querySelectorAll('[id^="mc-company-"]').length;
+    if (!remaining) {
+      document.getElementById('mc-companies-items').innerHTML =
+        '<div style="font-size:13px;color:var(--text-muted);padding:4px 0;">No companies yet.</div>';
+    }
+    const cloth = document.getElementById('mc-cloth').value;
+    const aiCloth = document.getElementById('ai-cloth').value;
+    if (aiCloth === cloth) loadCompaniesForSelect(cloth);
+  } catch (e) {
+    errEl.textContent = 'Network error: ' + e.message;
+  }
+}
+
+async function saveMcNewCompany() {
+  const cloth = document.getElementById('mc-cloth').value;
+  const input = document.getElementById('mc-new-name');
+  const name  = input.value.trim();
+  const errEl = document.getElementById('mc-error');
+
+  errEl.textContent = '';
+  if (!name) { input.focus(); return; }
+  try {
+    const res  = await fetch('/api/companies', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cloth_type: cloth, company_name: name }),
+    });
+    const data = await res.json();
+    if (!res.ok) { errEl.textContent = data.error || 'Failed to add company.'; return; }
+    input.value = '';
+    await onMcClothChange();
+    const aiCloth = document.getElementById('ai-cloth').value;
+    if (aiCloth === cloth) loadCompaniesForSelect(cloth);
+  } catch (e) { errEl.textContent = 'Network error: ' + e.message; }
+}
+
+document.getElementById('manage-companies-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeManageCompaniesModal();
+});
+
+// ----------------------------------------------------------------
 // Transactions Modal
 // ----------------------------------------------------------------
 async function openTxnModal(id) {

@@ -6,6 +6,7 @@
 {% block topbar_actions %}
   <button type="button" class="btn btn-primary" onclick="openBatchModal()">&#43; Add Items</button>
   <button type="button" class="btn btn-secondary" style="margin-left:8px;" onclick="openCurrentStockQrModal()">&#128246; Current Stock QR</button>
+  <button type="button" class="btn btn-secondary" style="margin-left:8px;" onclick="openManageCompaniesModal()">&#9881; Manage Companies</button>
 {% endblock %}
 
 {% block content %}
@@ -413,6 +414,35 @@
     <div class="modal-footer">
       <button type="button" class="btn btn-secondary" onclick="closeCsQrModal()">Close</button>
       <button type="button" class="btn btn-primary" id="btn-cs-generate" onclick="generateCsQr()">&#128246; Generate QRs</button>
+    </div>
+  </div>
+</div>
+
+<!-- ====== Manage Companies Modal ====== -->
+<div class="modal-overlay hidden" id="manage-companies-modal">
+  <div class="modal-box" style="max-width:480px;">
+    <div class="modal-header">
+      <h3>Manage Companies</h3>
+      <button class="modal-close" onclick="closeManageCompaniesModal()">&#215;</button>
+    </div>
+    <div class="modal-body" style="display:grid;gap:14px;">
+      <div>
+        <label>Cloth Type</label>
+        <select id="mc-cloth" class="input select" onchange="onMcClothChange()">
+          <option value="">— Select cloth type —</option>
+        </select>
+      </div>
+      <div id="mc-companies-section" style="display:none;">
+        <div id="mc-companies-items" style="margin-bottom:10px;"></div>
+        <div style="display:flex;gap:6px;align-items:center;border-top:1px solid var(--border);padding-top:10px;">
+          <input type="text" id="mc-new-name" class="input" placeholder="New company name…" style="flex:1;" />
+          <button type="button" class="btn btn-sm btn-primary" onclick="saveMcNewCompany()">Add</button>
+        </div>
+      </div>
+      <div id="mc-error" class="text-danger" style="font-size:13px;min-height:16px;"></div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary" onclick="closeManageCompaniesModal()">Close</button>
     </div>
   </div>
 </div>
