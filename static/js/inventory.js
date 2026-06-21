@@ -268,6 +268,7 @@ async function loadSuppliersForSelect(restoreId) {
   try {
     const res  = await fetch('/api/suppliers');
     const list = await res.json();
+
     const sel  = document.getElementById('ai-supplier');
     sel.innerHTML = '<option value="">— None —</option>';
     list.forEach(s => {
@@ -281,6 +282,15 @@ async function loadSuppliersForSelect(restoreId) {
     addOpt.textContent = '+ Add new supplier…';
     sel.appendChild(addOpt);
     if (restoreId) sel.value = restoreId;
+
+    const eiSel = document.getElementById('ei-supplier');
+    eiSel.innerHTML = '<option value="">— None —</option>';
+    list.forEach(s => {
+      const opt = document.createElement('option');
+      opt.value = s.id;
+      opt.textContent = s.name;
+      eiSel.appendChild(opt);
+    });
   } catch (_) {}
 }
 
@@ -955,6 +965,7 @@ function closeAddItemModal() {
 }
 
 async function saveNewItem() {
+  updateAiSpecialCode();
   const cloth      = document.getElementById('ai-cloth').value;
   const company    = document.getElementById('ai-company').value;
   const suppRaw    = document.getElementById('ai-supplier').value;
@@ -1011,10 +1022,10 @@ document.getElementById('add-item-modal').addEventListener('click', function(e) 
 // Edit Item Modal
 // ----------------------------------------------------------------
 function updateEiSpecialCode() {
-  const id   = parseInt(document.getElementById('ei-id').value);
-  const item = allItems.find(i => i.id === id);
-  const cp   = document.getElementById('ei-cp').value;
-  const supName = item ? (item.supplier_name || '') : '';
+  const cp     = document.getElementById('ei-cp').value;
+  const supSel = document.getElementById('ei-supplier');
+  const supOpt = supSel.options[supSel.selectedIndex];
+  const supName = supSel.value ? (supOpt ? supOpt.textContent : '') : '';
   document.getElementById('ei-special-code').value = computeSpecialCode(cp, supName);
 }
 
@@ -1024,10 +1035,12 @@ function openEditItemModal(id) {
   document.getElementById('ei-id').value        = item.id;
   document.getElementById('ei-mrp').value       = item.mrp;
   document.getElementById('ei-cp').value        = item.cost_price || 0;
+  document.getElementById('ei-quality').value   = item.quality_number || '';
   document.getElementById('ei-alert').value     = item.min_stock_alert;
   document.getElementById('ei-notes').value     = item.notes || '';
   document.getElementById('ei-item-name').value = item.item_name || '';
   document.getElementById('ei-shade').value     = item.shade_number || '';
+  document.getElementById('ei-supplier').value  = item.effective_supplier_id != null ? String(item.effective_supplier_id) : '';
   document.getElementById('ei-error').textContent = '';
   document.getElementById('edit-item-title').textContent =
     `Edit — ${item.cloth_type} / ${item.company_name}${item.item_name ? ' / ' + item.item_name : ''}${item.quality_number ? ' / ' + item.quality_number : ''}`;
@@ -1053,6 +1066,8 @@ async function saveEditItem() {
       body: JSON.stringify({
         mrp:             parseFloat(document.getElementById('ei-mrp').value) || 0,
         cost_price:      parseFloat(document.getElementById('ei-cp').value) || 0,
+        quality_number:  document.getElementById('ei-quality').value.trim(),
+        supplier_id:     document.getElementById('ei-supplier').value || null,
         min_stock_alert: parseFloat(document.getElementById('ei-alert').value) || 5,
         notes:           document.getElementById('ei-notes').value.trim(),
         item_name:       document.getElementById('ei-item-name').value.trim(),
@@ -1115,6 +1130,7 @@ function openInfoModal(id) {
     `<div style="display:flex;gap:8px;font-size:13px;"><span style="color:var(--text-muted);min-width:140px;flex-shrink:0;">Cost Price</span><span style="font-weight:500;">&#8377;${Number(item.cost_price || 0).toFixed(2)}</span></div>`,
     `<div style="display:flex;gap:8px;font-size:13px;"><span style="color:var(--text-muted);min-width:140px;flex-shrink:0;">Current Stock</span><span style="${stockStyle}">${Number(item.current_stock).toFixed(2)} ${esc(item.unit_label)}</span></div>`,
     `<div style="display:flex;gap:8px;font-size:13px;"><span style="color:var(--text-muted);min-width:140px;flex-shrink:0;">Low Stock Alert</span><span style="font-weight:500;">${Number(item.min_stock_alert).toFixed(2)}</span></div>`,
+    row('Special Code',   item.special_code),
     row('Supplier',       item.supplier_name),
     row('Invoice',        invoiceText),
     row('Notes',          item.notes),
@@ -1212,10 +1228,11 @@ function openQrViewModal(id) {
   const item = allItems.find(i => i.id === id);
   if (!item) return;
   const url = `/api/inventory/${id}/qr`;
+  const bustUrl = `${url}?t=${Date.now()}`;
   document.getElementById('qr-view-title').textContent =
     `Label — ${item.item_code || '#' + id}`;
-  document.getElementById('qr-view-img').src = url;
-  document.getElementById('qr-download-link').href = url;
+  document.getElementById('qr-view-img').src = bustUrl;
+  document.getElementById('qr-download-link').href = bustUrl;
   document.getElementById('qr-download-link').download = `label-${item.item_code || id}.png`;
   document.getElementById('qr-view-modal').classList.remove('hidden');
 }

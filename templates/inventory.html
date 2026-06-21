@@ -279,6 +279,18 @@
             <input type="number" id="ei-mrp" class="input" min="0" step="0.01" />
           </div>
         </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div>
+          <label>Quality No.</label>
+          <input type="text" id="ei-quality" class="input" placeholder="Optional" />
+        </div>
+        <div>
+          <label>Supplier</label>
+          <select id="ei-supplier" class="input" onchange="updateEiSpecialCode()">
+            <option value="">— None —</option>
+          </select>
+        </div>
+      </div>
       <div>
         <label>Low Stock Alert Threshold</label>
         <input type="number" id="ei-alert" class="input" min="0" step="0.01" />

@@ -7,6 +7,17 @@ from utils import r2, cloth_type_prefix as _item_prefix
 
 inventory_bp = Blueprint("inventory", __name__)
 
+_CIPHER = 'RAYMONDSUI'
+
+def _compute_special_code(cost_price, supplier_name=''):
+    n = round(abs(float(cost_price or 0)))
+    encoded = ''.join(_CIPHER[int(d)] for d in str(n))
+    if supplier_name:
+        initials = ''.join(w[0].upper() for w in str(supplier_name).strip().split() if w)
+        if initials:
+            return f"{initials}-{encoded}"
+    return encoded
+
 def _next_item_code(db, cloth_type):
     prefix = _item_prefix(cloth_type)
     row = db.execute(
@@ -106,7 +117,7 @@ def _generate_label_png(item):
         ("ID",      code_text),
         ("Item",    item["item_name"] or "—"),
         ("Company", item["company_name"] or "—"),
-        ("Quality", item["quality_number"] or "—"),
+        ("Quality/Shade", "/".join(filter(None, [item.get("quality_number") or None, item.get("shade_number") or None])) or "—"),
         ("MRP",     f"{rupee}{float(mrp):.2f} / {unit}"),
         ("Length",  f"{float(stock):.2f} {unit}"),
     ]
@@ -212,7 +223,8 @@ def list_inventory():
                i.current_stock, i.min_stock_alert, i.mrp, i.cost_price, i.notes, i.item_code,
                i.supplier_id, s.name AS supplier_name, i.created_at, i.updated_at,
                i.item_name, i.shade_number, i.invoice_id, i.special_code,
-               inv.invoice_number, inv.invoice_date
+               inv.invoice_number, inv.invoice_date,
+               COALESCE(i.supplier_id, inv.supplier_id) AS effective_supplier_id
         FROM inventory_items i
         LEFT JOIN invoices inv ON i.invoice_id = inv.id
         LEFT JOIN suppliers s ON s.id = COALESCE(i.supplier_id, inv.supplier_id)
@@ -275,6 +287,22 @@ def create_inventory_item():
             return jsonify({"error": "opening_stock cannot be negative"}), 400
 
         db = get_db()
+
+        if not special_code:
+            sup_name = ''
+            if supplier_id:
+                sup_row = db.execute("SELECT name FROM suppliers WHERE id = ?", (supplier_id,)).fetchone()
+                if sup_row:
+                    sup_name = sup_row['name']
+            elif invoice_id:
+                inv_row = db.execute(
+                    "SELECT s.name FROM invoices i LEFT JOIN suppliers s ON s.id = i.supplier_id WHERE i.id = ?",
+                    (invoice_id,)
+                ).fetchone()
+                if inv_row and inv_row['name']:
+                    sup_name = inv_row['name']
+            special_code = _compute_special_code(cost_price, sup_name)
+
         try:
             item_code = _next_item_code(db, cloth_type)
             cur = db.execute(
@@ -325,19 +353,39 @@ def update_inventory_item(item_id):
 
         mrp             = float(body.get("mrp",             item["mrp"]))
         cost_price      = float(body.get("cost_price", item["cost_price"] or 0))
+        quality_number  = (body.get("quality_number") or "").strip() or None
+        supplier_id_raw = body.get("supplier_id")
+        supplier_id     = int(supplier_id_raw) if supplier_id_raw else None
         min_stock_alert = float(body.get("min_stock_alert", item["min_stock_alert"]))
         notes           = (body.get("notes") or "").strip() or None
         item_name       = (body.get("item_name")    or "").strip() or None
         shade_number    = (body.get("shade_number") or "").strip() or None
         special_code    = (body.get("special_code") or "").strip() or None
 
+        if not special_code:
+            sup_name = ''
+            if supplier_id:
+                sup_row = db.execute("SELECT name FROM suppliers WHERE id = ?", (supplier_id,)).fetchone()
+                if sup_row:
+                    sup_name = sup_row['name']
+            elif item["invoice_id"]:
+                inv_row = db.execute(
+                    "SELECT s.name FROM invoices i LEFT JOIN suppliers s ON s.id = i.supplier_id WHERE i.id = ?",
+                    (item["invoice_id"],)
+                ).fetchone()
+                if inv_row and inv_row['name']:
+                    sup_name = inv_row['name']
+            special_code = _compute_special_code(cost_price, sup_name)
+
         db.execute(
             """UPDATE inventory_items
-               SET mrp = ?, cost_price = ?, min_stock_alert = ?, notes = ?,
+               SET mrp = ?, cost_price = ?, quality_number = ?, supplier_id = ?,
+                   min_stock_alert = ?, notes = ?,
                    item_name = ?, shade_number = ?, special_code = ?,
                    updated_at = datetime('now','localtime')
                WHERE id = ?""",
-            (mrp, cost_price, min_stock_alert, notes, item_name, shade_number,
+            (mrp, cost_price, quality_number, supplier_id,
+             min_stock_alert, notes, item_name, shade_number,
              special_code, item_id),
         )
         db.commit()
@@ -366,6 +414,16 @@ def batch_create_inventory_items():
         db      = get_db()
         created = []
 
+        # Look up invoice's supplier name once for the whole batch
+        inv_supplier_name = ''
+        if invoice_id:
+            inv_sup = db.execute(
+                "SELECT s.name FROM invoices i LEFT JOIN suppliers s ON s.id = i.supplier_id WHERE i.id = ?",
+                (invoice_id,)
+            ).fetchone()
+            if inv_sup and inv_sup['name']:
+                inv_supplier_name = inv_sup['name']
+
         for group in groups:
             cloth_type   = (group.get("cloth_type")   or "").strip()
             company_name = (group.get("company_name") or "").strip()
@@ -382,17 +440,18 @@ def batch_create_inventory_items():
                 min_stock_alert = float(item.get("min_stock_alert") or 5)
                 notes          = (item.get("notes") or "").strip() or None
                 unit_label     = (item.get("unit_label") or "m").strip()
+                special_code   = _compute_special_code(cost_price, inv_supplier_name)
 
                 item_code = _next_item_code(db, cloth_type)
                 cur = db.execute(
                     """INSERT INTO inventory_items
                        (cloth_type, company_name, quality_number, unit_label,
                         current_stock, min_stock_alert, mrp, cost_price, notes, item_code,
-                        item_name, shade_number, invoice_id)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                        item_name, shade_number, invoice_id, special_code)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                     (cloth_type, company_name, quality_number, unit_label,
                      opening_stock, min_stock_alert, mrp, cost_price, notes, item_code,
-                     item_name, shade_number, invoice_id),
+                     item_name, shade_number, invoice_id, special_code),
                 )
                 item_id = cur.lastrowid
 
