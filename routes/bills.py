@@ -243,8 +243,8 @@ def create_bill():
                 customer_name_snapshot, customer_mobile_snapshot,
                 bill_date, subtotal, total_discount, final_total,
                 total_savings, advance_paid, remaining, salesperson_name, payment_mode_type,
-                round_off
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                round_off, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now', '+5 hours', '+30 minutes'))
             """,
             (
                 bill_number, customer_id,
