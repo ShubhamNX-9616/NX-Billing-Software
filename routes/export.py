@@ -1,5 +1,7 @@
 import io
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+
+_IST = timezone(timedelta(hours=5, minutes=30))
 from flask import Blueprint, jsonify, request, send_file
 from db import get_db
 from auth import api_admin_required
@@ -20,7 +22,7 @@ def export_bills():
 
         period = request.args.get("period", "monthly")
         db     = get_db()
-        today  = datetime.now().date()
+        today  = datetime.now(_IST).date()
 
         if period == "today":
             today_str    = today.strftime("%Y-%m-%d")
@@ -143,7 +145,7 @@ def export_bills():
 
         merge_title(1, "SHUBHAM NX — Sales Export", TITLE_FONT, height=22)
         merge_title(2, period_label, Font(size=10, color="444444"), height=16)
-        merge_title(3, f"Generated: {datetime.now().strftime('%d %b %Y  %H:%M')}", META_FONT, height=14)
+        merge_title(3, f"Generated: {datetime.now(_IST).strftime('%d %b %Y  %H:%M')}", META_FONT, height=14)
 
         HDR_ROW = 5
         for col_i, (label, width, align) in enumerate(COLS, 1):

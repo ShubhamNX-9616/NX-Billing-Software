@@ -9,7 +9,7 @@ def deduct_stock(db, inventory_item_id, quantity, bill_id, created_by=None):
         return
     new_stock = r2(item["current_stock"] - quantity)
     db.execute(
-        "UPDATE inventory_items SET current_stock = ?, updated_at = datetime('now','localtime') WHERE id = ?",
+        "UPDATE inventory_items SET current_stock = ?, updated_at = datetime('now', '+5 hours', '+30 minutes') WHERE id = ?",
         (new_stock, inventory_item_id),
     )
     db.execute(
@@ -28,7 +28,7 @@ def restore_stock(db, inventory_item_id, quantity, bill_id, created_by=None):
         return
     new_stock = r2(item["current_stock"] + quantity)
     db.execute(
-        "UPDATE inventory_items SET current_stock = ?, updated_at = datetime('now','localtime') WHERE id = ?",
+        "UPDATE inventory_items SET current_stock = ?, updated_at = datetime('now', '+5 hours', '+30 minutes') WHERE id = ?",
         (new_stock, inventory_item_id),
     )
     db.execute(

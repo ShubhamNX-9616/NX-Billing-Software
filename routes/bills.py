@@ -415,7 +415,7 @@ def update_bill(bill_id):
                 salesperson_name         = ?,
                 payment_mode_type        = ?,
                 round_off                = ?,
-                updated_at               = datetime('now','localtime')
+                updated_at               = datetime('now', '+5 hours', '+30 minutes')
             WHERE id = ?
         """, (
             customer_id, customer_name, norm_mobile, bill_date,
@@ -527,7 +527,7 @@ def update_bill_payment(bill_id):
             """
             UPDATE bills SET
                 payment_mode_type = ?,
-                updated_at = datetime('now','localtime')
+                updated_at = datetime('now', '+5 hours', '+30 minutes')
             WHERE id = ?
             """,
             (payment_mode_type, bill_id),
@@ -673,7 +673,7 @@ def cancel_bill(bill_id):
             restore_stock(db, inv["inventory_item_id"], inv["quantity"], bill_id, session.get("username"))
 
         db.execute(
-            "UPDATE bills SET status = 'cancelled', updated_at = datetime('now','localtime') WHERE id = ?",
+            "UPDATE bills SET status = 'cancelled', updated_at = datetime('now', '+5 hours', '+30 minutes') WHERE id = ?",
             (bill_id,),
         )
         db.commit()
@@ -709,7 +709,7 @@ def restore_bill(bill_id):
             deduct_stock(db, inv["inventory_item_id"], inv["quantity"], bill_id, session.get("username"))
 
         db.execute(
-            "UPDATE bills SET status = 'active', updated_at = datetime('now','localtime') WHERE id = ?",
+            "UPDATE bills SET status = 'active', updated_at = datetime('now', '+5 hours', '+30 minutes') WHERE id = ?",
             (bill_id,),
         )
         db.commit()

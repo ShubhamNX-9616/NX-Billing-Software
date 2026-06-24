@@ -1,4 +1,6 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+
+_IST = timezone(timedelta(hours=5, minutes=30))
 from flask import Blueprint, jsonify, request
 from db import get_db
 from auth import api_admin_required
@@ -14,7 +16,7 @@ analytics_bp = Blueprint("analytics", __name__)
 def analytics_summary():
     try:
         db = get_db()
-        now = datetime.now()
+        now = datetime.now(_IST)
         today_str  = now.strftime("%Y-%m-%d")
         this_month = now.strftime("%Y-%m")
 
@@ -102,7 +104,7 @@ def get_analytics():
     try:
         period = request.args.get("period", "monthly")
         db     = get_db()
-        today  = datetime.now().date()
+        today  = datetime.now(_IST).date()
 
         if period == "daily":
             buckets = [
@@ -204,7 +206,7 @@ def analytics_salespersons():
     try:
         period = request.args.get("period", "monthly")
         db     = get_db()
-        today  = datetime.now().date()
+        today  = datetime.now(_IST).date()
 
         if period == "daily":
             start_date = (today - timedelta(days=29)).strftime("%Y-%m-%d")

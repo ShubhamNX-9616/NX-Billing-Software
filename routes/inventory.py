@@ -382,7 +382,7 @@ def update_inventory_item(item_id):
                SET mrp = ?, cost_price = ?, quality_number = ?, supplier_id = ?,
                    min_stock_alert = ?, notes = ?,
                    item_name = ?, shade_number = ?, special_code = ?,
-                   updated_at = datetime('now','localtime')
+                   updated_at = datetime('now', '+5 hours', '+30 minutes')
                WHERE id = ?""",
             (mrp, cost_price, quality_number, supplier_id,
              min_stock_alert, notes, item_name, shade_number,
@@ -518,7 +518,7 @@ def adjust_item(item_id):
 
         new_stock = r2(item["current_stock"] + quantity)
         db.execute(
-            "UPDATE inventory_items SET current_stock = ?, updated_at = datetime('now','localtime') WHERE id = ?",
+            "UPDATE inventory_items SET current_stock = ?, updated_at = datetime('now', '+5 hours', '+30 minutes') WHERE id = ?",
             (new_stock, item_id),
         )
         db.execute(
@@ -607,6 +607,7 @@ def current_stock_qr():
         company_name   = (body.get("company_name")   or "").strip()
         quality_number = (body.get("quality_number") or "").strip()
         mrp            = float(body.get("mrp") or 0)
+        opening_stock  = float(body.get("opening_stock") or 0)
         unit_label   = (body.get("unit_label")   or "m").strip()
         item_name    = (body.get("item_name")    or "").strip()
         shade_number = (body.get("shade_number") or "").strip()
@@ -630,10 +631,18 @@ def current_stock_qr():
                 """INSERT INTO inventory_items
                    (cloth_type, company_name, quality_number, unit_label, mrp,
                     current_stock, min_stock_alert, item_code, item_name, shade_number, notes)
-                   VALUES (?, ?, ?, ?, ?, 0, 5, ?, ?, ?, ?)""",
+                   VALUES (?, ?, ?, ?, ?, ?, 5, ?, ?, ?, ?)""",
                 (cloth_type, company_name, quality_number, unit_label, mrp,
-                 item_code, item_name or None, shade_number or None, notes or None),
+                 opening_stock, item_code, item_name or None, shade_number or None, notes or None),
             )
+            item_id = db.execute("SELECT last_insert_rowid()").fetchone()[0]
+            if opening_stock > 0:
+                db.execute(
+                    """INSERT INTO inventory_transactions
+                       (item_id, txn_type, quantity, reference_type, notes, created_by)
+                       VALUES (?, 'opening', ?, 'manual', 'Opening stock', ?)""",
+                    (item_id, opening_stock, session.get("username")),
+                )
             db.commit()
 
         # Generate a cs: QR so scanning on a bill fills fields but does NOT deduct stock

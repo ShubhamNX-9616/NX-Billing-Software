@@ -16,7 +16,7 @@ def _ensure_schema_version_table(conn):
     conn.execute("""
         CREATE TABLE schema_version (
             version    INTEGER PRIMARY KEY,
-            applied_at TEXT DEFAULT (datetime('now','localtime'))
+            applied_at TEXT DEFAULT (datetime('now', '+5 hours', '+30 minutes'))
         )
     """)
     return True
@@ -42,8 +42,8 @@ def _m01_baseline_schema(conn):
             name              TEXT NOT NULL,
             mobile            TEXT NOT NULL,
             normalized_mobile TEXT NOT NULL UNIQUE,
-            created_at        TEXT DEFAULT (datetime('now','localtime')),
-            updated_at        TEXT DEFAULT (datetime('now','localtime'))
+            created_at        TEXT DEFAULT (datetime('now', '+5 hours', '+30 minutes')),
+            updated_at        TEXT DEFAULT (datetime('now', '+5 hours', '+30 minutes'))
         );
 
         CREATE TABLE IF NOT EXISTS cloth_types (
@@ -52,7 +52,7 @@ def _m01_baseline_schema(conn):
             normalized_name TEXT NOT NULL UNIQUE,
             is_default      INTEGER DEFAULT 0,
             has_company     INTEGER DEFAULT 1,
-            created_at      TEXT DEFAULT (datetime('now','localtime'))
+            created_at      TEXT DEFAULT (datetime('now', '+5 hours', '+30 minutes'))
         );
 
         CREATE TABLE IF NOT EXISTS companies (
@@ -61,7 +61,7 @@ def _m01_baseline_schema(conn):
             company_name            TEXT NOT NULL,
             normalized_company_name TEXT NOT NULL,
             is_default              INTEGER DEFAULT 0,
-            created_at              TEXT DEFAULT (datetime('now','localtime')),
+            created_at              TEXT DEFAULT (datetime('now', '+5 hours', '+30 minutes')),
             UNIQUE(cloth_type, normalized_company_name)
         );
 
@@ -70,7 +70,7 @@ def _m01_baseline_schema(conn):
             name            TEXT NOT NULL,
             normalized_name TEXT NOT NULL UNIQUE,
             is_default      INTEGER DEFAULT 0,
-            created_at      TEXT DEFAULT (datetime('now','localtime'))
+            created_at      TEXT DEFAULT (datetime('now', '+5 hours', '+30 minutes'))
         );
 
         CREATE TABLE IF NOT EXISTS bills (
@@ -90,8 +90,8 @@ def _m01_baseline_schema(conn):
             salesperson_name         TEXT NOT NULL DEFAULT 'Self',
             payment_mode_type        TEXT NOT NULL,
             status                   TEXT NOT NULL DEFAULT 'active',
-            created_at               TEXT DEFAULT (datetime('now','localtime')),
-            updated_at               TEXT DEFAULT (datetime('now','localtime'))
+            created_at               TEXT DEFAULT (datetime('now', '+5 hours', '+30 minutes')),
+            updated_at               TEXT DEFAULT (datetime('now', '+5 hours', '+30 minutes'))
         );
 
         CREATE TABLE IF NOT EXISTS bill_items (
@@ -109,7 +109,7 @@ def _m01_baseline_schema(conn):
             rate_after_disc   REAL NOT NULL DEFAULT 0,
             final_amount      REAL NOT NULL,
             inventory_item_id INTEGER REFERENCES inventory_items(id),
-            created_at        TEXT DEFAULT (datetime('now','localtime'))
+            created_at        TEXT DEFAULT (datetime('now', '+5 hours', '+30 minutes'))
         );
 
         CREATE TABLE IF NOT EXISTS bill_payments (
@@ -125,8 +125,8 @@ def _m01_baseline_schema(conn):
             password_hash TEXT NOT NULL,
             role          TEXT NOT NULL DEFAULT 'staff',
             is_active     INTEGER NOT NULL DEFAULT 1,
-            created_at    TEXT DEFAULT (datetime('now','localtime')),
-            updated_at    TEXT DEFAULT (datetime('now','localtime'))
+            created_at    TEXT DEFAULT (datetime('now', '+5 hours', '+30 minutes')),
+            updated_at    TEXT DEFAULT (datetime('now', '+5 hours', '+30 minutes'))
         );
 
         CREATE TABLE IF NOT EXISTS bill_number_seq (
@@ -139,7 +139,7 @@ def _m01_baseline_schema(conn):
             id              INTEGER PRIMARY KEY AUTOINCREMENT,
             name            TEXT NOT NULL,
             normalized_name TEXT NOT NULL UNIQUE,
-            created_at      TEXT DEFAULT (datetime('now','localtime'))
+            created_at      TEXT DEFAULT (datetime('now', '+5 hours', '+30 minutes'))
         );
 
         CREATE TABLE IF NOT EXISTS inventory_items (
@@ -154,8 +154,8 @@ def _m01_baseline_schema(conn):
             notes           TEXT,
             item_code       TEXT UNIQUE,
             supplier_id     INTEGER REFERENCES suppliers(id),
-            created_at      TEXT DEFAULT (datetime('now','localtime')),
-            updated_at      TEXT DEFAULT (datetime('now','localtime')),
+            created_at      TEXT DEFAULT (datetime('now', '+5 hours', '+30 minutes')),
+            updated_at      TEXT DEFAULT (datetime('now', '+5 hours', '+30 minutes')),
             UNIQUE(cloth_type, company_name, quality_number)
         );
 
@@ -168,7 +168,7 @@ def _m01_baseline_schema(conn):
             reference_id   INTEGER,
             notes          TEXT,
             created_by     TEXT,
-            created_at     TEXT DEFAULT (datetime('now','localtime'))
+            created_at     TEXT DEFAULT (datetime('now', '+5 hours', '+30 minutes'))
         );
     """)
 
@@ -274,7 +274,7 @@ def _m12_invoices_and_item_fields(conn):
             invoice_date   TEXT NOT NULL,
             supplier_id    INTEGER REFERENCES suppliers(id),
             notes          TEXT,
-            created_at     TEXT DEFAULT (datetime('now','localtime'))
+            created_at     TEXT DEFAULT (datetime('now', '+5 hours', '+30 minutes'))
         )
     """)
     try:
@@ -322,8 +322,8 @@ def _m14_drop_item_unique_constraint(conn):
             notes           TEXT,
             item_code       TEXT UNIQUE,
             supplier_id     INTEGER REFERENCES suppliers(id),
-            created_at      TEXT DEFAULT (datetime('now','localtime')),
-            updated_at      TEXT DEFAULT (datetime('now','localtime')),
+            created_at      TEXT DEFAULT (datetime('now', '+5 hours', '+30 minutes')),
+            updated_at      TEXT DEFAULT (datetime('now', '+5 hours', '+30 minutes')),
             item_name       TEXT,
             shade_number    TEXT,
             invoice_id      INTEGER REFERENCES invoices(id),

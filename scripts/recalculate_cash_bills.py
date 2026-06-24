@@ -141,7 +141,7 @@ def apply_bill_updates(db, bill, recalculated_items):
         """
         UPDATE bills
         SET subtotal = ?, total_discount = ?, final_total = ?, total_savings = ?,
-            advance_paid = ?, remaining = ?, updated_at = datetime('now','localtime')
+            advance_paid = ?, remaining = ?, updated_at = datetime('now', '+5 hours', '+30 minutes')
         WHERE id = ?
         """,
         (new_subtotal, new_total_discount, new_final_total, new_total_discount,

@@ -219,6 +219,7 @@ function addCsGroup(preCloth, preCompany) {
             <th style="padding:4px 6px;text-align:left;min-width:80px;">Shade No.</th>
             <th style="padding:4px 6px;text-align:left;min-width:80px;">Quality No.</th>
             <th style="padding:4px 6px;text-align:right;min-width:75px;">MRP (&#8377;)</th>
+            <th style="padding:4px 6px;text-align:right;min-width:65px;">Stock</th>
             <th style="padding:4px 6px;text-align:left;min-width:90px;">Notes</th>
             <th style="width:28px;"></th>
           </tr>
@@ -256,6 +257,7 @@ function addCsRow(gid) {
     <td style="padding:3px 4px;"><input type="text"   style="${s}"  placeholder="Shade no." /></td>
     <td style="padding:3px 4px;"><input type="text"   style="${s}"  placeholder="Quality no." /></td>
     <td style="padding:3px 4px;"><input type="number" style="${sr}" placeholder="0.00" min="0" step="0.01" /></td>
+    <td style="padding:3px 4px;"><input type="number" style="${sr}" placeholder="0"    min="0" step="0.01" /></td>
     <td style="padding:3px 4px;"><input type="text"   style="${s}"  placeholder="Optional" /></td>
     <td style="padding:3px 4px;text-align:center;">
       <button type="button" style="background:none;border:none;cursor:pointer;color:var(--danger,#ef4444);font-size:16px;line-height:1;" onclick="removeCsRow(${gid},${rowId})">&#215;</button>
@@ -1309,12 +1311,13 @@ async function generateCsQr() {
       const shade_number   = inp[1].value.trim();
       const quality_number = inp[2].value.trim();
       const mrp            = parseFloat(inp[3].value) || 0;
-      const notes          = inp[4].value.trim();
+      const opening_stock  = parseFloat(inp[4].value) || 0;
+      const notes          = inp[5].value.trim();
       if (!item_name && !shade_number && !quality_number && !mrp) continue;
       items.push({
         cloth_type:     clothType,
         company_name:   (company && company !== '__add__') ? company : '',
-        quality_number, mrp, unit_label: unit,
+        quality_number, mrp, opening_stock, unit_label: unit,
         item_name, shade_number, notes,
       });
     }
