@@ -1,0 +1,327 @@
+{% extends "base.html" %}
+{% block title %}Institution Bill Detail — SHUBHAM NX{% endblock %}
+{% block page_title %}Institution Bill{% endblock %}
+
+{% block topbar_actions %}
+  <a href="/bill-history" class="btn btn-secondary no-print">&#8592; Bill History</a>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+#inst-detail-loading { display:flex; align-items:center; gap:10px; padding:40px; color:var(--text-muted); }
+.inst-detail-action-bar {
+  display:flex; flex-wrap:wrap; align-items:center; gap:10px;
+  padding:14px 18px; margin-bottom:18px;
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:var(--radius);
+}
+.inst-detail-bill-num { font-size:18px; font-weight:700; color:var(--primary); margin-right:auto; }
+.cancelled-stamp {
+  display:inline-block; padding:2px 10px; background:#fee2e2; color:#9b1c1c;
+  border-radius:4px; font-weight:700; font-size:13px; letter-spacing:.5px;
+}
+.detail-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:18px; margin-bottom:16px; }
+.detail-section-title { font-size:14px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:.5px; margin-bottom:12px; }
+.detail-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px 24px; }
+@media(max-width:600px){ .detail-grid { grid-template-columns:1fr; } }
+.detail-field label { font-size:11px; color:var(--text-muted); display:block; margin-bottom:2px; text-transform:uppercase; letter-spacing:.3px; }
+.detail-field span  { font-size:14px; font-weight:500; color:var(--text); }
+.inst-detail-table { width:100%; border-collapse:collapse; font-size:13px; }
+.inst-detail-table th { background:var(--border); color:var(--text); padding:8px 6px; text-align:left; font-size:12px; font-weight:600; border-bottom:2px solid var(--border); }
+.inst-detail-table td { padding:8px 6px; border-bottom:1px solid var(--border); }
+.inst-detail-table td.tr { text-align:right; }
+.totals-box { display:flex; justify-content:flex-end; margin-top:8px; }
+.totals-inner { width:260px; font-size:13px; }
+.totals-row { display:flex; justify-content:space-between; padding:3px 0; }
+.totals-row.grand { font-size:15px; font-weight:700; border-top:2px solid var(--border); padding-top:6px; margin-top:4px; }
+
+/* ---- A4 Print ---- */
+@media print {
+  @page { size: A4 portrait; margin: 12mm 15mm; }
+  .sidebar, .topbar, .mobile-bottom-nav, .inst-detail-action-bar, .no-print { display:none !important; }
+  body { background:#fff; color:#000; font-family: Arial, sans-serif; font-size:11px; }
+  .main-content { margin-left:0 !important; }
+  .page-body { padding:0 !important; }
+  #inst-detail-loading, #inst-detail-error { display:none !important; }
+  .detail-card { border:none; padding:0; margin-bottom:10px; break-inside:avoid; }
+  .detail-section-title { font-size:9px; color:#555; }
+  .detail-grid { display:grid; grid-template-columns:1fr 1fr; }
+  .inst-detail-table th { background:#f0f0f0; border:1px solid #999; }
+  .inst-detail-table td { border:1px solid #ccc; }
+  .totals-inner { width:240px; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div id="inst-detail-loading">
+  <div class="spinner spinner-lg"></div> Loading bill…
+</div>
+<div id="inst-detail-error" class="alert alert-danger" style="display:none;"></div>
+
+<div id="inst-detail-content" style="display:none;">
+
+  <!-- Action bar -->
+  <div class="inst-detail-action-bar no-print">
+    <span class="inst-detail-bill-num" id="d-bill-number"></span>
+    <span id="d-cancelled-badge" style="display:none;" class="cancelled-stamp">CANCELLED</span>
+    <a id="d-edit-btn" href="#" class="btn btn-secondary">&#9998; Edit</a>
+    <button type="button" id="d-cancel-btn" class="btn btn-warning" onclick="openInstDetailCancel()">&#10006; Cancel</button>
+    <button type="button" id="d-restore-btn" class="btn btn-secondary" style="display:none;" onclick="doInstDetailRestore()">&#10227; Restore</button>
+    <button type="button" class="btn btn-secondary" onclick="openInstInvoice(INST_BILL_ID)">&#128438; Print Invoice</button>
+    <button type="button" class="btn btn-secondary" onclick="openInstPerformaInvoice(INST_BILL_ID)">&#128438; Print Performa</button>
+    <button type="button" id="d-delete-btn" class="btn btn-danger" onclick="openInstDetailDelete()">&#128465; Delete</button>
+  </div>
+
+  <!-- Company Details -->
+  <div class="detail-card">
+    <div class="detail-section-title">Company Details</div>
+    <div class="detail-grid">
+      <div class="detail-field"><label>Company Name</label><span id="d-company-name"></span></div>
+      <div class="detail-field"><label>Company Address</label><span id="d-company-address"></span></div>
+      <div class="detail-field"><label>Contact Person</label><span id="d-contact-person"></span></div>
+      <div class="detail-field"><label>Mobile</label><span id="d-mobile"></span></div>
+      <div class="detail-field"><label>Bill Date</label><span id="d-bill-date"></span></div>
+      <div class="detail-field"><label>Salesperson</label><span id="d-salesperson"></span></div>
+      <div class="detail-field"><label>Payment Mode</label><span id="d-payment-mode"></span></div>
+    </div>
+  </div>
+
+  <!-- Items -->
+  <div class="detail-card">
+    <div class="detail-section-title">Items</div>
+    <div style="overflow-x:auto;">
+      <table class="inst-detail-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Cloth Type</th>
+            <th>Company</th>
+            <th>Quality No</th>
+            <th class="tr">Qty/pc (m)</th>
+            <th class="tr">Rate/m (₹)</th>
+            <th class="tr">No. of Pcs</th>
+            <th class="tr">Stitch/unit</th>
+            <th class="tr">Total (₹)</th>
+          </tr>
+        </thead>
+        <tbody id="d-items-body"></tbody>
+      </table>
+    </div>
+    <div class="totals-box">
+      <div class="totals-inner">
+        <div class="totals-row grand"><span>Total Payable</span><span id="d-final-total"></span></div>
+        <div class="totals-row"><span>Advance Paid</span><span id="d-advance-paid"></span></div>
+        <div class="totals-row"><span>Remaining</span><span id="d-remaining"></span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Payments -->
+  <div class="detail-card" id="d-payments-card">
+    <div class="detail-section-title">Payment Breakdown</div>
+    <div id="d-payments-body"></div>
+  </div>
+
+</div>
+
+<!-- Cancel Modal -->
+<div class="modal-overlay hidden" id="inst-detail-cancel-modal">
+  <div class="modal-box">
+    <div class="modal-header modal-header--warning">
+      <h3>&#10006; Cancel Bill &mdash; <span id="idc-bill-num"></span></h3>
+      <button class="modal-close" onclick="closeInstDetailCancel()">&#215;</button>
+    </div>
+    <div class="modal-body">
+      <div class="notice-box notice-box--warning">
+        <p>The bill will be marked <strong>CANCELLED</strong> but kept in records.<br>You can restore it later.</p>
+      </div>
+      <div id="idc-error" class="text-danger mt-2" style="font-size:13px;min-height:18px;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeInstDetailCancel()">Go Back</button>
+      <button class="btn btn-warning" id="idc-confirm-btn" onclick="doInstDetailCancel()">Yes, Cancel Bill</button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Modal -->
+<div class="modal-overlay hidden" id="inst-detail-delete-modal">
+  <div class="modal-box">
+    <div class="modal-header modal-header--danger">
+      <h3>&#128465; Delete Bill &mdash; <span id="idd-bill-num"></span></h3>
+      <button class="modal-close" onclick="closeInstDetailDelete()">&#215;</button>
+    </div>
+    <div class="modal-body">
+      <div class="notice-box notice-box--danger">
+        <p class="notice-danger-title">&#9888;&#65039; WARNING: This action cannot be undone.</p>
+        <p class="notice-danger-body">
+          Bill <strong id="idd-bill-num2"></strong> will be permanently deleted.<br>
+          All institution bills after this one (in the same financial year) will be renumbered.
+        </p>
+      </div>
+      <div id="idd-error" class="text-danger mt-2" style="font-size:13px;min-height:18px;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeInstDetailDelete()">Go Back</button>
+      <button class="btn btn-danger" id="idd-confirm-btn" onclick="doInstDetailDelete()">Yes, Delete and Renumber</button>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/inst-performa.js') }}?v={{ sv }}"></script>
+<script>
+const INST_BILL_ID = {{ bill_id }};
+let _instDetailBill = null;
+
+function fmt(v) { return '₹' + Number(v || 0).toFixed(2); }
+
+async function loadInstDetail() {
+  try {
+    const res  = await fetch(`/api/institution-bills/${INST_BILL_ID}`);
+    if (!res.ok) throw new Error('Bill not found');
+    const data = await res.json();
+    _instDetailBill = data.bill;
+    renderInstDetail(data);
+  } catch (err) {
+    document.getElementById('inst-detail-loading').style.display = 'none';
+    const errEl = document.getElementById('inst-detail-error');
+    errEl.style.display = 'block';
+    errEl.textContent = 'Failed to load bill: ' + err.message;
+  }
+}
+
+function renderInstDetail(data) {
+  const bill     = data.bill;
+  const items    = data.items;
+  const payments = data.payments;
+  const cancelled = bill.status === 'cancelled';
+
+  document.getElementById('inst-detail-loading').style.display = 'none';
+  document.getElementById('inst-detail-content').style.display = 'block';
+
+  document.getElementById('d-bill-number').textContent  = bill.bill_number;
+  document.getElementById('d-company-name').textContent    = bill.company_name    || '—';
+  document.getElementById('d-company-address').textContent = bill.company_address || '—';
+  document.getElementById('d-contact-person').textContent  = bill.contact_person_name || '—';
+  document.getElementById('d-mobile').textContent        = bill.contact_person_mobile || '—';
+  document.getElementById('d-bill-date').textContent     = bill.bill_date || '—';
+  document.getElementById('d-salesperson').textContent   = bill.salesperson_name;
+  document.getElementById('d-payment-mode').textContent  = bill.payment_mode_type;
+
+  document.getElementById('d-final-total').textContent  = fmt(bill.final_total);
+  document.getElementById('d-advance-paid').textContent = fmt(bill.advance_paid);
+  document.getElementById('d-remaining').textContent    = fmt(bill.remaining);
+
+  document.getElementById('d-edit-btn').href = `/edit-institution-bill/${bill.id}`;
+
+  if (cancelled) {
+    document.getElementById('d-cancelled-badge').style.display = '';
+    document.getElementById('d-cancel-btn').style.display  = 'none';
+    document.getElementById('d-edit-btn').style.display    = 'none';
+    document.getElementById('d-restore-btn').style.display = '';
+  }
+
+  document.getElementById('d-items-body').innerHTML = items.map((item, i) => `
+    <tr>
+      <td>${i + 1}</td>
+      <td>${item.cloth_type}</td>
+      <td>${item.company_name}</td>
+      <td>${item.quality_number || '—'}</td>
+      <td class="tr">${Number(item.quantity_per_pc).toFixed(2)}</td>
+      <td class="tr">${fmt(item.rate_per_m)}</td>
+      <td class="tr">${item.no_of_pcs}</td>
+      <td class="tr">${item.stitching_per_unit ? fmt(item.stitching_per_unit) : '—'}</td>
+      <td class="tr">${fmt(item.total)}</td>
+    </tr>
+  `).join('');
+
+  const paymentsCard = document.getElementById('d-payments-card');
+  const paymentsBody = document.getElementById('d-payments-body');
+  if (payments.length) {
+    paymentsBody.innerHTML = payments.map(p =>
+      `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border);font-size:13px;">
+         <span><strong>${p.payment_method}</strong></span><span>${fmt(p.amount)}</span>
+       </div>`
+    ).join('');
+  } else {
+    paymentsCard.style.display = 'none';
+  }
+}
+
+// ---- Cancel ----
+function openInstDetailCancel() {
+  document.getElementById('idc-bill-num').textContent = _instDetailBill.bill_number;
+  document.getElementById('idc-error').textContent    = '';
+  document.getElementById('idc-confirm-btn').disabled    = false;
+  document.getElementById('idc-confirm-btn').textContent = 'Yes, Cancel Bill';
+  document.getElementById('inst-detail-cancel-modal').classList.remove('hidden');
+}
+function closeInstDetailCancel() {
+  document.getElementById('inst-detail-cancel-modal').classList.add('hidden');
+}
+async function doInstDetailCancel() {
+  const btn = document.getElementById('idc-confirm-btn');
+  btn.disabled = true; btn.textContent = 'Cancelling…';
+  try {
+    const res  = await fetch(`/api/institution-bills/${INST_BILL_ID}/cancel`, { method: 'PUT' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Cancel failed.');
+    closeInstDetailCancel();
+    location.reload();
+  } catch (err) {
+    document.getElementById('idc-error').textContent = err.message;
+    btn.disabled = false; btn.textContent = 'Yes, Cancel Bill';
+  }
+}
+
+// ---- Restore ----
+async function doInstDetailRestore() {
+  if (!confirm(`Restore bill ${_instDetailBill.bill_number}?`)) return;
+  try {
+    const res  = await fetch(`/api/institution-bills/${INST_BILL_ID}/restore`, { method: 'PUT' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Restore failed.');
+    location.reload();
+  } catch (err) {
+    alert('Error: ' + err.message);
+  }
+}
+
+// ---- Delete ----
+function openInstDetailDelete() {
+  document.getElementById('idd-bill-num').textContent  = _instDetailBill.bill_number;
+  document.getElementById('idd-bill-num2').textContent = _instDetailBill.bill_number;
+  document.getElementById('idd-error').textContent     = '';
+  document.getElementById('idd-confirm-btn').disabled    = false;
+  document.getElementById('idd-confirm-btn').textContent = 'Yes, Delete and Renumber';
+  document.getElementById('inst-detail-delete-modal').classList.remove('hidden');
+}
+function closeInstDetailDelete() {
+  document.getElementById('inst-detail-delete-modal').classList.add('hidden');
+}
+async function doInstDetailDelete() {
+  const btn = document.getElementById('idd-confirm-btn');
+  btn.disabled = true; btn.textContent = 'Deleting…';
+  try {
+    const res  = await fetch(`/api/institution-bills/${INST_BILL_ID}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Delete failed.');
+    closeInstDetailDelete();
+    window.location.href = '/bill-history';
+  } catch (err) {
+    document.getElementById('idd-error').textContent = err.message;
+    btn.disabled = false; btn.textContent = 'Yes, Delete and Renumber';
+  }
+}
+
+document.getElementById('inst-detail-cancel-modal').addEventListener('click', function(e) { if (e.target === this) closeInstDetailCancel(); });
+document.getElementById('inst-detail-delete-modal').addEventListener('click', function(e) { if (e.target === this) closeInstDetailDelete(); });
+
+document.addEventListener('DOMContentLoaded', loadInstDetail);
+</script>
+{% endblock %}

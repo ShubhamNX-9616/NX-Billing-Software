@@ -1,0 +1,397 @@
+{% extends "base.html" %}
+{% block title %}Institution Bill — SHUBHAM NX{% endblock %}
+{% block page_title %}Institution Bill{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ---- Institution bill form ---- */
+.inst-section { margin-bottom: 20px; }
+.inst-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+@media (max-width: 600px) { .inst-grid-2 { grid-template-columns: 1fr; } }
+
+.inst-items-wrap { overflow-x: auto; }
+.inst-items-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  min-width: 700px;
+}
+.inst-items-table th {
+  background: var(--border, #e5e7eb);
+  color: var(--text, #111827);
+  padding: 8px 6px;
+  text-align: left;
+  font-size: 12px;
+  font-weight: 600;
+  border-bottom: 2px solid var(--border, #ddd);
+  white-space: nowrap;
+}
+.inst-items-table td {
+  padding: 6px 4px;
+  border-bottom: 1px solid var(--border-color, #eee);
+  vertical-align: middle;
+}
+.inst-items-table td input, .inst-items-table td select {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 5px 6px;
+  font-size: 13px;
+}
+.inst-total-cell { font-weight: 600; text-align: right; min-width: 80px; }
+.inst-del-btn {
+  background: none; border: none; color: var(--danger, #c0392b);
+  cursor: pointer; font-size: 16px; padding: 2px 6px;
+}
+.inst-add-item-btn {
+  margin-top: 10px;
+  background: none;
+  border: 1px dashed var(--border-color, #bbb);
+  color: var(--primary, #1a3a7a);
+  padding: 6px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.inst-add-item-btn:hover { background: var(--bg-secondary, #f5f5f5); }
+
+/* ---- Payment tabs ---- */
+.inst-payment-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+.inst-payment-tab {
+  padding: 6px 14px; border-radius: 6px; border: 1px solid var(--border-color, #ddd);
+  background: none; cursor: pointer; font-size: 13px; color: var(--text, #333);
+}
+.inst-payment-tab.active {
+  background: var(--primary, #1a3a7a); color: #fff; border-color: var(--primary, #1a3a7a);
+}
+.inst-combo-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.inst-combo-row label { min-width: 60px; margin: 0; font-size: 13px; }
+
+/* ---- Summary ---- */
+.inst-summary-table { width: 100%; font-size: 13px; }
+.inst-summary-table td { padding: 4px 0; }
+.inst-summary-table td:last-child { text-align: right; font-weight: 600; }
+.inst-summary-table tr.inst-grand td { font-size: 15px; font-weight: 700; border-top: 2px solid var(--border-color, #ddd); padding-top: 6px; }
+
+/* ---- Success state ---- */
+#inst-success-bar {
+  display: none;
+  background: var(--surface);
+  border: 1px solid var(--success, #057a55);
+  border-left: 4px solid var(--success, #057a55);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 14px 18px;
+  margin-bottom: 18px;
+  font-size: 14px;
+}
+#inst-save-error { color: var(--danger, #c0392b); font-size: 13px; min-height: 18px; margin-top: 6px; }
+
+/* ---- A4 Print ---- */
+@media print {
+  @page { size: A4 portrait; margin: 12mm 15mm; }
+
+  .sidebar, .topbar, .mobile-bottom-nav,
+  .inst-form-area, #inst-success-bar, .no-print { display: none !important; }
+
+  body { background: #fff; color: #000; font-size: 11px; font-family: 'Segoe UI', Arial, sans-serif; }
+  .main-content { margin-left: 0 !important; }
+  .page-body { padding: 0 !important; }
+
+  #inst-print-area { display: block !important; }
+
+  .inst-inv-shop-name {
+    font-size: 20px; font-weight: 700; color: #1a3a7a;
+    letter-spacing: 1px; text-transform: uppercase; text-align: center;
+  }
+  .inst-inv-shop-sub { font-size: 11px; text-align: center; color: #333; margin-bottom: 2px; }
+  .inst-inv-divider { border: none; border-top: 2px solid #000; margin: 4px 0; }
+  .inst-inv-divider-thin { border: none; border-top: 1px solid #aaa; margin: 3px 0; }
+
+  .inst-inv-meta {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+    margin: 6px 0 10px;
+  }
+  .inst-inv-meta-label { color: #555; font-size: 10px; }
+  .inst-inv-meta-value { font-weight: 600; font-size: 11px; }
+  .inst-inv-meta-block h4 {
+    font-size: 9px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.5px; color: #555; margin-bottom: 3px;
+  }
+  .inst-inv-meta-row { margin-bottom: 2px; }
+
+  .inst-inv-table {
+    width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 10px;
+  }
+  .inst-inv-table th {
+    background: #f0f0f0; border: 1px solid #999;
+    padding: 4px 6px; font-weight: 700; text-align: left; font-size: 10px;
+  }
+  .inst-inv-table td {
+    border: 1px solid #ccc; padding: 4px 6px; vertical-align: top;
+  }
+  .inst-inv-table th.tr, .inst-inv-table td.tr { text-align: right; }
+  .inst-inv-table tbody tr:nth-child(even) td { background: #fafafa; }
+
+  .inst-inv-totals { float: right; width: 240px; font-size: 11px; }
+  .inst-inv-total-row { display: flex; justify-content: space-between; padding: 2px 0; }
+  .inst-inv-total-row.grand {
+    font-weight: 700; font-size: 13px;
+    border-top: 2px solid #000; padding-top: 4px; margin-top: 4px;
+  }
+
+  .inst-inv-payments { font-size: 11px; clear: both; margin-top: 8px; }
+  .inst-inv-payments h4 {
+    font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.5px; color: #555; margin-bottom: 3px;
+  }
+  .inst-inv-pay-row { display: flex; gap: 8px; margin-bottom: 2px; }
+
+  .inst-inv-footer {
+    text-align: center; margin-top: 16px; padding-top: 6px;
+    border-top: 1px solid #aaa; font-size: 11px; color: #333;
+  }
+  .inst-inv-footer strong { font-size: 12px; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- ====== PRINT AREA (hidden on screen, visible when printing) ====== -->
+<div id="inst-print-area" style="display:none;">
+  <div class="inst-inv-shop-name">SHUBHAM NX</div>
+  <div class="inst-inv-shop-sub">Krishna Chowk, New Sangvi, Pune</div>
+  <hr class="inst-inv-divider" />
+
+  <div class="inst-inv-meta">
+    <div class="inst-inv-meta-block">
+      <h4>Company Details</h4>
+      <div class="inst-inv-meta-row">
+        <span class="inst-inv-meta-label">Company:</span>
+        <strong id="pr-company"></strong>
+      </div>
+      <div class="inst-inv-meta-row">
+        <span class="inst-inv-meta-label">Contact:</span>
+        <span id="pr-contact"></span>
+      </div>
+      <div class="inst-inv-meta-row">
+        <span class="inst-inv-meta-label">Mobile:</span>
+        <span id="pr-mobile"></span>
+      </div>
+    </div>
+    <div class="inst-inv-meta-block" style="text-align:right;">
+      <h4>Bill Details</h4>
+      <div class="inst-inv-meta-row">
+        <span class="inst-inv-meta-label">Bill No:</span>
+        <strong id="pr-bill-number"></strong>
+      </div>
+      <div class="inst-inv-meta-row">
+        <span class="inst-inv-meta-label">Date:</span>
+        <span id="pr-date"></span>
+      </div>
+      <div class="inst-inv-meta-row">
+        <span class="inst-inv-meta-label">Salesperson:</span>
+        <span id="pr-salesperson"></span>
+      </div>
+    </div>
+  </div>
+
+  <hr class="inst-inv-divider-thin" />
+
+  <table class="inst-inv-table">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Cloth Type</th>
+        <th>Company</th>
+        <th>Quality No</th>
+        <th class="tr">Qty/pc (m)</th>
+        <th class="tr">Rate/m (₹)</th>
+        <th class="tr">No. of Pcs</th>
+        <th class="tr">Total (₹)</th>
+      </tr>
+    </thead>
+    <tbody id="pr-items-body"></tbody>
+  </table>
+
+  <div class="inst-inv-totals">
+    <div class="inst-inv-total-row grand">
+      <span>Total Payable</span>
+      <span id="pr-final-total"></span>
+    </div>
+    <div class="inst-inv-total-row">
+      <span>Advance Paid</span>
+      <span id="pr-advance-paid"></span>
+    </div>
+    <div class="inst-inv-total-row">
+      <span>Remaining</span>
+      <span id="pr-remaining"></span>
+    </div>
+  </div>
+
+  <div class="inst-inv-payments" id="pr-payments-wrap">
+    <h4>Payment</h4>
+    <div id="pr-payments-body"></div>
+  </div>
+
+  <div class="inst-inv-footer">
+    <strong>Thank you for your business!</strong><br/>
+    SHUBHAM NX — Krishna Chowk, New Sangvi, Pune
+  </div>
+</div>
+
+<!-- ====== FORM AREA ====== -->
+<div class="inst-form-area">
+
+  <!-- Success bar -->
+  <div id="inst-success-bar">
+    <strong id="inst-success-bill-num"></strong> saved successfully.
+    <button class="btn btn-sm btn-secondary no-print" id="inst-invoice-btn" style="margin-left:12px;">&#128438; Print Invoice</button>
+    <button class="btn btn-sm btn-secondary no-print" id="inst-performa-btn" style="margin-left:6px;">&#128438; Print Performa Invoice</button>
+    <button class="btn btn-sm btn-primary no-print" onclick="resetInstForm()" style="margin-left:8px;">+ New Institution Bill</button>
+  </div>
+
+  <!-- Company Details -->
+  <div class="card inst-section">
+    <div style="font-size:15px;font-weight:700;margin-bottom:14px;">Company Details</div>
+    <div class="inst-grid-2">
+      <div>
+        <label class="label">Company Name <span style="color:red">*</span></label>
+        <input id="inst-company-name" class="input" placeholder="Institution / Company name" />
+        <div id="err-company" class="text-danger" style="font-size:12px;min-height:16px;"></div>
+      </div>
+      <div>
+        <label class="label">Company Address</label>
+        <input id="inst-company-address" class="input" placeholder="Address" />
+      </div>
+      <div>
+        <label class="label">Contact Person</label>
+        <input id="inst-contact-person" class="input" placeholder="Contact person name" />
+        <div id="err-contact" class="text-danger" style="font-size:12px;min-height:16px;"></div>
+      </div>
+      <div>
+        <label class="label">Mobile</label>
+        <input id="inst-mobile" class="input" type="tel" placeholder="10-digit mobile" maxlength="10" />
+        <div id="err-mobile" class="text-danger" style="font-size:12px;min-height:16px;"></div>
+      </div>
+      <div>
+        <label class="label">Bill Date <span style="color:red">*</span></label>
+        <input id="inst-bill-date" class="input" type="date" />
+      </div>
+      <div>
+        <label class="label">Salesperson <span style="color:red">*</span></label>
+        <select id="inst-salesperson" class="input select">
+          <option value="">-- Select --</option>
+        </select>
+        <div id="err-salesperson" class="text-danger" style="font-size:12px;min-height:16px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Items -->
+  <div class="card inst-section">
+    <div style="font-size:15px;font-weight:700;margin-bottom:14px;">Items</div>
+    <div class="inst-items-wrap">
+      <table class="inst-items-table">
+        <thead>
+          <tr>
+            <th style="width:150px;">Cloth Type</th>
+            <th style="width:140px;">Company</th>
+            <th style="width:100px;">Quality No</th>
+            <th style="width:90px;">Qty/pc (m)</th>
+            <th style="width:90px;">Rate/m (₹)</th>
+            <th style="width:80px;">No. of Pcs</th>
+            <th style="width:90px;">Stitch/unit</th>
+            <th style="width:90px;text-align:right;">Total (₹)</th>
+            <th style="width:36px;"></th>
+          </tr>
+        </thead>
+        <tbody id="inst-items-body"></tbody>
+      </table>
+    </div>
+    <button class="inst-add-item-btn" onclick="addInstItem()">+ Add Item</button>
+    <div id="err-items" class="text-danger" style="font-size:12px;margin-top:6px;min-height:16px;"></div>
+  </div>
+
+  <!-- Payment -->
+  <div class="card inst-section">
+    <div style="font-size:15px;font-weight:700;margin-bottom:14px;">Payment</div>
+
+    <div class="inst-payment-tabs" id="inst-payment-tabs">
+      <button type="button" class="inst-payment-tab active" data-mode="Cash">Cash</button>
+      <button type="button" class="inst-payment-tab" data-mode="Card">Card</button>
+      <button type="button" class="inst-payment-tab" data-mode="UPI">UPI</button>
+      <button type="button" class="inst-payment-tab" data-mode="Cheque">Cheque</button>
+      <button type="button" class="inst-payment-tab" data-mode="NEFT">NEFT</button>
+      <button type="button" class="inst-payment-tab" data-mode="Combination">Combination</button>
+    </div>
+
+    <!-- Single payment amount -->
+    <div id="inst-single-wrap" style="margin-bottom:12px;">
+      <label class="label" id="inst-single-label">Cash Amount (₹)</label>
+      <input type="number" id="inst-payment-amount" class="input" min="0" step="0.01"
+             style="max-width:200px;" oninput="onInstPaymentAmountInput()" />
+    </div>
+
+    <!-- Combination -->
+    <div id="inst-combo-wrap" style="display:none;margin-bottom:12px;">
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">Select at least 2 methods. Last selected is auto-calculated.</div>
+      {% for m in ['Cash','Card','UPI','Cheque','NEFT'] %}
+      <div class="inst-combo-row">
+        <input type="checkbox" id="inst-combo-chk-{{ m }}" value="{{ m }}" onchange="onInstComboChange()" />
+        <label for="inst-combo-chk-{{ m }}">{{ m }}</label>
+        <input type="number" id="inst-combo-amt-{{ m }}" class="input" style="max-width:160px;"
+               placeholder="0.00" min="0" step="0.01" disabled
+               oninput="onInstComboAmtInput('{{ m }}')" />
+      </div>
+      {% endfor %}
+      <div id="inst-combo-remaining" style="font-size:12px;margin-top:4px;"></div>
+    </div>
+
+    <div id="err-payment" class="text-danger" style="font-size:12px;min-height:16px;margin-bottom:10px;"></div>
+
+    <!-- Summary -->
+    <div style="border-top:1px solid var(--border-color,#eee);padding-top:12px;max-width:320px;margin-left:auto;">
+      <table class="inst-summary-table">
+        <tr>
+          <td>Total Amount</td>
+          <td id="inst-sum-total">₹0.00</td>
+        </tr>
+        <tr>
+          <td>Advance Paid (₹)</td>
+          <td>
+            <input type="number" id="inst-advance-paid" class="input" min="0" step="0.01"
+                   style="width:120px;text-align:right;padding:4px 8px;"
+                   oninput="onInstAdvancePaidInput()" />
+          </td>
+        </tr>
+        <tr id="inst-adv-err-row">
+          <td colspan="2">
+            <div id="err-advance" class="text-danger" style="font-size:12px;text-align:right;min-height:14px;"></div>
+          </td>
+        </tr>
+        <tr class="inst-grand">
+          <td>Remaining</td>
+          <td id="inst-sum-remaining">₹0.00</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- Submit -->
+  <div class="card inst-section" style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+    <button id="inst-save-btn" class="btn btn-primary" onclick="saveInstBill()">✓ Save Institution Bill</button>
+    <div id="inst-save-error" class="text-danger" style="font-size:13px;"></div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/inst-performa.js') }}?v={{ sv }}"></script>
+<script src="{{ url_for('static', filename='js/inst-bill.js') }}?v={{ sv }}"></script>
+{% endblock %}

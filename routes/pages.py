@@ -65,6 +65,24 @@ def inventory():
     return render_template("inventory.html")
 
 
+@pages_bp.route("/new-institution-bill")
+@staff_or_admin_required
+def new_institution_bill():
+    return render_template("new_institution_bill.html")
+
+
+@pages_bp.route("/institution-bills/<int:bill_id>")
+@admin_required
+def institution_bill_detail(bill_id):
+    return render_template("institution_bill_detail.html", bill_id=bill_id)
+
+
+@pages_bp.route("/edit-institution-bill/<int:bill_id>")
+@admin_required
+def edit_institution_bill(bill_id):
+    return render_template("edit_institution_bill.html", bill_id=bill_id)
+
+
 @pages_bp.route("/bill/share/<path:bill_number>")
 def shared_bill(bill_number):
     data = get_bill_by_number(bill_number)

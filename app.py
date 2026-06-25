@@ -15,6 +15,7 @@ from routes.auth import auth_routes
 from routes.inventory import inventory_bp
 from routes.suppliers import suppliers_bp
 from routes.invoices import invoices_bp
+from routes.institution_bills import inst_bills_bp
 
 app = Flask(__name__)
 
@@ -97,6 +98,7 @@ app.register_blueprint(export_bp,      url_prefix="/api")
 app.register_blueprint(inventory_bp,   url_prefix="/api")
 app.register_blueprint(suppliers_bp,   url_prefix="/api")
 app.register_blueprint(invoices_bp,    url_prefix="/api")
+app.register_blueprint(inst_bills_bp,  url_prefix="/api")
 app.register_blueprint(pages_bp)
 
 

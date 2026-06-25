@@ -38,6 +38,22 @@ def _current_fy():
     return f"{str(start)[2:]}-{str(start + 1)[2:]}"
 
 
+def generate_inst_bill_number(conn):
+    fy = _current_fy()
+    row = conn.execute("SELECT next_val, fy FROM inst_bill_number_seq WHERE id = 1").fetchone()
+    if row is None or row["fy"] != fy:
+        new_val = 1
+        conn.execute(
+            "INSERT OR REPLACE INTO inst_bill_number_seq (id, next_val, fy) VALUES (1, ?, ?)",
+            (new_val, fy),
+        )
+    else:
+        conn.execute("UPDATE inst_bill_number_seq SET next_val = next_val + 1 WHERE id = 1")
+        row = conn.execute("SELECT next_val FROM inst_bill_number_seq WHERE id = 1").fetchone()
+        new_val = row["next_val"]
+    return f"INST-{new_val:04d}/{fy}"
+
+
 def generate_bill_number(conn):
     fy = _current_fy()
     row = conn.execute("SELECT next_val, fy FROM bill_number_seq WHERE id = 1").fetchone()

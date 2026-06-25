@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% block title %}Edit Institution Bill — SHUBHAM NX{% endblock %}
+{% block page_title %}Edit Institution Bill{% endblock %}
+
+{% block topbar_actions %}
+  <a href="/institution-bills/{{ bill_id }}" class="btn btn-secondary">&#8592; Back to Bill</a>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.inst-section { margin-bottom: 20px; }
+.inst-grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+@media (max-width:600px) { .inst-grid-2 { grid-template-columns:1fr; } }
+.inst-items-wrap { overflow-x:auto; }
+.inst-items-table { width:100%; border-collapse:collapse; font-size:13px; min-width:700px; }
+.inst-items-table th { background:var(--border,#e5e7eb); color:var(--text,#111827); padding:8px 6px; text-align:left; font-size:12px; font-weight:600; border-bottom:2px solid var(--border,#ddd); white-space:nowrap; }
+.inst-items-table td { padding:6px 4px; border-bottom:1px solid var(--border-color,#eee); vertical-align:middle; }
+.inst-items-table td input, .inst-items-table td select { width:100%; box-sizing:border-box; padding:5px 6px; font-size:13px; }
+.inst-total-cell { font-weight:600; text-align:right; min-width:80px; }
+.inst-del-btn { background:none; border:none; color:var(--danger,#c0392b); cursor:pointer; font-size:16px; padding:2px 6px; }
+.inst-add-item-btn { margin-top:10px; background:none; border:1px dashed var(--border-color,#bbb); color:var(--primary,#1a3a7a); padding:6px 16px; border-radius:6px; cursor:pointer; font-size:13px; }
+.inst-add-item-btn:hover { background:var(--bg); }
+.inst-payment-tabs { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:14px; }
+.inst-payment-tab { padding:6px 14px; border-radius:6px; border:1px solid var(--border-color,#ddd); background:none; cursor:pointer; font-size:13px; color:var(--text,#333); }
+.inst-payment-tab.active { background:var(--primary,#1a3a7a); color:#fff; border-color:var(--primary,#1a3a7a); }
+.inst-combo-row { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+.inst-combo-row label { min-width:60px; margin:0; font-size:13px; }
+.inst-summary-table { width:100%; font-size:13px; }
+.inst-summary-table td { padding:4px 0; }
+.inst-summary-table td:last-child { text-align:right; font-weight:600; }
+.inst-summary-table tr.inst-grand td { font-size:15px; font-weight:700; border-top:2px solid var(--border-color,#ddd); padding-top:6px; }
+#inst-save-error { color:var(--danger,#c0392b); font-size:13px; min-height:18px; margin-top:6px; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div style="background:#fef3c7;border:1px solid #fde68a;border-radius:var(--radius);
+            padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;gap:10px;">
+  <span style="font-size:18px;">&#9888;&#65039;</span>
+  <span style="font-size:13.5px;color:#92400e;font-weight:500;">
+    Editing institution bill <strong id="edit-warning-bill-num">…</strong>. All changes will be saved permanently.
+  </span>
+</div>
+
+<!-- Company Details -->
+<div class="card inst-section">
+  <div style="font-size:15px;font-weight:700;margin-bottom:14px;">Company Details</div>
+  <div class="inst-grid-2">
+    <div>
+      <label class="label">Company Name <span style="color:red">*</span></label>
+      <input id="inst-company-name" class="input" placeholder="Institution / Company name" />
+      <div id="err-company" class="text-danger" style="font-size:12px;min-height:16px;"></div>
+    </div>
+    <div>
+      <label class="label">Company Address</label>
+      <input id="inst-company-address" class="input" placeholder="Address" />
+    </div>
+    <div>
+      <label class="label">Contact Person</label>
+      <input id="inst-contact-person" class="input" placeholder="Contact person name" />
+      <div id="err-contact" class="text-danger" style="font-size:12px;min-height:16px;"></div>
+    </div>
+    <div>
+      <label class="label">Mobile</label>
+      <input id="inst-mobile" class="input" type="tel" placeholder="10-digit mobile" maxlength="10" />
+      <div id="err-mobile" class="text-danger" style="font-size:12px;min-height:16px;"></div>
+    </div>
+    <div>
+      <label class="label">Bill Date <span style="color:red">*</span></label>
+      <input id="inst-bill-date" class="input" type="date" />
+    </div>
+    <div>
+      <label class="label">Salesperson <span style="color:red">*</span></label>
+      <select id="inst-salesperson" class="input select">
+        <option value="">-- Select --</option>
+      </select>
+      <div id="err-salesperson" class="text-danger" style="font-size:12px;min-height:16px;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Items -->
+<div class="card inst-section">
+  <div style="font-size:15px;font-weight:700;margin-bottom:14px;">Items</div>
+  <div class="inst-items-wrap">
+    <table class="inst-items-table">
+      <thead>
+        <tr>
+          <th style="width:150px;">Cloth Type</th>
+          <th style="width:140px;">Company</th>
+          <th style="width:100px;">Quality No</th>
+          <th style="width:90px;">Qty/pc (m)</th>
+          <th style="width:90px;">Rate/m (₹)</th>
+          <th style="width:80px;">No. of Pcs</th>
+          <th style="width:90px;">Stitch/unit</th>
+          <th style="width:90px;text-align:right;">Total (₹)</th>
+          <th style="width:36px;"></th>
+        </tr>
+      </thead>
+      <tbody id="inst-items-body"></tbody>
+    </table>
+  </div>
+  <button class="inst-add-item-btn" onclick="addInstItem()">+ Add Item</button>
+  <div id="err-items" class="text-danger" style="font-size:12px;margin-top:6px;min-height:16px;"></div>
+</div>
+
+<!-- Payment -->
+<div class="card inst-section">
+  <div style="font-size:15px;font-weight:700;margin-bottom:14px;">Payment</div>
+  <div class="inst-payment-tabs" id="inst-payment-tabs">
+    <button type="button" class="inst-payment-tab active" data-mode="Cash">Cash</button>
+    <button type="button" class="inst-payment-tab" data-mode="Card">Card</button>
+    <button type="button" class="inst-payment-tab" data-mode="UPI">UPI</button>
+    <button type="button" class="inst-payment-tab" data-mode="Cheque">Cheque</button>
+    <button type="button" class="inst-payment-tab" data-mode="NEFT">NEFT</button>
+    <button type="button" class="inst-payment-tab" data-mode="Combination">Combination</button>
+  </div>
+  <div id="inst-single-wrap" style="margin-bottom:12px;">
+    <label class="label" id="inst-single-label">Cash Amount (₹)</label>
+    <input type="number" id="inst-payment-amount" class="input" min="0" step="0.01"
+           style="max-width:200px;" oninput="onInstPaymentAmountInput()" />
+  </div>
+  <div id="inst-combo-wrap" style="display:none;margin-bottom:12px;">
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">Select at least 2 methods. Last selected is auto-calculated.</div>
+    {% for m in ['Cash','Card','UPI','Cheque','NEFT'] %}
+    <div class="inst-combo-row">
+      <input type="checkbox" id="inst-combo-chk-{{ m }}" value="{{ m }}" onchange="onInstComboChange()" />
+      <label for="inst-combo-chk-{{ m }}">{{ m }}</label>
+      <input type="number" id="inst-combo-amt-{{ m }}" class="input" style="max-width:160px;"
+             placeholder="0.00" min="0" step="0.01" disabled oninput="onInstComboAmtInput('{{ m }}')" />
+    </div>
+    {% endfor %}
+    <div id="inst-combo-remaining" style="font-size:12px;margin-top:4px;"></div>
+  </div>
+  <div id="err-payment" class="text-danger" style="font-size:12px;min-height:16px;margin-bottom:10px;"></div>
+  <div style="border-top:1px solid var(--border-color,#eee);padding-top:12px;max-width:320px;margin-left:auto;">
+    <table class="inst-summary-table">
+      <tr><td>Total Amount</td><td id="inst-sum-total">₹0.00</td></tr>
+      <tr>
+        <td>Advance Paid (₹)</td>
+        <td><input type="number" id="inst-advance-paid" class="input" min="0" step="0.01"
+                   style="width:120px;text-align:right;padding:4px 8px;" oninput="onInstAdvancePaidInput()" /></td>
+      </tr>
+      <tr><td colspan="2"><div id="err-advance" class="text-danger" style="font-size:12px;text-align:right;min-height:14px;"></div></td></tr>
+      <tr class="inst-grand"><td>Remaining</td><td id="inst-sum-remaining">₹0.00</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- Submit -->
+<div class="card inst-section" style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+  <button id="inst-save-btn" class="btn btn-primary" onclick="saveInstBill()">&#10003; Update Institution Bill</button>
+  <div id="inst-save-error" class="text-danger" style="font-size:13px;"></div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>window.INST_BILL_ID = {{ bill_id }};</script>
+<script src="{{ url_for('static', filename='js/inst-bill.js') }}?v={{ sv }}"></script>
+{% endblock %}

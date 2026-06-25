@@ -59,10 +59,18 @@ function updateSummary() {
   }
 
   if (currentMode !== 'Combination') {
-    document.getElementById('payment-single-amount').value = netPayable.toFixed(2);
+    document.getElementById('payment-single-amount').value = advancePaid.toFixed(2);
   } else {
     syncComboAutoFill();
   }
+}
+
+function onPaymentAmountInput() {
+  const amt    = round2(parseFloat(document.getElementById('payment-single-amount').value) || 0);
+  const advEl  = document.getElementById('advance-paid');
+  if (advEl) advEl.value = amt.toFixed(2);
+  advancePaidUserModified = true;
+  updateSummary();
 }
 
 function getFinalTotal() {
@@ -98,7 +106,8 @@ function onPaymentModeChange(mode) {
     singleWrap.style.display = 'block';
     comboWrap.style.display  = 'none';
     labelEl.textContent      = `${mode} Amount (₹)`;
-    amountEl.value           = total.toFixed(2);
+    const advancePaid        = round2(parseFloat(document.getElementById('advance-paid')?.value) || 0);
+    amountEl.value           = advancePaid.toFixed(2);
   }
   document.getElementById('payment-error').textContent = '';
 }

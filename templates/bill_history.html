@@ -9,6 +9,20 @@
 
 {% block content %}
 
+<!-- ====== Tabs ====== -->
+<div style="display:flex;gap:0;margin-bottom:16px;border-bottom:2px solid var(--border);">
+  <button id="tab-regular" onclick="switchHistoryTab('regular')"
+          style="padding:9px 22px;font-size:14px;font-weight:600;border:none;background:none;cursor:pointer;
+                 border-bottom:3px solid var(--primary);margin-bottom:-2px;color:var(--primary);">
+    Regular Bills
+  </button>
+  <button id="tab-institution" onclick="switchHistoryTab('institution')"
+          style="padding:9px 22px;font-size:14px;font-weight:600;border:none;background:none;cursor:pointer;
+                 border-bottom:3px solid transparent;margin-bottom:-2px;color:var(--text-muted);">
+    Institution Bills
+  </button>
+</div>
+
 <!-- ====== Search Bar ====== -->
 <div class="card mb-3">
   <div class="history-search-bar" style="display:grid;grid-template-columns:1fr 1fr 1fr auto auto;gap:10px;align-items:flex-end;">
@@ -17,11 +31,11 @@
       <input type="text" id="search-bill-number" class="input" placeholder="e.g. SHN-0001" />
     </div>
     <div>
-      <label>Customer Name</label>
+      <label id="search-name-label">Customer Name</label>
       <input type="text" id="search-name" class="input" placeholder="Search by name" />
     </div>
     <div>
-      <label>Mobile Number</label>
+      <label id="search-mobile-label">Mobile Number</label>
       <input type="text" id="search-mobile" class="input" placeholder="10-digit mobile" />
     </div>
     <div class="history-search-btn-wrap">
@@ -53,12 +67,12 @@
   <div id="history-empty" class="empty-state" style="display:none;">
     <div class="empty-state-icon">&#128196;</div>
     <div id="history-empty-msg">No bills found.</div>
-    <div class="mt-2">
+    <div class="mt-2" id="history-empty-action">
       <a href="/new-bill" class="btn btn-primary btn-sm">&#43; Create First Bill</a>
     </div>
   </div>
 
-  <!-- Table -->
+  <!-- Regular bills table -->
   <div id="history-table-wrap" class="table-scroll-wrapper" style="display:none;">
     <table class="table table-clickable">
       <thead>
@@ -74,6 +88,25 @@
         </tr>
       </thead>
       <tbody id="history-body"></tbody>
+    </table>
+  </div>
+
+  <!-- Institution bills table -->
+  <div id="inst-history-table-wrap" class="table-scroll-wrapper" style="display:none;">
+    <table class="table table-clickable">
+      <thead>
+        <tr>
+          <th>Bill No</th>
+          <th>Company</th>
+          <th>Contact Person</th>
+          <th class="col-date">Date</th>
+          <th class="text-right col-items">Items</th>
+          <th class="text-right">Amount</th>
+          <th class="col-payment">Payment</th>
+          <th style="text-align:center;">Actions</th>
+        </tr>
+      </thead>
+      <tbody id="inst-history-body"></tbody>
     </table>
   </div>
 </div>
@@ -138,10 +171,71 @@
   </div>
 </div>
 
+<!-- ====== Institution Cancel Modal ====== -->
+<div class="modal-overlay hidden" id="inst-cancel-modal">
+  <div class="modal-box">
+    <div class="modal-header modal-header--warning">
+      <h3>&#10006; Cancel Institution Bill &mdash; <span id="inst-cancel-modal-bill-num"></span></h3>
+      <button class="modal-close" onclick="closeInstCancelModal()">&#215;</button>
+    </div>
+    <div class="modal-body">
+      <div class="notice-box notice-box--warning">
+        <p>
+          The bill will be marked as <strong>CANCELLED</strong> but kept in records.<br>
+          The bill number will <strong>not</strong> be changed or reused.<br>
+          You can restore the bill later if needed.
+        </p>
+      </div>
+      <div id="inst-cancel-modal-error" class="text-danger mt-2" style="font-size:13px;min-height:18px;"></div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary" onclick="closeInstCancelModal()">Go Back</button>
+      <button type="button" id="inst-btn-confirm-cancel" onclick="confirmInstCancel()" class="btn btn-warning">
+        Yes, Cancel Bill
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ====== Institution Delete Modal ====== -->
+<div class="modal-overlay hidden" id="inst-delete-modal">
+  <div class="modal-box">
+    <div class="modal-header modal-header--danger">
+      <h3>&#128465; Delete Institution Bill &mdash; <span id="inst-delete-modal-bill-num"></span></h3>
+      <button class="modal-close" onclick="closeInstDeleteModal()">&#215;</button>
+    </div>
+    <div class="modal-body">
+      <div class="notice-box notice-box--danger">
+        <p class="notice-danger-title">&#9888;&#65039; WARNING: This action cannot be undone.</p>
+        <p class="notice-danger-body">
+          Bill <strong id="inst-delete-modal-warning-num"></strong> will be permanently deleted.<br>
+          All institution bills after this one (in the same financial year) will be renumbered.<br>
+          For example: INST-0004/26-27 becomes INST-0003/26-27, and so on.
+        </p>
+      </div>
+      <div id="inst-delete-modal-error" class="text-danger mt-2" style="font-size:13px;min-height:18px;"></div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary" onclick="closeInstDeleteModal()">Cancel</button>
+      <button type="button" class="btn btn-danger" id="inst-btn-confirm-delete" onclick="confirmInstDelete()">
+        Yes, Delete and Renumber
+      </button>
+    </div>
+  </div>
+</div>
+
 {% endblock %}
 
 {% block extra_css %}
 <style>
+.hist-tab-active {
+  border-bottom-color: var(--primary) !important;
+  color: var(--primary) !important;
+}
+.hist-tab-inactive {
+  border-bottom-color: transparent !important;
+  color: var(--text-muted) !important;
+}
 .row-menu-wrap { position: relative; display: inline-block; }
 .row-menu-trigger { font-size: 16px; letter-spacing: 1px; padding: 2px 8px; }
 .row-menu {
@@ -175,5 +269,6 @@ html[data-theme="dark"] .row-menu-warn { color: #fcd34d; }
 {% endblock %}
 
 {% block extra_js %}
+<script src="{{ url_for('static', filename='js/inst-performa.js') }}?v={{ sv }}"></script>
 <script src="{{ url_for('static', filename='js/history.js') }}"></script>
 {% endblock %}

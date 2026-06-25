@@ -347,6 +347,66 @@ def _m14_drop_item_unique_constraint(conn):
     conn.execute("PRAGMA foreign_keys = ON")
 
 
+def _m16_institution_bills(conn):
+    conn.executescript("""
+        CREATE TABLE IF NOT EXISTS institution_bills (
+            id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+            bill_number           TEXT NOT NULL UNIQUE,
+            company_name          TEXT NOT NULL,
+            contact_person_name   TEXT NOT NULL,
+            contact_person_mobile TEXT NOT NULL,
+            bill_date             TEXT NOT NULL,
+            subtotal              REAL NOT NULL DEFAULT 0,
+            final_total           REAL NOT NULL DEFAULT 0,
+            advance_paid          REAL NOT NULL DEFAULT 0,
+            remaining             REAL NOT NULL DEFAULT 0,
+            salesperson_name      TEXT NOT NULL DEFAULT '',
+            payment_mode_type     TEXT NOT NULL,
+            status                TEXT NOT NULL DEFAULT 'active',
+            created_at            TEXT DEFAULT (datetime('now', '+5 hours', '+30 minutes')),
+            updated_at            TEXT DEFAULT (datetime('now', '+5 hours', '+30 minutes'))
+        );
+
+        CREATE TABLE IF NOT EXISTS institution_bill_items (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            bill_id         INTEGER NOT NULL REFERENCES institution_bills(id) ON DELETE CASCADE,
+            cloth_type      TEXT NOT NULL,
+            company_name    TEXT NOT NULL,
+            quality_number  TEXT,
+            quantity_per_pc REAL NOT NULL,
+            rate_per_m      REAL NOT NULL,
+            no_of_pcs       INTEGER NOT NULL,
+            total           REAL NOT NULL,
+            created_at      TEXT DEFAULT (datetime('now', '+5 hours', '+30 minutes'))
+        );
+
+        CREATE TABLE IF NOT EXISTS institution_bill_payments (
+            id             INTEGER PRIMARY KEY AUTOINCREMENT,
+            bill_id        INTEGER NOT NULL REFERENCES institution_bills(id) ON DELETE CASCADE,
+            payment_method TEXT NOT NULL,
+            amount         REAL NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS inst_bill_number_seq (
+            id       INTEGER PRIMARY KEY CHECK (id = 1),
+            next_val INTEGER NOT NULL DEFAULT 0,
+            fy       TEXT    NOT NULL DEFAULT ''
+        );
+    """)
+
+
+def _m17_inst_item_stitching(conn):
+    conn.execute(
+        "ALTER TABLE institution_bill_items ADD COLUMN stitching_per_unit REAL NOT NULL DEFAULT 0"
+    )
+
+
+def _m18_inst_company_address(conn):
+    conn.execute(
+        "ALTER TABLE institution_bills ADD COLUMN company_address TEXT NOT NULL DEFAULT ''"
+    )
+
+
 MIGRATIONS = [
     (1,  _m01_baseline_schema),
     (2,  _m02_bills_extra_columns),
@@ -363,12 +423,30 @@ MIGRATIONS = [
     (13, _m13_cost_price),
     (14, _m14_drop_item_unique_constraint),
     (15, _m15_special_code),
+    (16, _m16_institution_bills),
+    (17, _m17_inst_item_stitching),
+    (18, _m18_inst_company_address),
 ]
 
 
 # ----------------------------------------------------------------
 # Startup sync — runs every boot, always idempotent
 # ----------------------------------------------------------------
+
+def _sync_inst_bill_number_seq(conn):
+    fy = _current_fy()
+    conn.execute(
+        "INSERT OR IGNORE INTO inst_bill_number_seq (id, next_val, fy) VALUES (1, 0, ?)", (fy,)
+    )
+    conn.execute("UPDATE inst_bill_number_seq SET fy = ? WHERE id = 1 AND fy = ''", (fy,))
+    conn.execute(
+        "UPDATE inst_bill_number_seq SET next_val = MAX(next_val, "
+        "(SELECT COALESCE(MAX(CAST(SUBSTR(bill_number, 6) AS INTEGER)), 0) "
+        "FROM institution_bills WHERE bill_number LIKE ?)) "
+        "WHERE id = 1",
+        (f"INST-%/{fy}",),
+    )
+
 
 def _sync_bill_number_seq(conn):
     """Ensure the sequence row exists for the current FY and is ahead of the max bill number."""
@@ -415,6 +493,7 @@ def init_db():
                 _mark_applied(conn, version)
 
         _sync_bill_number_seq(conn)
+        _sync_inst_bill_number_seq(conn)
         conn.commit()
     finally:
         conn.close()

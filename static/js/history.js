@@ -1,10 +1,19 @@
 /* history.js — Bill History page logic */
 
+// ---- Tab state ----
+let currentHistoryTab = 'regular';
+
 // ---- Modal state ----
 let pendingDeleteId     = null;
 let pendingDeleteNumber = null;
 let pendingCancelId     = null;
 let pendingCancelNumber = null;
+
+// Institution bill modal state
+let instPendingDeleteId     = null;
+let instPendingDeleteNumber = null;
+let instPendingCancelId     = null;
+let instPendingCancelNumber = null;
 
 function fmt(amount) {
   return Number(amount || 0).toLocaleString('en-IN', {
@@ -160,6 +169,8 @@ async function loadAllBills() {
 // Search
 // ----------------------------------------------------------------
 async function doSearch() {
+  if (currentHistoryTab === 'institution') { await doInstSearch(); return; }
+
   const billNumber = document.getElementById('search-bill-number').value.trim();
   const name       = document.getElementById('search-name').value.trim();
   const mobile     = document.getElementById('search-mobile').value.trim();
@@ -195,14 +206,19 @@ function clearSearch() {
   document.getElementById('search-name').value        = '';
   document.getElementById('search-mobile').value      = '';
   showLoading();
-  loadAllBills();
+  if (currentHistoryTab === 'institution') {
+    loadAllInstBills();
+  } else {
+    loadAllBills();
+  }
 }
 
 function showLoading() {
-  document.getElementById('history-loading').style.display    = 'flex';
-  document.getElementById('history-empty').style.display      = 'none';
-  document.getElementById('history-table-wrap').style.display = 'none';
-  document.getElementById('results-count').textContent        = '';
+  document.getElementById('history-loading').style.display         = 'flex';
+  document.getElementById('history-empty').style.display           = 'none';
+  document.getElementById('history-table-wrap').style.display      = 'none';
+  document.getElementById('inst-history-table-wrap').style.display = 'none';
+  document.getElementById('results-count').textContent             = '';
 }
 
 // ---- Live debounced search + Enter key on all three search fields
@@ -221,6 +237,36 @@ const debouncedSearch = debounce(doSearch, 400);
 
 // ---- Init
 document.addEventListener('DOMContentLoaded', loadAllBills);
+
+// ----------------------------------------------------------------
+// Tab switching
+// ----------------------------------------------------------------
+function switchHistoryTab(tab) {
+  currentHistoryTab = tab;
+
+  const tabRegular = document.getElementById('tab-regular');
+  const tabInst    = document.getElementById('tab-institution');
+  tabRegular.className = tab === 'regular'     ? 'hist-tab-active' : 'hist-tab-inactive';
+  tabInst.className    = tab === 'institution' ? 'hist-tab-active' : 'hist-tab-inactive';
+
+  // Relabel search fields
+  document.getElementById('search-name-label').textContent   = tab === 'institution' ? 'Company Name'    : 'Customer Name';
+  document.getElementById('search-mobile-label').textContent = tab === 'institution' ? 'Contact Person'  : 'Mobile Number';
+  document.getElementById('search-bill-number').placeholder  = tab === 'institution' ? 'e.g. INST-0001'  : 'e.g. SHN-0001';
+  document.getElementById('search-mobile').placeholder       = tab === 'institution' ? 'Search by contact' : '10-digit mobile';
+
+  // Clear search inputs
+  document.getElementById('search-bill-number').value = '';
+  document.getElementById('search-name').value        = '';
+  document.getElementById('search-mobile').value      = '';
+
+  showLoading();
+  if (tab === 'institution') {
+    loadAllInstBills();
+  } else {
+    loadAllBills();
+  }
+}
 
 // ----------------------------------------------------------------
 // Row "⋯" dropdown menu helpers
@@ -349,6 +395,13 @@ document.getElementById('delete-modal').addEventListener('click', function (e) {
   if (e.target === this) closeDeleteModal();
 });
 
+document.getElementById('inst-cancel-modal').addEventListener('click', function (e) {
+  if (e.target === this) closeInstCancelModal();
+});
+document.getElementById('inst-delete-modal').addEventListener('click', function (e) {
+  if (e.target === this) closeInstDeleteModal();
+});
+
 // ----------------------------------------------------------------
 // Toast
 // ----------------------------------------------------------------
@@ -410,3 +463,225 @@ function copyBillShareLink(billNumber) {
   copyToClipboard(link);
   showToast('Share link copied for ' + billNumber);
 }
+
+// ----------------------------------------------------------------
+// Institution Bills
+// ----------------------------------------------------------------
+async function loadAllInstBills() {
+  try {
+    const res  = await fetch('/api/institution-bills');
+    if (!res.ok) throw new Error('API error');
+    const bills = await res.json();
+    renderInstTable(bills, 'Institution Bills');
+  } catch (err) {
+    document.getElementById('history-loading').innerHTML =
+      `<span class="text-danger">Failed to load institution bills: ${err.message}</span>`;
+  }
+}
+
+async function doInstSearch() {
+  const billNumber = document.getElementById('search-bill-number').value.trim();
+  const name       = document.getElementById('search-name').value.trim();
+  const mobile     = document.getElementById('search-mobile').value.trim();
+
+  if (!billNumber && !name && !mobile) {
+    showLoading();
+    await loadAllInstBills();
+    return;
+  }
+
+  showLoading();
+  const params = new URLSearchParams();
+  if (billNumber) params.set('billNumber', billNumber);
+  if (name)       params.set('name', name);
+  if (mobile)     params.set('mobile', mobile);
+
+  try {
+    const res  = await fetch(`/api/institution-bills/search?${params.toString()}`);
+    if (!res.ok) throw new Error('API error');
+    const bills = await res.json();
+    renderInstTable(bills, 'Search Results');
+  } catch (err) {
+    document.getElementById('history-loading').style.display = 'none';
+    document.getElementById('history-empty').style.display   = 'block';
+    document.getElementById('history-empty-msg').textContent = 'Search failed: ' + err.message;
+  }
+}
+
+function renderInstTable(bills, titleText) {
+  const loading = document.getElementById('history-loading');
+  const empty   = document.getElementById('history-empty');
+  const wrap    = document.getElementById('inst-history-table-wrap');
+  const tbody   = document.getElementById('inst-history-body');
+  const title   = document.getElementById('results-title');
+  const countEl = document.getElementById('results-count');
+  const emptyAction = document.getElementById('history-empty-action');
+
+  loading.style.display = 'none';
+  title.textContent  = titleText || 'Institution Bills';
+  countEl.textContent = bills.length ? `${bills.length} bill${bills.length !== 1 ? 's' : ''}` : '';
+
+  if (!bills.length) {
+    empty.style.display = 'block';
+    wrap.style.display  = 'none';
+    document.getElementById('history-empty-msg').textContent =
+      titleText === 'Search Results' ? 'No institution bills match your search.' : 'No institution bills yet.';
+    emptyAction.innerHTML = `<a href="/new-institution-bill" class="btn btn-primary btn-sm">&#43; Create First Institution Bill</a>`;
+    return;
+  }
+
+  emptyAction.innerHTML = `<a href="/new-bill" class="btn btn-primary btn-sm">&#43; Create First Bill</a>`;
+  empty.style.display = 'none';
+  wrap.style.display  = 'block';
+
+  const instPayBadgeMap = { Cash:'badge-success', Card:'badge-info', UPI:'badge-warning',
+                             Cheque:'badge-neutral', NEFT:'badge-neutral', Combination:'badge-neutral', Pending:'badge-secondary' };
+
+  tbody.innerHTML = bills.map(b => {
+    const cancelled  = b.status === 'cancelled';
+    const remaining  = b.remaining || 0;
+
+    const statusBadge = cancelled
+      ? `<span class="badge" style="background:#fee2e2;color:#9b1c1c;font-size:10px;font-weight:700;">CANCELLED</span>`
+      : (remaining > 0
+          ? `<span class="badge" style="background:#fee2e2;color:#b91c1c;font-size:10px;">Due: ${fmt(remaining)}</span>`
+          : `<span class="badge badge-success" style="font-size:10px;">Paid</span>`);
+
+    const payBadge = `<span class="badge ${instPayBadgeMap[b.payment_mode_type] || 'badge-neutral'}">${b.payment_mode_type}</span>`;
+
+    const billNumHtml = cancelled
+      ? `<span class="fw-600" style="color:var(--text-muted);text-decoration:line-through;">${b.bill_number}</span>`
+      : `<span class="fw-600" style="color:var(--primary);">${b.bill_number}</span>`;
+
+    const rowStyle = cancelled ? 'background:#fafafa;opacity:.72;' : '';
+
+    const moreItems = cancelled
+      ? `<button class="row-menu-item" onclick="openInstInvoice(${b.id}); closeRowMenu('inst-menu-${b.id}'); event.stopPropagation();">&#128438; Print Invoice</button>
+         <button class="row-menu-item" onclick="openInstPerformaInvoice(${b.id}); closeRowMenu('inst-menu-${b.id}'); event.stopPropagation();">&#128438; Print Performa</button>
+         <div class="row-menu-divider"></div>
+         <button class="row-menu-item" onclick="instRestoreBill(${b.id}, '${b.bill_number}'); closeRowMenu('inst-menu-${b.id}'); event.stopPropagation();">&#10227; Restore Bill</button>
+         <button class="row-menu-item row-menu-danger" onclick="instDeleteBill(${b.id}, '${b.bill_number}'); closeRowMenu('inst-menu-${b.id}'); event.stopPropagation();">&#128465; Delete</button>`
+      : `<button class="row-menu-item" onclick="openInstInvoice(${b.id}); closeRowMenu('inst-menu-${b.id}'); event.stopPropagation();">&#128438; Print Invoice</button>
+         <button class="row-menu-item" onclick="openInstPerformaInvoice(${b.id}); closeRowMenu('inst-menu-${b.id}'); event.stopPropagation();">&#128438; Print Performa</button>
+         <div class="row-menu-divider"></div>
+         <button class="row-menu-item row-menu-warn" onclick="instCancelBill(${b.id}, '${b.bill_number}'); closeRowMenu('inst-menu-${b.id}'); event.stopPropagation();">&#10006; Cancel Bill</button>
+         <button class="row-menu-item row-menu-danger" onclick="instDeleteBill(${b.id}, '${b.bill_number}'); closeRowMenu('inst-menu-${b.id}'); event.stopPropagation();">&#128465; Delete</button>`;
+
+    const primaryBtns = cancelled
+      ? `<a href="/institution-bills/${b.id}" class="btn btn-secondary btn-sm" onclick="event.stopPropagation()">View</a>`
+      : `<a href="/institution-bills/${b.id}" class="btn btn-secondary btn-sm" onclick="event.stopPropagation()">View</a>
+         <a href="/edit-institution-bill/${b.id}" class="btn btn-secondary btn-sm" onclick="event.stopPropagation()">Edit</a>`;
+
+    const actionBtns = `
+      ${primaryBtns}
+      <div class="row-menu-wrap" onclick="event.stopPropagation()">
+        <button class="btn btn-secondary btn-sm row-menu-trigger"
+                onclick="toggleRowMenu('inst-menu-${b.id}')">&#8943;</button>
+        <div class="row-menu" id="inst-menu-${b.id}">${moreItems}</div>
+      </div>`;
+
+    return `
+      <tr onclick="location.href='/institution-bills/${b.id}'" style="cursor:pointer;${rowStyle}">
+        <td>${billNumHtml}</td>
+        <td style="${cancelled ? 'color:var(--text-muted);' : ''}">${b.company_name || '—'}</td>
+        <td style="color:var(--text-muted);">${b.contact_person_name || '—'}</td>
+        <td class="col-date" style="${cancelled ? 'color:var(--text-muted);' : ''}">${b.bill_date || '—'}</td>
+        <td class="text-right col-items">${b.item_count ?? '—'}</td>
+        <td class="text-right">
+          <span class="fw-600"${cancelled ? ' style="text-decoration:line-through;color:var(--text-muted);"' : ''}>${fmt(b.final_total)}</span>
+          <span style="display:block;margin-top:2px;">${statusBadge}</span>
+        </td>
+        <td class="col-payment">${payBadge}</td>
+        <td style="text-align:center;">
+          <div style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap;" onclick="event.stopPropagation()">
+            ${actionBtns}
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+// ---- Institution bill cancel ----
+function instCancelBill(billId, billNumber) {
+  instPendingCancelId     = billId;
+  instPendingCancelNumber = billNumber;
+  document.getElementById('inst-cancel-modal-bill-num').textContent = billNumber;
+  document.getElementById('inst-cancel-modal-error').textContent    = '';
+  document.getElementById('inst-btn-confirm-cancel').disabled    = false;
+  document.getElementById('inst-btn-confirm-cancel').textContent = 'Yes, Cancel Bill';
+  document.getElementById('inst-cancel-modal').classList.remove('hidden');
+}
+
+function closeInstCancelModal() {
+  document.getElementById('inst-cancel-modal').classList.add('hidden');
+  instPendingCancelId = null; instPendingCancelNumber = null;
+}
+
+async function confirmInstCancel() {
+  if (!instPendingCancelId) return;
+  const btn = document.getElementById('inst-btn-confirm-cancel');
+  btn.disabled = true; btn.textContent = 'Cancelling…';
+  document.getElementById('inst-cancel-modal-error').textContent = '';
+  try {
+    const res  = await fetch(`/api/institution-bills/${instPendingCancelId}/cancel`, { method: 'PUT' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Cancel failed.');
+    closeInstCancelModal();
+    showToast('Institution bill cancelled.');
+    setTimeout(() => { showLoading(); loadAllInstBills(); }, 800);
+  } catch (err) {
+    document.getElementById('inst-cancel-modal-error').textContent = err.message;
+    btn.disabled = false; btn.textContent = 'Yes, Cancel Bill';
+  }
+}
+
+// ---- Institution bill restore ----
+async function instRestoreBill(billId, billNumber) {
+  if (!confirm(`Restore bill ${billNumber}? It will become active again.`)) return;
+  try {
+    const res  = await fetch(`/api/institution-bills/${billId}/restore`, { method: 'PUT' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Restore failed.');
+    showToast('Institution bill restored.');
+    setTimeout(() => { showLoading(); loadAllInstBills(); }, 800);
+  } catch (err) {
+    showToast('Error: ' + err.message, true);
+  }
+}
+
+// ---- Institution bill delete ----
+function instDeleteBill(billId, billNumber) {
+  instPendingDeleteId     = billId;
+  instPendingDeleteNumber = billNumber;
+  document.getElementById('inst-delete-modal-bill-num').textContent    = billNumber;
+  document.getElementById('inst-delete-modal-warning-num').textContent = billNumber;
+  document.getElementById('inst-delete-modal-error').textContent       = '';
+  document.getElementById('inst-btn-confirm-delete').disabled    = false;
+  document.getElementById('inst-btn-confirm-delete').textContent = 'Yes, Delete and Renumber';
+  document.getElementById('inst-delete-modal').classList.remove('hidden');
+}
+
+function closeInstDeleteModal() {
+  document.getElementById('inst-delete-modal').classList.add('hidden');
+  instPendingDeleteId = null; instPendingDeleteNumber = null;
+}
+
+async function confirmInstDelete() {
+  if (!instPendingDeleteId) return;
+  const btn = document.getElementById('inst-btn-confirm-delete');
+  btn.disabled = true; btn.textContent = 'Deleting…';
+  document.getElementById('inst-delete-modal-error').textContent = '';
+  try {
+    const res  = await fetch(`/api/institution-bills/${instPendingDeleteId}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Delete failed.');
+    closeInstDeleteModal();
+    showToast('Institution bill deleted and renumbered.');
+    setTimeout(() => { showLoading(); loadAllInstBills(); }, 1000);
+  } catch (err) {
+    document.getElementById('inst-delete-modal-error').textContent = err.message;
+    btn.disabled = false; btn.textContent = 'Yes, Delete and Renumber';
+  }
+}
+
