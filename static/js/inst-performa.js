@@ -62,6 +62,8 @@ function buildPerformaWindow(bill, items, type) {
     hr.thick { border: none; border-top: 2px solid #000; margin: 5px 0 10px; }
 
     .company-block { margin-bottom: 14px; font-size: 13px; line-height: 1.6; font-weight: 600; }
+    ${!isProforma ? `.company-block { display: flex; justify-content: space-between; align-items: flex-start; }
+    .company-meta { text-align: right; white-space: nowrap; }` : ''}
 
     .salutation { font-size: 13px; line-height: 1.8; margin-bottom: 10px; }
     .salutation .intro { margin-top: 10px; }
@@ -92,6 +94,7 @@ function buildPerformaWindow(bill, items, type) {
 </head>
 <body>
 
+  ${!isProforma ? `<div style="text-align:center;font-size:22px;font-weight:900;letter-spacing:2px;margin-bottom:8px;">INVOICE</div>` : ''}
   <div class="header-wrap">
     <div>
       <div class="shop-name">SHUBHAM NX</div>
@@ -102,22 +105,32 @@ function buildPerformaWindow(bill, items, type) {
         Authorised Dealers for RAYMONDS, VIMAL, SIYARAMS and GRASIM.
       </div>
     </div>
-    <div class="date-col">
-      <span class="date-label">Date</span> ${date}
-    </div>
+    ${isProforma ? `<div class="date-col"><span class="date-label">Date</span> ${date}</div>` : ''}
   </div>
 
   <hr class="thick" />
 
   <div class="company-block">
-    ${bill.company_name}<br/>
-    ${bill.company_address ? bill.company_address + '<br/>' : ''}${bill.contact_person_name || ''}
+    ${isProforma ? `
+      ${bill.company_name}<br/>
+      ${bill.company_address ? bill.company_address + '<br/>' : ''}${bill.contact_person_name || ''}
+    ` : `
+      <div>
+        ${bill.company_name}<br/>
+        ${bill.company_address ? bill.company_address + '<br/>' : ''}${bill.contact_person_name || ''}
+      </div>
+      <div class="company-meta">
+        Date: ${date}<br/>
+        Invoice No: ${bill.bill_number}
+      </div>
+    `}
   </div>
 
+  ${isProforma ? `
   <div class="salutation">
     Dear Sir/Ma'am,
     <div class="intro">${salutation}</div>
-  </div>
+  </div>` : ''}
 
   <table>
     <thead>
@@ -160,11 +173,10 @@ function buildPerformaWindow(bill, items, type) {
   ${isProforma ? '<div class="footer-note">This Quotation valid for 5 Days only.</div>' : ''}
   <div class="footer-note">Cost of Embroidery would be extra at Actual.</div>
   ${isProforma ? '<div class="footer-note">70% Advance along with PO.</div>' : ''}
-  <div class="footer-note" style="margin-top:20px;">Looking forward for your kind and continued support.</div>
+  ${isProforma ? `<div class="footer-note" style="margin-top:20px;">Looking forward for your kind and continued support.</div>` : ''}
 
   <div class="sign-block">
-    Yours faithfully<br/><br/><br/>
-    Manish Jain
+    ${isProforma ? `Yours faithfully<br/><br/><br/>Manish Jain` : `<div style="margin-top:60px;">Shubham NX</div>`}
   </div>
 
   <script>window.onload = function () { window.print(); };<\/script>
