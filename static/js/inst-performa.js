@@ -10,7 +10,7 @@ function _fmtPerformaDate(dateStr) {
 }
 
 // type: 'proforma' | 'invoice'
-function buildPerformaWindow(bill, items, type) {
+function buildPerformaWindow(bill, items, type, winRef) {
   type = type || 'proforma';
   const isProforma = type === 'proforma';
   const docTitle   = isProforma ? 'Proforma Invoice' : 'Invoice';
@@ -56,14 +56,10 @@ function buildPerformaWindow(bill, items, type) {
     .header-wrap { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px; }
     .shop-name { font-size: 28px; font-weight: 900; letter-spacing: 0.5px; text-transform: uppercase; }
     .shop-meta { font-size: 12px; margin-top: 3px; line-height: 1.55; color: #111; }
-    .date-col { text-align: right; font-size: 13px; white-space: nowrap; padding-top: 6px; }
-    .date-col .date-label { display: inline-block; min-width: 90px; }
-
     hr.thick { border: none; border-top: 2px solid #000; margin: 5px 0 10px; }
 
-    .company-block { margin-bottom: 14px; font-size: 13px; line-height: 1.6; font-weight: 600; }
-    ${!isProforma ? `.company-block { display: flex; justify-content: space-between; align-items: flex-start; }
-    .company-meta { text-align: right; white-space: nowrap; }` : ''}
+    .company-block { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; font-size: 13px; line-height: 1.6; font-weight: 600; }
+    .company-meta { text-align: right; white-space: nowrap; }
 
     .salutation { font-size: 13px; line-height: 1.8; margin-bottom: 10px; }
     .salutation .intro { margin-top: 10px; }
@@ -94,7 +90,7 @@ function buildPerformaWindow(bill, items, type) {
 </head>
 <body>
 
-  ${!isProforma ? `<div style="text-align:center;font-size:22px;font-weight:900;letter-spacing:2px;margin-bottom:8px;">INVOICE</div>` : ''}
+  <div style="text-align:center;font-size:22px;font-weight:900;letter-spacing:2px;margin-bottom:8px;">${isProforma ? 'PERFORMA INVOICE' : 'INVOICE'}</div>
   <div class="header-wrap">
     <div>
       <div class="shop-name">SHUBHAM NX</div>
@@ -105,25 +101,18 @@ function buildPerformaWindow(bill, items, type) {
         Authorised Dealers for RAYMONDS, VIMAL, SIYARAMS and GRASIM.
       </div>
     </div>
-    ${isProforma ? `<div class="date-col"><span class="date-label">Date</span> ${date}</div>` : ''}
   </div>
 
   <hr class="thick" />
 
   <div class="company-block">
-    ${isProforma ? `
+    <div>
       ${bill.company_name}<br/>
       ${bill.company_address ? bill.company_address + '<br/>' : ''}${bill.contact_person_name || ''}
-    ` : `
-      <div>
-        ${bill.company_name}<br/>
-        ${bill.company_address ? bill.company_address + '<br/>' : ''}${bill.contact_person_name || ''}
-      </div>
-      <div class="company-meta">
-        Date: ${date}<br/>
-        Invoice No: ${bill.bill_number}
-      </div>
-    `}
+    </div>
+    <div class="company-meta">
+      Date: ${date}${!isProforma ? `<br/>Invoice No: ${bill.bill_number}` : ''}
+    </div>
   </div>
 
   ${isProforma ? `
@@ -176,36 +165,42 @@ function buildPerformaWindow(bill, items, type) {
   ${isProforma ? `<div class="footer-note" style="margin-top:20px;">Looking forward for your kind and continued support.</div>` : ''}
 
   <div class="sign-block">
-    ${isProforma ? `Yours faithfully<br/><br/><br/>Manish Jain` : `<div style="margin-top:60px;">Shubham NX</div>`}
+    ${isProforma ? `Yours faithfully<br/><br/><br/>Shubham NX` : `<div style="margin-top:60px;">Shubham NX</div>`}
   </div>
 
   <script>window.onload = function () { window.print(); };<\/script>
 </body>
 </html>`;
 
-  const win = window.open('', '_blank');
+  const win = winRef || window.open('', '_blank');
   win.document.write(html);
   win.document.close();
 }
 
 async function openInstPerformaInvoice(billId) {
+  // Open window immediately (before await) so iOS Safari doesn't block the popup
+  const win = window.open('', '_blank');
   try {
     const res  = await fetch(`/api/institution-bills/${billId}`);
     if (!res.ok) throw new Error('Bill not found');
     const data = await res.json();
-    buildPerformaWindow(data.bill, data.items, 'proforma');
+    buildPerformaWindow(data.bill, data.items, 'proforma', win);
   } catch (err) {
+    if (win) win.close();
     alert('Failed to load bill for printing: ' + err.message);
   }
 }
 
 async function openInstInvoice(billId) {
+  // Open window immediately (before await) so iOS Safari doesn't block the popup
+  const win = window.open('', '_blank');
   try {
     const res  = await fetch(`/api/institution-bills/${billId}`);
     if (!res.ok) throw new Error('Bill not found');
     const data = await res.json();
-    buildPerformaWindow(data.bill, data.items, 'invoice');
+    buildPerformaWindow(data.bill, data.items, 'invoice', win);
   } catch (err) {
+    if (win) win.close();
     alert('Failed to load bill for printing: ' + err.message);
   }
 }

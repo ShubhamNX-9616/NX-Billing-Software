@@ -249,10 +249,12 @@
 
   <!-- Success bar -->
   <div id="inst-success-bar">
-    <strong id="inst-success-bill-num"></strong> saved successfully.
-    <button class="btn btn-sm btn-secondary no-print" id="inst-invoice-btn" style="margin-left:12px;">&#128438; Print Invoice</button>
-    <button class="btn btn-sm btn-secondary no-print" id="inst-performa-btn" style="margin-left:6px;">&#128438; Print Performa Invoice</button>
-    <button class="btn btn-sm btn-primary no-print" onclick="resetInstForm()" style="margin-left:8px;">+ New Institution Bill</button>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
+      <span><strong id="inst-success-bill-num"></strong> saved successfully.</span>
+      <button class="btn btn-sm btn-secondary no-print" id="inst-invoice-btn">&#128438; Print Invoice</button>
+      <button class="btn btn-sm btn-secondary no-print" id="inst-performa-btn">&#128438; Print Performa Invoice</button>
+      <button class="btn btn-sm btn-primary no-print" onclick="resetInstForm()">+ New Institution Bill</button>
+    </div>
   </div>
 
   <!-- Company Details -->

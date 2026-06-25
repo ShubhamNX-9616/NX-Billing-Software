@@ -184,6 +184,16 @@ a:hover {
     display: none;
   }
 
+  /* Bill history tabs: equal width, reduced padding on mobile */
+  #tab-regular,
+  #tab-institution {
+    flex: 1;
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+    font-size: 13px !important;
+    text-align: center;
+  }
+
   /* Bill history search bar: stack inputs vertically */
   .history-search-bar {
     grid-template-columns: 1fr !important;
