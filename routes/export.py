@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 _IST = timezone(timedelta(hours=5, minutes=30))
 from flask import Blueprint, jsonify, request, send_file
 from db import get_db
-from auth import api_admin_required
+from services.auth import api_admin_required
 
 export_bp = Blueprint("export", __name__)
 

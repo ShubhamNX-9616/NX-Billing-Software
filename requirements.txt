@@ -2,3 +2,5 @@ flask
 flask-bcrypt
 openpyxl
 qrcode[pil]
+anthropic
+python-dotenv

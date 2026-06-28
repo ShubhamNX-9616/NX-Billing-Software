@@ -30,6 +30,8 @@
     <div class="invoice-action-buttons">
       <a href="/bill-history" class="btn btn-secondary btn-block-mobile">&#8592; Back</a>
       <a href="/edit-bill/{{ bill_id }}" class="btn btn-secondary btn-block-mobile">&#9998; Edit Bill</a>
+      <button type="button" id="record-payment-btn" class="btn btn-primary btn-block-mobile no-print"
+              style="display:none;" onclick="openRecordPaymentModal()">&#43; Record Payment</button>
       <a id="detail-whatsapp-btn"
          href="#"
          target="_blank"
@@ -167,6 +169,10 @@
           <span style="color:var(--text-muted);">Advance Paid</span>
           <span id="inv-advance">—</span>
         </div>
+        <div id="inv-remaining-row" style="display:none;justify-content:space-between;padding:2px 0;font-size:13px;font-weight:700;">
+          <span style="color:var(--danger);">Balance Due</span>
+          <span id="inv-remaining" style="color:var(--danger);">—</span>
+        </div>
         <div style="display:flex;justify-content:space-between;padding:3px 0;font-size:13.5px;font-weight:800;color:var(--success);">
           <span>You saved</span>
           <span id="inv-savings">—</span>
@@ -211,6 +217,43 @@
               class="btn btn-warning">
         Yes, Cancel Bill
       </button>
+    </div>
+  </div>
+</div>
+
+<!-- Record Payment Modal -->
+<div class="modal-overlay hidden no-print" id="record-payment-modal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3>&#43; Record Payment</h3>
+      <button class="modal-close" onclick="closeRecordPaymentModal()">&#215;</button>
+    </div>
+    <div class="modal-body">
+      <p style="margin-bottom:12px;font-size:14px;">
+        Balance due: <strong id="rp-balance-due" style="color:var(--danger);">—</strong>
+      </p>
+      <div style="margin-bottom:12px;">
+        <label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px;">Payment Method</label>
+        <div style="display:flex;gap:8px;">
+          <button type="button" class="rp-method-btn payment-mode-tab active" data-method="Cash" onclick="selectRpMethod(this)">Cash</button>
+          <button type="button" class="rp-method-btn payment-mode-tab" data-method="Card" onclick="selectRpMethod(this)">Card</button>
+          <button type="button" class="rp-method-btn payment-mode-tab" data-method="UPI" onclick="selectRpMethod(this)">UPI</button>
+        </div>
+      </div>
+      <div style="margin-bottom:12px;">
+        <label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px;">Payment Date</label>
+        <input type="date" id="rp-date" class="input" style="width:100%;" />
+      </div>
+      <div style="margin-bottom:8px;">
+        <label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px;">Amount (₹)</label>
+        <input type="number" id="rp-amount" class="input" min="0.01" step="0.01" placeholder="Enter amount"
+               style="width:100%;" />
+      </div>
+      <div id="rp-error" class="text-danger" style="font-size:13px;min-height:18px;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeRecordPaymentModal()">Cancel</button>
+      <button class="btn btn-primary" id="rp-confirm-btn" onclick="confirmRecordPayment()">Record Payment</button>
     </div>
   </div>
 </div>
@@ -382,7 +425,9 @@
       bill.gross_final_total
       || bill.items.reduce((sum, item) => sum + Number(item.final_amount || 0), 0)
     );
-    const roundOff = Number(bill.round_off || Math.max(0, grossFinalTotal - Number(bill.final_total || 0)));
+    const roundOff = bill.round_off != null && bill.round_off !== 0
+      ? Number(bill.round_off)
+      : (grossFinalTotal - Number(bill.final_total || 0));
 
     // Show/hide cancelled banner + swap Cancel/Restore buttons
     const cancelled = bill.status === 'cancelled';
@@ -437,20 +482,33 @@
       subtotalRow.style.display = 'none';
     }
     document.getElementById('inv-final').textContent        = fmt(grossFinalTotal);
-    document.getElementById('inv-roundoff').textContent     = roundOff > 0 ? `−${fmt(roundOff)}` : '—';
+    document.getElementById('inv-roundoff').textContent     =
+      roundOff > 0 ? `−${fmt(roundOff)}` : roundOff < 0 ? `+${fmt(-roundOff)}` : '—';
     document.getElementById('inv-finalpayable').textContent = fmt(Number(bill.final_total || 0));
     document.getElementById('inv-savings').textContent      = fmt(bill.total_savings);
 
     const advancePaid = bill.advance_paid || 0;
+    const remaining   = bill.remaining   || 0;
     const advRow = document.getElementById('inv-advance-row');
     document.getElementById('inv-advance').textContent = fmt(advancePaid);
     advRow.style.display = 'flex';
+
+    const remRow = document.getElementById('inv-remaining-row');
+    const recBtn = document.getElementById('record-payment-btn');
+    if (remaining > 0.005 && bill.status !== 'cancelled') {
+      document.getElementById('inv-remaining').textContent = fmt(remaining);
+      remRow.style.display = 'flex';
+      if (recBtn) recBtn.style.display = '';
+    } else {
+      remRow.style.display = 'none';
+      if (recBtn) recBtn.style.display = 'none';
+    }
 
     // Payments
     const paymentsEl = document.getElementById('inv-payments');
     if (bill.payments && bill.payments.length) {
       paymentsEl.innerHTML = bill.payments.map(p =>
-        `<div class="inv-payment-pill"><strong>${p.payment_method}</strong>: ${fmt(p.amount)}</div>`
+        `<div class="inv-payment-pill"><strong>${p.payment_method}</strong>: ${fmt(p.amount)}${p.paid_at ? `<span style="font-size:11px;color:var(--text-muted);margin-left:5px;">(${p.paid_at})</span>` : ''}</div>`
       ).join('');
     } else {
       paymentsEl.innerHTML = `<span class="text-muted">Payment pending</span>`;
@@ -592,5 +650,61 @@
   }
 
   document.addEventListener('DOMContentLoaded', loadBill);
+
+  /* ---- Record Payment ---- */
+  function openRecordPaymentModal() {
+    const remaining = CURRENT_BILL && CURRENT_BILL.remaining ? Number(CURRENT_BILL.remaining) : 0;
+    document.getElementById('rp-balance-due').textContent = fmt(remaining);
+    document.getElementById('rp-amount').value            = remaining.toFixed(2);
+    document.getElementById('rp-error').textContent       = '';
+    document.getElementById('rp-confirm-btn').disabled    = false;
+    document.getElementById('rp-confirm-btn').textContent = 'Record Payment';
+    document.getElementById('rp-date').value = new Date().toLocaleDateString('en-CA');
+    document.querySelectorAll('.rp-method-btn').forEach(b => b.classList.remove('active'));
+    document.querySelector('.rp-method-btn[data-method="Cash"]').classList.add('active');
+    document.getElementById('record-payment-modal').classList.remove('hidden');
+  }
+
+  function closeRecordPaymentModal() {
+    document.getElementById('record-payment-modal').classList.add('hidden');
+  }
+
+  function selectRpMethod(btn) {
+    document.querySelectorAll('.rp-method-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+
+  async function confirmRecordPayment() {
+    const btn    = document.getElementById('rp-confirm-btn');
+    const errEl  = document.getElementById('rp-error');
+    const amount = parseFloat(document.getElementById('rp-amount').value) || 0;
+    const method = (document.querySelector('.rp-method-btn.active') || {}).dataset?.method;
+
+    errEl.textContent = '';
+    if (amount <= 0) { errEl.textContent = 'Enter a valid amount.'; return; }
+
+    const paid_date = document.getElementById('rp-date').value;
+    btn.disabled    = true;
+    btn.textContent = 'Saving…';
+    try {
+      const res  = await fetch(`/api/bills/${BILL_ID}/record-payment`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ amount, payment_method: method, paid_date }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to record payment.');
+      closeRecordPaymentModal();
+      await loadBill();
+    } catch (err) {
+      errEl.textContent   = err.message;
+      btn.disabled        = false;
+      btn.textContent     = 'Record Payment';
+    }
+  }
+
+  document.getElementById('record-payment-modal').addEventListener('click', function (e) {
+    if (e.target === this) closeRecordPaymentModal();
+  });
 </script>
 {% endblock %}

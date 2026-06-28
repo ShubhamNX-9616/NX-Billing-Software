@@ -3,7 +3,7 @@ from datetime import datetime, timedelta, timezone
 _IST = timezone(timedelta(hours=5, minutes=30))
 from flask import Blueprint, jsonify, request
 from db import get_db
-from auth import api_admin_required
+from services.auth import api_admin_required
 
 analytics_bp = Blueprint("analytics", __name__)
 

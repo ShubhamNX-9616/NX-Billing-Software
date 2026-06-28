@@ -3,7 +3,7 @@ from collections import defaultdict
 from flask import Blueprint, jsonify, request, session
 from db import get_db, generate_bill_number
 from db.connection import _current_fy
-from auth import login_required, admin_required, staff_or_admin_required, api_login_required, api_admin_required
+from services.auth import api_login_required, api_admin_required
 from utils import normalize_mobile, validate_indian_mobile, r2
 from services.billing import (
     validate_and_calculate_items,
@@ -161,16 +161,16 @@ def get_bill(bill_id):
             (bill_id,),
         ).fetchall()
         payments = db.execute(
-            "SELECT payment_method, amount FROM bill_payments WHERE bill_id = ? ORDER BY id",
+            "SELECT payment_method, amount, paid_at FROM bill_payments WHERE bill_id = ? ORDER BY id",
             (bill_id,),
         ).fetchall()
 
         gross_final_total = r2(sum(float(i["final_amount"] or 0) for i in items))
         stored_round_off = float(bill["round_off"] or 0)
-        if stored_round_off > 0:
+        if stored_round_off != 0:
             round_off = stored_round_off
         else:
-            round_off = max(r2(gross_final_total - float(bill["final_total"] or 0)), 0.0)
+            round_off = r2(gross_final_total - float(bill["final_total"] or 0))
 
         result = dict(bill)
         result["gross_final_total"] = gross_final_total
@@ -225,8 +225,8 @@ def create_bill():
 
         calculated_items          = validate_and_calculate_items(db, items)
         totals                    = calculate_bill_totals(calculated_items, body.get("round_off"))
-        validate_payments(payments, totals["final_total"])
         advance_paid, remaining   = parse_advance(body.get("advance_paid"), totals["final_total"])
+        validate_payments(payments, advance_paid)
         customer_id               = find_or_create_customer(db, customer_name, norm_mobile)
         bill_number               = generate_bill_number(db)
         stored_payment_mode       = payment_mode_type or PENDING_PAYMENT_MODE
@@ -371,8 +371,8 @@ def update_bill(bill_id):
 
         calculated_items        = validate_and_calculate_items(db, items)
         totals                  = calculate_bill_totals(calculated_items, body.get("round_off"))
-        validate_payments(payments, totals["final_total"])
         advance_paid, remaining = parse_advance(body.get("advance_paid"), totals["final_total"])
+        validate_payments(payments, advance_paid)
         customer_id             = find_or_create_customer(db, customer_name, norm_mobile)
         stored_payment_mode     = payment_mode_type or existing_bill["payment_mode_type"] or PENDING_PAYMENT_MODE
 
@@ -714,6 +714,70 @@ def restore_bill(bill_id):
         )
         db.commit()
         return jsonify({"success": True}), 200
+    except Exception as e:
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        return jsonify({"error": str(e)}), 500
+
+
+# ---------------------------------------------------------------------------
+# POST /api/bills/<id>/record-payment  — record a balance payment
+# ---------------------------------------------------------------------------
+@bills_bp.route("/bills/<int:bill_id>/record-payment", methods=["POST"])
+@api_login_required
+def record_payment(bill_id):
+    try:
+        db   = get_db()
+        bill = db.execute(
+            "SELECT id, status, remaining, advance_paid FROM bills WHERE id = ?",
+            (bill_id,),
+        ).fetchone()
+        if not bill:
+            return jsonify({"error": "Bill not found"}), 404
+        if bill["status"] == "cancelled":
+            return jsonify({"error": "Cannot record payment on a cancelled bill"}), 400
+
+        remaining = r2(float(bill["remaining"] or 0))
+        if remaining <= 0:
+            return jsonify({"error": "No balance due on this bill"}), 400
+
+        body           = request.get_json(force=True)
+        payment_method = (body.get("payment_method") or "").strip()
+        if payment_method not in {"Cash", "Card", "UPI"}:
+            return jsonify({"error": "payment_method must be Cash, Card, or UPI"}), 400
+
+        try:
+            amount = r2(float(body.get("amount") or 0))
+        except (TypeError, ValueError):
+            return jsonify({"error": "amount must be a number"}), 400
+        if amount <= 0:
+            return jsonify({"error": "amount must be greater than 0"}), 400
+        if amount > remaining:
+            return jsonify({"error": f"amount ({amount}) exceeds balance due ({remaining})"}), 400
+
+        paid_date = (body.get("paid_date") or "").strip()
+        if not paid_date:
+            from datetime import datetime, timezone, timedelta
+            paid_date = datetime.now(timezone(timedelta(hours=5, minutes=30))).strftime("%Y-%m-%d")
+
+        new_advance   = r2(float(bill["advance_paid"] or 0) + amount)
+        new_remaining = r2(remaining - amount)
+
+        db.execute(
+            "INSERT INTO bill_payments (bill_id, payment_method, amount, paid_at) VALUES (?, ?, ?, ?)",
+            (bill_id, payment_method, amount, paid_date),
+        )
+        db.execute(
+            """UPDATE bills
+               SET advance_paid = ?, remaining = ?,
+                   updated_at = datetime('now', '+5 hours', '+30 minutes')
+               WHERE id = ?""",
+            (new_advance, new_remaining, bill_id),
+        )
+        db.commit()
+        return jsonify({"success": True, "advance_paid": new_advance, "remaining": new_remaining}), 200
     except Exception as e:
         try:
             db.rollback()

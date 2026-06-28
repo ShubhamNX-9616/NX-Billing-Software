@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request
 from db import get_db
-from auth import api_login_required, api_admin_required
+from services.auth import api_login_required, api_admin_required
 from utils import normalize_mobile
 
 customers_bp = Blueprint("customers", __name__)

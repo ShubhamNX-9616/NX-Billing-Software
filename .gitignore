@@ -1,4 +1,6 @@
 cloudflared.exe
+scan_debug.txt
+Bills/
 .env
 service_account.json
 __pycache__/

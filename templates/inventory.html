@@ -4,7 +4,8 @@
 {% block page_title %}Inventory{% endblock %}
 
 {% block topbar_actions %}
-  <button type="button" class="btn btn-primary" onclick="openBatchModal()">&#43; Add Items</button>
+  <button type="button" class="btn btn-primary" onclick="openAddItemModal()">&#43; Add Item</button>
+  <button type="button" class="btn btn-secondary" style="margin-left:8px;" onclick="openBatchModal()">&#43; Add Items (Batch)</button>
   <button type="button" class="btn btn-secondary" style="margin-left:8px;" onclick="openCurrentStockQrModal()">&#128246; Current Stock QR</button>
   <button type="button" class="btn btn-secondary" style="margin-left:8px;" onclick="openManageCompaniesModal()">&#9881; Manage Companies</button>
 {% endblock %}
@@ -141,7 +142,19 @@
   <div class="modal-box">
     <div class="modal-header">
       <h3>Add Inventory Item</h3>
-      <button class="modal-close" onclick="closeAddItemModal()">&#215;</button>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button type="button" class="btn btn-secondary btn-sm" id="btn-scan-prev"
+                style="display:none;" onclick="handlePrevScanItem()">
+          &#8592; Prev
+        </button>
+        <button type="button" class="btn btn-secondary btn-sm" id="btn-scan-invoice"
+                onclick="handleScanBtnClick()">
+          &#128247; Scan Invoice
+        </button>
+        <input type="file" id="scan-invoice-input" accept="image/*" capture="environment"
+               style="display:none;" onchange="scanInvoiceImage(this)">
+        <button class="modal-close" onclick="closeAddItemModal()">&#215;</button>
+      </div>
     </div>
     <div class="modal-body" style="display:grid;gap:12px;">
 
@@ -255,6 +268,8 @@
     </div>
     <div class="modal-footer">
       <button type="button" class="btn btn-secondary" onclick="closeAddItemModal()">Cancel</button>
+      <button type="button" class="btn btn-secondary" id="btn-ai-save-all" style="display:none;"
+              onclick="saveAllScanItems()">&#10003; Save All Items</button>
       <button type="button" class="btn btn-primary" id="btn-ai-save" onclick="saveNewItem()">Save Item</button>
     </div>
   </div>

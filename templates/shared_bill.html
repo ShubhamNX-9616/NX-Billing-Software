@@ -280,7 +280,7 @@
     {% if bill.payment_mode_type and bill.payment_mode_type != 'Pending' %}
     {% for payment in payments %}
     <div class="shared-summary-row">
-      <span>{{ payment.payment_method }}</span>
+      <span>{{ payment.payment_method }}{% if payment.paid_at %} <span style="font-size:11px;color:#9ca3af;">({{ payment.paid_at }})</span>{% endif %}</span>
       <span>₹{{ "%.2f"|format(payment.amount) }}</span>
     </div>
     {% endfor %}

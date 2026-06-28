@@ -1,6 +1,11 @@
 import os
 import subprocess
 from flask import Flask, session
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 from extensions import bcrypt
 from db import init_db, seed_default_users, close_db
 from routes.customers import customers_bp

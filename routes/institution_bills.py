@@ -2,7 +2,7 @@ import re
 from datetime import date
 from flask import Blueprint, jsonify, request
 from db import get_db, generate_inst_bill_number
-from auth import api_login_required, api_admin_required
+from services.auth import api_login_required, api_admin_required
 from utils import r2
 
 inst_bills_bp = Blueprint("institution_bills", __name__)

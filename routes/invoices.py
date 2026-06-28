@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request
 from db import get_db
-from auth import api_admin_required
+from services.auth import api_admin_required
 
 invoices_bp = Blueprint("invoices", __name__)
 

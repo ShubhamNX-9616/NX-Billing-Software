@@ -4,7 +4,7 @@ import threading
 from flask import Blueprint, render_template, request, redirect, url_for, session, jsonify
 from db import get_db
 from extensions import bcrypt
-from auth import api_admin_required, api_login_required
+from services.auth import api_admin_required, api_login_required
 
 auth_routes = Blueprint('auth_routes', __name__)
 

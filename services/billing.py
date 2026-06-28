@@ -80,9 +80,7 @@ def calculate_bill_totals(calculated_items, round_off_raw):
         round_off = r2(float(round_off_raw or 0))
     except (TypeError, ValueError):
         round_off = 0.0
-    if round_off < 0:
-        raise ValueError("round_off cannot be negative")
-    if round_off > gross_final_total:
+    if r2(gross_final_total - round_off) < 0:
         raise ValueError("round_off cannot exceed bill total")
 
     final_total   = r2(gross_final_total - round_off)

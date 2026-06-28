@@ -28,9 +28,7 @@ function updateSummary() {
   const roErrEl     = document.getElementById('roundoff-error');
 
   if (roErrEl) {
-    if (roundOff < 0) {
-      roErrEl.textContent = 'R/O cannot be negative.';
-    } else if (grossFinal > 0 && roundOff > grossFinal) {
+    if (netPayable < 0) {
       roErrEl.textContent = 'R/O cannot exceed bill total.';
     } else {
       roErrEl.textContent = '';

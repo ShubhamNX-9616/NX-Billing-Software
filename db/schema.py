@@ -407,6 +407,12 @@ def _m18_inst_company_address(conn):
     )
 
 
+def _m19_bill_payments_paid_at(conn):
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(bill_payments)").fetchall()}
+    if "paid_at" not in cols:
+        conn.execute("ALTER TABLE bill_payments ADD COLUMN paid_at TEXT")
+
+
 MIGRATIONS = [
     (1,  _m01_baseline_schema),
     (2,  _m02_bills_extra_columns),
@@ -426,6 +432,7 @@ MIGRATIONS = [
     (16, _m16_institution_bills),
     (17, _m17_inst_item_stitching),
     (18, _m18_inst_company_address),
+    (19, _m19_bill_payments_paid_at),
 ]
 
 

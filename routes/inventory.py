@@ -2,7 +2,7 @@ import io
 import qrcode
 from flask import Blueprint, jsonify, request, send_file, session
 from db import get_db
-from auth import api_login_required, api_admin_required
+from services.auth import api_login_required, api_admin_required
 from utils import r2, cloth_type_prefix as _item_prefix
 
 inventory_bp = Blueprint("inventory", __name__)
@@ -593,6 +593,93 @@ def get_inventory_qr(item_id):
         return _generate_label_png(dict(item))
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+# ---------------------------------------------------------------------------
+# POST /api/inventory/scan-invoice  — AI invoice photo → prefilled JSON
+# ---------------------------------------------------------------------------
+@inventory_bp.route("/inventory/scan-invoice", methods=["POST"])
+@api_admin_required
+def scan_invoice_image():
+    import anthropic as _anthropic
+    import base64
+    import os
+    import json as _json
+
+    file = request.files.get("image")
+    if not file:
+        return jsonify({"error": "No image provided"}), 400
+
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        return jsonify({"error": "ANTHROPIC_API_KEY not configured on server"}), 500
+
+    img_data   = base64.standard_b64encode(file.read()).decode("utf-8")
+    media_type = file.content_type or "image/jpeg"
+
+    client = _anthropic.Anthropic(api_key=api_key)
+    msg = client.messages.create(
+        model="claude-haiku-4-5",
+        max_tokens=2048,
+        messages=[{"role": "user", "content": [
+            {"type": "image", "source": {"type": "base64", "media_type": media_type, "data": img_data}},
+            {"type": "text", "text": (
+                "This is a textile/fabric supplier invoice. "
+                "Return ONLY a single valid JSON object — no explanation, no markdown — with this structure:\n"
+                "{\n"
+                '  "supplier_name": "name of the company that issued the invoice",\n'
+                '  "invoice_number": "invoice number from the header",\n'
+                '  "invoice_date": "invoice date in YYYY-MM-DD format",\n'
+                '  "cloth_type": "fabric category section header (e.g. SUITING, SHIRTING)",\n'
+                '  "company_name": "brand or manufacturer name (e.g. Raymond, Grasim)",\n'
+                '  "items": [\n'
+                "    {\n"
+                '      "item_name": "design/fabric name",\n'
+                '      "quality_number": "design number or quality code",\n'
+                '      "shade_number": "barcode, shade or color code",\n'
+                '      "opening_stock": quantity as a number (Mtrs or Pcs column),\n'
+                '      "unit_label": "m or pcs",\n'
+                '      "notes": "HSN code if present"\n'
+                "    }\n"
+                "  ]\n"
+                "}\n"
+                "One object per line item inside items. Omit any field you cannot find. Return only the JSON."
+            )},
+        ]}],
+    )
+
+    import re as _re
+    raw_text = msg.content[0].text.strip()
+
+    # Strip markdown code fences if present
+    text = _re.sub(r'^```(?:json)?\s*', '', raw_text, flags=_re.MULTILINE)
+    text = _re.sub(r'```\s*$', '', text, flags=_re.MULTILINE).strip()
+
+    try:
+        parsed = _json.loads(text)
+    except Exception:
+        # Try to salvage complete items from a truncated array by closing it at the last complete object
+        salvaged = _re.sub(r',?\s*\{[^{}]*$', '', text).strip()
+        if salvaged and not salvaged.endswith(']'):
+            salvaged += ']'
+        try:
+            parsed = _json.loads(salvaged)
+        except Exception:
+            # Last resort: find any complete JSON object
+            objects = _re.findall(r'\{[^{}]+\}', text, _re.DOTALL)
+            if objects:
+                try:
+                    parsed = [_json.loads(o) for o in objects]
+                except Exception:
+                    return jsonify({"error": "Could not parse invoice data", "raw": raw_text}), 422
+            else:
+                return jsonify({"error": "Could not parse invoice data", "raw": raw_text}), 422
+
+    # Normalise: if Claude returned a bare list wrap it
+    if isinstance(parsed, list):
+        parsed = {"items": parsed}
+
+    return jsonify(parsed)
 
 
 # ---------------------------------------------------------------------------

@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template
-from auth import login_required, admin_required, staff_or_admin_required
+from services.auth import login_required, admin_required, staff_or_admin_required
 from services.billing import get_bill_by_number
 
 pages_bp = Blueprint("pages", __name__)

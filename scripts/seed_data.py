@@ -2,7 +2,7 @@
 Populate the database with 2 sample bills for development/testing.
 
 Run once after starting the app for the first time (from the project root):
-    python scripts/test_data.py
+    python scripts/seed_data.py
 
 Do NOT run this multiple times — it will create duplicate customers.
 """
