@@ -601,10 +601,15 @@ def get_inventory_qr(item_id):
 @inventory_bp.route("/inventory/scan-invoice", methods=["POST"])
 @api_admin_required
 def scan_invoice_image():
-    import anthropic as _anthropic
     import base64
     import os
     import json as _json
+    import re as _re
+
+    try:
+        import anthropic as _anthropic
+    except ImportError:
+        return jsonify({"error": "anthropic package not installed. Run: pip install anthropic"}), 500
 
     file = request.files.get("image")
     if not file:
@@ -614,41 +619,43 @@ def scan_invoice_image():
     if not api_key:
         return jsonify({"error": "ANTHROPIC_API_KEY not configured on server"}), 500
 
-    img_data   = base64.standard_b64encode(file.read()).decode("utf-8")
-    media_type = file.content_type or "image/jpeg"
+    try:
+        img_data   = base64.standard_b64encode(file.read()).decode("utf-8")
+        media_type = file.content_type or "image/jpeg"
 
-    client = _anthropic.Anthropic(api_key=api_key)
-    msg = client.messages.create(
-        model="claude-haiku-4-5",
-        max_tokens=2048,
-        messages=[{"role": "user", "content": [
-            {"type": "image", "source": {"type": "base64", "media_type": media_type, "data": img_data}},
-            {"type": "text", "text": (
-                "This is a textile/fabric supplier invoice. "
-                "Return ONLY a single valid JSON object — no explanation, no markdown — with this structure:\n"
-                "{\n"
-                '  "supplier_name": "name of the company that issued the invoice",\n'
-                '  "invoice_number": "invoice number from the header",\n'
-                '  "invoice_date": "invoice date in YYYY-MM-DD format",\n'
-                '  "cloth_type": "fabric category section header (e.g. SUITING, SHIRTING)",\n'
-                '  "company_name": "brand or manufacturer name (e.g. Raymond, Grasim)",\n'
-                '  "items": [\n'
-                "    {\n"
-                '      "item_name": "design/fabric name",\n'
-                '      "quality_number": "design number or quality code",\n'
-                '      "shade_number": "barcode, shade or color code",\n'
-                '      "opening_stock": quantity as a number (Mtrs or Pcs column),\n'
-                '      "unit_label": "m or pcs",\n'
-                '      "notes": "HSN code if present"\n'
-                "    }\n"
-                "  ]\n"
-                "}\n"
-                "One object per line item inside items. Omit any field you cannot find. Return only the JSON."
-            )},
-        ]}],
-    )
+        client = _anthropic.Anthropic(api_key=api_key)
+        msg = client.messages.create(
+            model="claude-haiku-4-5",
+            max_tokens=2048,
+            messages=[{"role": "user", "content": [
+                {"type": "image", "source": {"type": "base64", "media_type": media_type, "data": img_data}},
+                {"type": "text", "text": (
+                    "This is a textile/fabric supplier invoice. "
+                    "Return ONLY a single valid JSON object — no explanation, no markdown — with this structure:\n"
+                    "{\n"
+                    '  "supplier_name": "name of the company that issued the invoice",\n'
+                    '  "invoice_number": "invoice number from the header",\n'
+                    '  "invoice_date": "invoice date in YYYY-MM-DD format",\n'
+                    '  "cloth_type": "fabric category section header (e.g. SUITING, SHIRTING)",\n'
+                    '  "company_name": "brand or manufacturer name (e.g. Raymond, Grasim)",\n'
+                    '  "items": [\n'
+                    "    {\n"
+                    '      "item_name": "design/fabric name",\n'
+                    '      "quality_number": "design number or quality code",\n'
+                    '      "shade_number": "barcode, shade or color code",\n'
+                    '      "opening_stock": quantity as a number (Mtrs or Pcs column),\n'
+                    '      "unit_label": "m or pcs",\n'
+                    '      "notes": "HSN code if present"\n'
+                    "    }\n"
+                    "  ]\n"
+                    "}\n"
+                    "One object per line item inside items. Omit any field you cannot find. Return only the JSON."
+                )},
+            ]}],
+        )
+    except Exception as e:
+        return jsonify({"error": f"Scan failed: {str(e)}"}), 500
 
-    import re as _re
     raw_text = msg.content[0].text.strip()
 
     # Strip markdown code fences if present
