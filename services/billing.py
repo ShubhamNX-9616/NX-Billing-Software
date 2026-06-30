@@ -3,6 +3,8 @@ from utils import r2
 
 VALID_PAYMENT_METHODS = {"Cash", "Card", "UPI"}
 
+_UNIT_LABEL = {"Shirting": "m", "Suiting": "m"}
+
 
 def validate_and_calculate_items(db, items):
     """Validate items list against DB cloth types and compute per-item financials.
@@ -44,7 +46,7 @@ def validate_and_calculate_items(db, items):
         if not (0 <= discount_percent <= 100):
             raise ValueError(f"{prefix}: discount_percent must be 0–100")
 
-        unit_label      = "m" if cloth_type in ("Shirting", "Suiting") else "pcs"
+        unit_label      = _UNIT_LABEL.get(cloth_type, "pcs")
         disc_per_unit   = r2(mrp * discount_percent / 100)
         rate_after_disc = r2(mrp - disc_per_unit)
         final_amount    = r2(rate_after_disc * quantity)
@@ -152,6 +154,49 @@ def get_bill_by_number(bill_number):
         "items":    [dict(i) for i in items],
         "payments": [dict(p) for p in payments],
     }
+
+
+def calculate_inst_items(items):
+    """Validate and calculate institution bill items.
+    Returns (calc_items, subtotal). Raises ValueError on invalid input."""
+    if not items or not isinstance(items, list):
+        raise ValueError("At least one item is required")
+
+    calc_items = []
+    subtotal = 0.0
+    for idx, item in enumerate(items):
+        prefix = f"Item {idx + 1}"
+        try:
+            qty_per_pc = r2(float(item.get("quantity_per_pc") or 0))
+        except (TypeError, ValueError):
+            raise ValueError(f"{prefix}: quantity_per_pc must be a number")
+        try:
+            rate_per_m = r2(float(item.get("rate_per_m") or 0))
+        except (TypeError, ValueError):
+            raise ValueError(f"{prefix}: rate_per_m must be a number")
+        try:
+            no_of_pcs = int(item.get("no_of_pcs") or 0)
+        except (TypeError, ValueError):
+            raise ValueError(f"{prefix}: no_of_pcs must be a number")
+        try:
+            stitching_per_unit = r2(float(item.get("stitching_per_unit") or 0))
+        except (TypeError, ValueError):
+            raise ValueError(f"{prefix}: stitching_per_unit must be a number")
+
+        total = r2((qty_per_pc * rate_per_m * no_of_pcs) + (no_of_pcs * stitching_per_unit))
+        subtotal += total
+        calc_items.append({
+            "cloth_type":         (item.get("cloth_type")     or "").strip(),
+            "company_name":       (item.get("company_name")   or "").strip(),
+            "quality_number":     (item.get("quality_number") or "").strip(),
+            "quantity_per_pc":    qty_per_pc,
+            "rate_per_m":         rate_per_m,
+            "no_of_pcs":          no_of_pcs,
+            "stitching_per_unit": stitching_per_unit,
+            "total":              total,
+        })
+
+    return calc_items, r2(subtotal)
 
 
 def find_or_create_customer(db, customer_name, norm_mobile):

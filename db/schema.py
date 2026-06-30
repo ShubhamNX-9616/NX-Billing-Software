@@ -1,4 +1,4 @@
-from db.connection import _open_connection, _current_fy
+from db.connection import _open_connection, current_fy
 from utils import cloth_type_prefix as _cloth_prefix
 
 
@@ -298,13 +298,6 @@ def _m13_cost_price(conn):
         pass
 
 
-def _m15_special_code(conn):
-    try:
-        conn.execute("ALTER TABLE inventory_items ADD COLUMN special_code TEXT")
-    except Exception:
-        pass
-
-
 def _m14_drop_item_unique_constraint(conn):
     """Remove UNIQUE(cloth_type, company_name, quality_number) so items with identical
     specs but different stock quantities can coexist as separate entries."""
@@ -345,6 +338,13 @@ def _m14_drop_item_unique_constraint(conn):
         ALTER TABLE inventory_items_new RENAME TO inventory_items;
     """)
     conn.execute("PRAGMA foreign_keys = ON")
+
+
+def _m15_special_code(conn):
+    try:
+        conn.execute("ALTER TABLE inventory_items ADD COLUMN special_code TEXT")
+    except Exception:
+        pass
 
 
 def _m16_institution_bills(conn):
@@ -413,6 +413,12 @@ def _m19_bill_payments_paid_at(conn):
         conn.execute("ALTER TABLE bill_payments ADD COLUMN paid_at TEXT")
 
 
+def _m20_inst_bill_payments_paid_at(conn):
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(institution_bill_payments)").fetchall()}
+    if "paid_at" not in cols:
+        conn.execute("ALTER TABLE institution_bill_payments ADD COLUMN paid_at TEXT")
+
+
 MIGRATIONS = [
     (1,  _m01_baseline_schema),
     (2,  _m02_bills_extra_columns),
@@ -433,6 +439,7 @@ MIGRATIONS = [
     (17, _m17_inst_item_stitching),
     (18, _m18_inst_company_address),
     (19, _m19_bill_payments_paid_at),
+    (20, _m20_inst_bill_payments_paid_at),
 ]
 
 
@@ -441,7 +448,7 @@ MIGRATIONS = [
 # ----------------------------------------------------------------
 
 def _sync_inst_bill_number_seq(conn):
-    fy = _current_fy()
+    fy = current_fy()
     conn.execute(
         "INSERT OR IGNORE INTO inst_bill_number_seq (id, next_val, fy) VALUES (1, 0, ?)", (fy,)
     )
@@ -457,7 +464,7 @@ def _sync_inst_bill_number_seq(conn):
 
 def _sync_bill_number_seq(conn):
     """Ensure the sequence row exists for the current FY and is ahead of the max bill number."""
-    fy = _current_fy()
+    fy = current_fy()
     conn.execute(
         "INSERT OR IGNORE INTO bill_number_seq (id, next_val, fy) VALUES (1, 0, ?)", (fy,)
     )

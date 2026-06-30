@@ -1,4 +1,5 @@
-from utils import r2
+﻿from utils import r2
+from db.connection import IST_NOW
 
 
 def deduct_stock(db, inventory_item_id, quantity, bill_id, created_by=None):
@@ -9,7 +10,7 @@ def deduct_stock(db, inventory_item_id, quantity, bill_id, created_by=None):
         return
     new_stock = r2(item["current_stock"] - quantity)
     db.execute(
-        "UPDATE inventory_items SET current_stock = ?, updated_at = datetime('now', '+5 hours', '+30 minutes') WHERE id = ?",
+        f"UPDATE inventory_items SET current_stock = ?, updated_at = {IST_NOW} WHERE id = ?",
         (new_stock, inventory_item_id),
     )
     db.execute(
@@ -28,7 +29,7 @@ def restore_stock(db, inventory_item_id, quantity, bill_id, created_by=None):
         return
     new_stock = r2(item["current_stock"] + quantity)
     db.execute(
-        "UPDATE inventory_items SET current_stock = ?, updated_at = datetime('now', '+5 hours', '+30 minutes') WHERE id = ?",
+        f"UPDATE inventory_items SET current_stock = ?, updated_at = {IST_NOW} WHERE id = ?",
         (new_stock, inventory_item_id),
     )
     db.execute(

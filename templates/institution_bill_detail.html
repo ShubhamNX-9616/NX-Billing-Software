@@ -71,6 +71,8 @@
     <button type="button" id="d-restore-btn" class="btn btn-secondary" style="display:none;" onclick="doInstDetailRestore()">&#10227; Restore</button>
     <button type="button" class="btn btn-secondary" onclick="openInstInvoice(INST_BILL_ID)">&#128438; Print Invoice</button>
     <button type="button" class="btn btn-secondary" onclick="openInstPerformaInvoice(INST_BILL_ID)">&#128438; Print Performa</button>
+    <button type="button" id="d-record-payment-btn" class="btn btn-primary" style="display:none;"
+            onclick="openInstRecordPaymentModal()">&#43; Record Payment</button>
     <button type="button" id="d-delete-btn" class="btn btn-danger" onclick="openInstDetailDelete()">&#128465; Delete</button>
   </div>
 
@@ -124,6 +126,45 @@
     <div id="d-payments-body"></div>
   </div>
 
+</div>
+
+<!-- Record Payment Modal -->
+<div class="modal-overlay hidden no-print" id="inst-record-payment-modal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3>&#43; Record Payment</h3>
+      <button class="modal-close" onclick="closeInstRecordPaymentModal()">&#215;</button>
+    </div>
+    <div class="modal-body">
+      <p style="margin-bottom:12px;font-size:14px;">
+        Balance due: <strong id="irp-balance-due" style="color:var(--danger);">—</strong>
+      </p>
+      <div style="margin-bottom:12px;">
+        <label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px;">Payment Method</label>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;">
+          <button type="button" class="irp-method-btn payment-mode-tab active" data-method="Cash"   onclick="selectIrpMethod(this)">Cash</button>
+          <button type="button" class="irp-method-btn payment-mode-tab"        data-method="Card"   onclick="selectIrpMethod(this)">Card</button>
+          <button type="button" class="irp-method-btn payment-mode-tab"        data-method="UPI"    onclick="selectIrpMethod(this)">UPI</button>
+          <button type="button" class="irp-method-btn payment-mode-tab"        data-method="Cheque" onclick="selectIrpMethod(this)">Cheque</button>
+          <button type="button" class="irp-method-btn payment-mode-tab"        data-method="NEFT"   onclick="selectIrpMethod(this)">NEFT</button>
+        </div>
+      </div>
+      <div style="margin-bottom:12px;">
+        <label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px;">Payment Date</label>
+        <input type="date" id="irp-date" class="input" style="width:100%;" />
+      </div>
+      <div style="margin-bottom:8px;">
+        <label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px;">Amount (₹)</label>
+        <input type="number" id="irp-amount" class="input" min="0.01" step="0.01"
+               placeholder="Enter amount" style="width:100%;" />
+      </div>
+      <div id="irp-error" class="text-danger" style="font-size:13px;min-height:18px;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeInstRecordPaymentModal()">Cancel</button>
+      <button class="btn btn-primary" id="irp-confirm-btn" onclick="confirmInstRecordPayment()">Record Payment</button>
+    </div>
+  </div>
 </div>
 
 <!-- Cancel Modal -->
@@ -219,6 +260,9 @@ function renderInstDetail(data) {
 
   document.getElementById('d-edit-btn').href = `/edit-institution-bill/${bill.id}`;
 
+  const rpBtn = document.getElementById('d-record-payment-btn');
+  if (rpBtn) rpBtn.style.display = (!cancelled && Number(bill.remaining || 0) > 0.009) ? '' : 'none';
+
   if (cancelled) {
     document.getElementById('d-cancelled-badge').style.display = '';
     document.getElementById('d-cancel-btn').style.display  = 'none';
@@ -243,9 +287,11 @@ function renderInstDetail(data) {
   const paymentsCard = document.getElementById('d-payments-card');
   const paymentsBody = document.getElementById('d-payments-body');
   if (payments.length) {
+    paymentsCard.style.display = '';
     paymentsBody.innerHTML = payments.map(p =>
       `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border);font-size:13px;">
-         <span><strong>${p.payment_method}</strong></span><span>${fmt(p.amount)}</span>
+         <span><strong>${p.payment_method}</strong>${p.paid_at ? `<span style="color:var(--text-muted);font-size:11px;margin-left:6px;">${p.paid_at}</span>` : ''}</span>
+         <span>${fmt(p.amount)}</span>
        </div>`
     ).join('');
   } else {
@@ -321,6 +367,59 @@ async function doInstDetailDelete() {
 
 document.getElementById('inst-detail-cancel-modal').addEventListener('click', function(e) { if (e.target === this) closeInstDetailCancel(); });
 document.getElementById('inst-detail-delete-modal').addEventListener('click', function(e) { if (e.target === this) closeInstDetailDelete(); });
+document.getElementById('inst-record-payment-modal').addEventListener('click', function(e) { if (e.target === this) closeInstRecordPaymentModal(); });
+
+// ---- Record Payment ----
+function openInstRecordPaymentModal() {
+  const remaining = Number(_instDetailBill.remaining || 0);
+  document.getElementById('irp-balance-due').textContent = fmt(remaining);
+  document.getElementById('irp-amount').value            = remaining.toFixed(2);
+  document.getElementById('irp-error').textContent       = '';
+  document.getElementById('irp-confirm-btn').disabled    = false;
+  document.getElementById('irp-confirm-btn').textContent = 'Record Payment';
+  document.getElementById('irp-date').value = new Date().toLocaleDateString('en-CA');
+  document.querySelectorAll('.irp-method-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector('.irp-method-btn[data-method="Cash"]').classList.add('active');
+  document.getElementById('inst-record-payment-modal').classList.remove('hidden');
+}
+
+function closeInstRecordPaymentModal() {
+  document.getElementById('inst-record-payment-modal').classList.add('hidden');
+}
+
+function selectIrpMethod(btn) {
+  document.querySelectorAll('.irp-method-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+async function confirmInstRecordPayment() {
+  const btn       = document.getElementById('irp-confirm-btn');
+  const errEl     = document.getElementById('irp-error');
+  const amount    = parseFloat(document.getElementById('irp-amount').value) || 0;
+  const method    = (document.querySelector('.irp-method-btn.active') || {}).dataset?.method;
+  const paid_date = document.getElementById('irp-date').value;
+
+  errEl.textContent = '';
+  if (amount <= 0) { errEl.textContent = 'Enter a valid amount.'; return; }
+
+  btn.disabled    = true;
+  btn.textContent = 'Saving…';
+  try {
+    const res = await fetch(`/api/institution-bills/${INST_BILL_ID}/record-payment`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ amount, payment_method: method, paid_date }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to record payment.');
+    closeInstRecordPaymentModal();
+    await loadInstDetail();
+  } catch (err) {
+    errEl.textContent   = err.message;
+    btn.disabled        = false;
+    btn.textContent     = 'Record Payment';
+  }
+}
 
 document.addEventListener('DOMContentLoaded', loadInstDetail);
 </script>

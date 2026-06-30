@@ -22,15 +22,6 @@ def admin_required(f):
     return decorated
 
 
-def staff_or_admin_required(f):
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        if 'user_id' not in session:
-            return redirect(url_for('auth_routes.login'))
-        return f(*args, **kwargs)
-    return decorated
-
-
 def api_login_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):

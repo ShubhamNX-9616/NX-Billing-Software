@@ -1,8 +1,8 @@
-import re
-from datetime import date
+﻿import re
 from flask import Blueprint, jsonify, request
-from db import get_db, generate_inst_bill_number
+from db import get_db, generate_inst_bill_number, current_fy, IST_NOW
 from services.auth import api_login_required, api_admin_required
+from services.billing import calculate_inst_items
 from utils import r2
 
 inst_bills_bp = Blueprint("institution_bills", __name__)
@@ -27,94 +27,87 @@ def create_institution_bill():
     advance_paid          = r2(float(body.get("advance_paid") or 0))
 
     errors = []
-    if not company_name: errors.append("company_name is required")
-    if not bill_date:    errors.append("bill_date is required")
-    if not salesperson_name:      errors.append("salesperson_name is required")
-    if not items:                 errors.append("At least one item is required")
+    if not company_name:    errors.append("company_name is required")
+    if not bill_date:       errors.append("bill_date is required")
+    if not salesperson_name: errors.append("salesperson_name is required")
+    if not items:           errors.append("At least one item is required")
     if payment_mode_type and payment_mode_type not in VALID_INST_PAYMENT_MODES:
         errors.append("Invalid payment_mode_type")
     if errors:
         return jsonify({"error": "; ".join(errors)}), 400
 
-    db = get_db()
+    try:
+        calc_items, subtotal = calculate_inst_items(items)
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
 
-    calc_items = []
-    subtotal = 0.0
-    for item in items:
-        qty_per_pc       = r2(float(item.get("quantity_per_pc")    or 0))
-        rate_per_m       = r2(float(item.get("rate_per_m")         or 0))
-        no_of_pcs        = int(item.get("no_of_pcs")               or 0)
-        stitching_per_unit = r2(float(item.get("stitching_per_unit") or 0))
-        total            = r2((qty_per_pc * rate_per_m * no_of_pcs) + (no_of_pcs * stitching_per_unit))
-        subtotal        += total
-        calc_items.append({
-            "cloth_type":        (item.get("cloth_type")    or "").strip(),
-            "company_name":      (item.get("company_name")  or "").strip(),
-            "quality_number":    (item.get("quality_number") or "").strip(),
-            "quantity_per_pc":   qty_per_pc,
-            "rate_per_m":        rate_per_m,
-            "no_of_pcs":         no_of_pcs,
-            "stitching_per_unit": stitching_per_unit,
-            "total":             total,
-        })
-
-    subtotal    = r2(subtotal)
     final_total = subtotal
     remaining   = r2(max(0, final_total - advance_paid))
     stored_mode = payment_mode_type or "Pending"
 
-    bill_number = generate_inst_bill_number(db)
+    db = None
+    try:
+        db = get_db()
+        bill_number = generate_inst_bill_number(db)
 
-    cursor = db.execute(
-        """
-        INSERT INTO institution_bills (
-            bill_number, company_name, company_address, contact_person_name, contact_person_mobile,
-            bill_date, subtotal, final_total, advance_paid, remaining,
-            salesperson_name, payment_mode_type, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now', '+5 hours', '+30 minutes'))
-        """,
-        (bill_number, company_name, company_address, contact_person_name, contact_person_mobile,
-         bill_date, subtotal, final_total, advance_paid, remaining,
-         salesperson_name, stored_mode),
-    )
-    bill_id = cursor.lastrowid
+        cursor = db.execute(
+            f"""
+            INSERT INTO institution_bills (
+                bill_number, company_name, company_address, contact_person_name, contact_person_mobile,
+                bill_date, subtotal, final_total, advance_paid, remaining,
+                salesperson_name, payment_mode_type, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, {IST_NOW})
+            """,
+            (bill_number, company_name, company_address, contact_person_name, contact_person_mobile,
+             bill_date, subtotal, final_total, advance_paid, remaining,
+             salesperson_name, stored_mode),
+        )
+        bill_id = cursor.lastrowid
 
-    db.executemany(
-        """
-        INSERT INTO institution_bill_items
-            (bill_id, cloth_type, company_name, quality_number,
-             quantity_per_pc, rate_per_m, no_of_pcs, stitching_per_unit, total)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """,
-        [(bill_id, i["cloth_type"], i["company_name"], i["quality_number"],
-          i["quantity_per_pc"], i["rate_per_m"], i["no_of_pcs"], i["stitching_per_unit"], i["total"])
-         for i in calc_items],
-    )
-
-    if payments:
         db.executemany(
-            "INSERT INTO institution_bill_payments (bill_id, payment_method, amount) VALUES (?, ?, ?)",
-            [(bill_id, p["payment_method"], float(p["amount"])) for p in payments],
+            """
+            INSERT INTO institution_bill_items
+                (bill_id, cloth_type, company_name, quality_number,
+                 quantity_per_pc, rate_per_m, no_of_pcs, stitching_per_unit, total)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            [(bill_id, i["cloth_type"], i["company_name"], i["quality_number"],
+              i["quantity_per_pc"], i["rate_per_m"], i["no_of_pcs"], i["stitching_per_unit"], i["total"])
+             for i in calc_items],
         )
 
-    db.commit()
+        if payments:
+            db.executemany(
+                "INSERT INTO institution_bill_payments (bill_id, payment_method, amount) VALUES (?, ?, ?)",
+                [(bill_id, p["payment_method"], float(p["amount"])) for p in payments],
+            )
 
-    return jsonify({
-        "id":                   bill_id,
-        "bill_number":          bill_number,
-        "company_name":         company_name,
-        "contact_person_name":  contact_person_name,
-        "contact_person_mobile": contact_person_mobile,
-        "bill_date":            bill_date,
-        "salesperson_name":     salesperson_name,
-        "subtotal":             subtotal,
-        "final_total":          final_total,
-        "advance_paid":         advance_paid,
-        "remaining":            remaining,
-        "payment_mode_type":    stored_mode,
-        "items":                calc_items,
-        "payments":             [{"payment_method": p["payment_method"], "amount": float(p["amount"])} for p in payments],
-    }), 201
+        db.commit()
+
+        return jsonify({
+            "id":                    bill_id,
+            "bill_number":           bill_number,
+            "company_name":          company_name,
+            "contact_person_name":   contact_person_name,
+            "contact_person_mobile": contact_person_mobile,
+            "bill_date":             bill_date,
+            "salesperson_name":      salesperson_name,
+            "subtotal":              subtotal,
+            "final_total":           final_total,
+            "advance_paid":          advance_paid,
+            "remaining":             remaining,
+            "payment_mode_type":     stored_mode,
+            "items":                 calc_items,
+            "payments":              [{"payment_method": p["payment_method"], "amount": float(p["amount"])} for p in payments],
+        }), 201
+
+    except Exception as e:
+        if db:
+            try:
+                db.rollback()
+            except Exception:
+                pass
+        return jsonify({"error": str(e)}), 500
 
 
 @inst_bills_bp.route("/institution-bills", methods=["GET"])
@@ -177,7 +170,7 @@ def get_institution_bill(bill_id):
     ).fetchall()
 
     payments = db.execute(
-        "SELECT payment_method, amount FROM institution_bill_payments WHERE bill_id = ? ORDER BY id",
+        "SELECT payment_method, amount, paid_at FROM institution_bill_payments WHERE bill_id = ? ORDER BY id",
         (bill_id,),
     ).fetchall()
 
@@ -214,48 +207,31 @@ def update_institution_bill(bill_id):
     advance_paid          = r2(float(body.get("advance_paid") or 0))
 
     errors = []
-    if not company_name:   errors.append("company_name is required")
-    if not bill_date:      errors.append("bill_date is required")
+    if not company_name:    errors.append("company_name is required")
+    if not bill_date:       errors.append("bill_date is required")
     if not salesperson_name: errors.append("salesperson_name is required")
-    if not items:          errors.append("At least one item is required")
+    if not items:           errors.append("At least one item is required")
     if payment_mode_type and payment_mode_type not in VALID_INST_PAYMENT_MODES:
         errors.append("Invalid payment_mode_type")
     if errors:
         return jsonify({"error": "; ".join(errors)}), 400
 
-    calc_items = []
-    subtotal = 0.0
-    for item in items:
-        qty_per_pc         = r2(float(item.get("quantity_per_pc")    or 0))
-        rate_per_m         = r2(float(item.get("rate_per_m")         or 0))
-        no_of_pcs          = int(item.get("no_of_pcs")               or 0)
-        stitching_per_unit = r2(float(item.get("stitching_per_unit") or 0))
-        total              = r2((qty_per_pc * rate_per_m * no_of_pcs) + (no_of_pcs * stitching_per_unit))
-        subtotal          += total
-        calc_items.append({
-            "cloth_type":        (item.get("cloth_type")    or "").strip(),
-            "company_name":      (item.get("company_name")  or "").strip(),
-            "quality_number":    (item.get("quality_number") or "").strip(),
-            "quantity_per_pc":   qty_per_pc,
-            "rate_per_m":        rate_per_m,
-            "no_of_pcs":         no_of_pcs,
-            "stitching_per_unit": stitching_per_unit,
-            "total":             total,
-        })
-
-    subtotal    = r2(subtotal)
+    try:
+        calc_items, subtotal = calculate_inst_items(items)
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
     final_total = subtotal
     remaining   = r2(max(0, final_total - advance_paid))
     stored_mode = payment_mode_type or "Pending"
 
     try:
         db.execute(
-            """
+            f"""
             UPDATE institution_bills SET
                 company_name = ?, company_address = ?, contact_person_name = ?, contact_person_mobile = ?,
                 bill_date = ?, salesperson_name = ?, subtotal = ?, final_total = ?,
                 advance_paid = ?, remaining = ?, payment_mode_type = ?,
-                updated_at = datetime('now', '+5 hours', '+30 minutes')
+                updated_at = {IST_NOW}
             WHERE id = ?
             """,
             (company_name, company_address, contact_person_name, contact_person_mobile,
@@ -311,7 +287,7 @@ def cancel_institution_bill(bill_id):
         if bill["status"] == "cancelled":
             return jsonify({"error": "Bill is already cancelled"}), 400
         db.execute(
-            "UPDATE institution_bills SET status = 'cancelled', updated_at = datetime('now', '+5 hours', '+30 minutes') WHERE id = ?",
+            f"UPDATE institution_bills SET status = 'cancelled', updated_at = {IST_NOW} WHERE id = ?",
             (bill_id,),
         )
         db.commit()
@@ -336,7 +312,7 @@ def restore_institution_bill(bill_id):
         if bill["status"] != "cancelled":
             return jsonify({"error": "Bill is not cancelled"}), 400
         db.execute(
-            "UPDATE institution_bills SET status = 'active', updated_at = datetime('now', '+5 hours', '+30 minutes') WHERE id = ?",
+            f"UPDATE institution_bills SET status = 'active', updated_at = {IST_NOW} WHERE id = ?",
             (bill_id,),
         )
         db.commit()
@@ -387,7 +363,7 @@ def delete_institution_bill(bill_id):
                     (f"INST-{int(bm.group(1)) - 1:04d}/{bm.group(2)}", b["id"]),
                 )
 
-        fy_now = _inst_current_fy()
+        fy_now = current_fy()
         db.execute(
             "UPDATE inst_bill_number_seq SET next_val = "
             "(SELECT COALESCE(MAX(CAST(SUBSTR(bill_number, 6) AS INTEGER)), 0) "
@@ -403,7 +379,66 @@ def delete_institution_bill(bill_id):
         return jsonify({"error": str(e)}), 500
 
 
-def _inst_current_fy():
-    today = date.today()
-    start = today.year if today.month >= 4 else today.year - 1
-    return f"{str(start)[2:]}-{str(start + 1)[2:]}"
+# ---------------------------------------------------------------------------
+# POST /api/institution-bills/<id>/record-payment  — record a balance payment
+# ---------------------------------------------------------------------------
+@inst_bills_bp.route("/institution-bills/<int:bill_id>/record-payment", methods=["POST"])
+@api_login_required
+def record_inst_payment(bill_id):
+    try:
+        db = get_db()
+        bill = db.execute(
+            "SELECT id, status, remaining, advance_paid FROM institution_bills WHERE id = ?",
+            (bill_id,),
+        ).fetchone()
+        if not bill:
+            return jsonify({"error": "Bill not found"}), 404
+        if bill["status"] == "cancelled":
+            return jsonify({"error": "Cannot record payment on a cancelled bill"}), 400
+
+        remaining = r2(float(bill["remaining"] or 0))
+        if remaining <= 0:
+            return jsonify({"error": "No balance due on this bill"}), 400
+
+        body = request.get_json(force=True)
+        payment_method = (body.get("payment_method") or "").strip()
+        if payment_method not in {"Cash", "Card", "UPI", "Cheque", "NEFT"}:
+            return jsonify({"error": "payment_method must be Cash, Card, UPI, Cheque, or NEFT"}), 400
+
+        try:
+            amount = r2(float(body.get("amount") or 0))
+        except (TypeError, ValueError):
+            return jsonify({"error": "amount must be a number"}), 400
+        if amount <= 0:
+            return jsonify({"error": "amount must be greater than 0"}), 400
+        if amount > remaining:
+            return jsonify({"error": f"amount ({amount}) exceeds balance due ({remaining})"}), 400
+
+        paid_date = (body.get("paid_date") or "").strip()
+        if not paid_date:
+            from datetime import datetime, timezone, timedelta
+            paid_date = datetime.now(timezone(timedelta(hours=5, minutes=30))).strftime("%Y-%m-%d")
+
+        new_advance   = r2(float(bill["advance_paid"] or 0) + amount)
+        new_remaining = r2(remaining - amount)
+
+        db.execute(
+            "INSERT INTO institution_bill_payments (bill_id, payment_method, amount, paid_at)"
+            " VALUES (?, ?, ?, ?)",
+            (bill_id, payment_method, amount, paid_date),
+        )
+        db.execute(
+            f"""UPDATE institution_bills
+               SET advance_paid = ?, remaining = ?,
+                   updated_at = {IST_NOW}
+               WHERE id = ?""",
+            (new_advance, new_remaining, bill_id),
+        )
+        db.commit()
+        return jsonify({"success": True, "advance_paid": new_advance, "remaining": new_remaining}), 200
+    except Exception as e:
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        return jsonify({"error": str(e)}), 500

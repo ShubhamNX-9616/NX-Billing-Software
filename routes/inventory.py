@@ -1,7 +1,7 @@
-import io
+﻿import io
 import qrcode
 from flask import Blueprint, jsonify, request, send_file, session
-from db import get_db
+from db import get_db, IST_NOW
 from services.auth import api_login_required, api_admin_required
 from utils import r2, cloth_type_prefix as _item_prefix
 
@@ -378,11 +378,11 @@ def update_inventory_item(item_id):
             special_code = _compute_special_code(cost_price, sup_name)
 
         db.execute(
-            """UPDATE inventory_items
+            f"""UPDATE inventory_items
                SET mrp = ?, cost_price = ?, quality_number = ?, supplier_id = ?,
                    min_stock_alert = ?, notes = ?,
                    item_name = ?, shade_number = ?, special_code = ?,
-                   updated_at = datetime('now', '+5 hours', '+30 minutes')
+                   updated_at = {IST_NOW}
                WHERE id = ?""",
             (mrp, cost_price, quality_number, supplier_id,
              min_stock_alert, notes, item_name, shade_number,
@@ -518,7 +518,7 @@ def adjust_item(item_id):
 
         new_stock = r2(item["current_stock"] + quantity)
         db.execute(
-            "UPDATE inventory_items SET current_stock = ?, updated_at = datetime('now', '+5 hours', '+30 minutes') WHERE id = ?",
+            f"UPDATE inventory_items SET current_stock = ?, updated_at = {IST_NOW} WHERE id = ?",
             (new_stock, item_id),
         )
         db.execute(

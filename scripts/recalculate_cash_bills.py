@@ -1,4 +1,4 @@
-"""
+﻿"""
 Recalculate cash bills for a given month/year by reducing each item's MRP
 by a percentage and rewriting bill totals.
 
@@ -15,7 +15,7 @@ from contextlib import closing
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from db import get_db
+from db import get_db, IST_NOW
 
 
 def round2(value):
@@ -138,10 +138,10 @@ def apply_bill_updates(db, bill, recalculated_items):
     )
 
     db.execute(
-        """
+        f"""
         UPDATE bills
         SET subtotal = ?, total_discount = ?, final_total = ?, total_savings = ?,
-            advance_paid = ?, remaining = ?, updated_at = datetime('now', '+5 hours', '+30 minutes')
+            advance_paid = ?, remaining = ?, updated_at = {IST_NOW}
         WHERE id = ?
         """,
         (new_subtotal, new_total_discount, new_final_total, new_total_discount,

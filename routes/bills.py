@@ -1,8 +1,8 @@
-import re
+﻿import re
 from collections import defaultdict
 from flask import Blueprint, jsonify, request, session
-from db import get_db, generate_bill_number
-from db.connection import _current_fy
+from db import get_db, generate_bill_number, IST_NOW
+from db import current_fy
 from services.auth import api_login_required, api_admin_required
 from utils import normalize_mobile, validate_indian_mobile, r2
 from services.billing import (
@@ -28,7 +28,7 @@ PENDING_PAYMENT_MODE = "Pending"
 def get_next_bill_number():
     try:
         db  = get_db()
-        fy  = _current_fy()
+        fy  = current_fy()
         row = db.execute("SELECT next_val, fy FROM bill_number_seq WHERE id = 1").fetchone()
         if row["fy"] != fy:
             next_val = 1
@@ -237,14 +237,14 @@ def create_bill():
             calc["inventory_item_id"] = int(inv_id) if inv_id else None
 
         bill_cursor = db.execute(
-            """
+            f"""
             INSERT INTO bills (
                 bill_number, customer_id,
                 customer_name_snapshot, customer_mobile_snapshot,
                 bill_date, subtotal, total_discount, final_total,
                 total_savings, advance_paid, remaining, salesperson_name, payment_mode_type,
                 round_off, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now', '+5 hours', '+30 minutes'))
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, {IST_NOW})
             """,
             (
                 bill_number, customer_id,
@@ -400,7 +400,7 @@ def update_bill(bill_id):
         db.execute("DELETE FROM bill_items    WHERE bill_id = ?", (bill_id,))
         db.execute("DELETE FROM bill_payments WHERE bill_id = ?", (bill_id,))
 
-        db.execute("""
+        db.execute(f"""
             UPDATE bills SET
                 customer_id              = ?,
                 customer_name_snapshot   = ?,
@@ -415,7 +415,7 @@ def update_bill(bill_id):
                 salesperson_name         = ?,
                 payment_mode_type        = ?,
                 round_off                = ?,
-                updated_at               = datetime('now', '+5 hours', '+30 minutes')
+                updated_at               = {IST_NOW}
             WHERE id = ?
         """, (
             customer_id, customer_name, norm_mobile, bill_date,
@@ -516,7 +516,10 @@ def update_bill_payment(bill_id):
         if not bill:
             return jsonify({"error": "Bill not found"}), 404
 
-        validate_payments(payments, float(bill["final_total"] or 0))
+        advance_paid = float(bill["advance_paid"] or 0)
+        final_total  = float(bill["final_total"]  or 0)
+        payment_total = advance_paid if advance_paid > 0 else final_total
+        validate_payments(payments, payment_total)
 
         db.execute("DELETE FROM bill_payments WHERE bill_id = ?", (bill_id,))
         db.executemany(
@@ -524,10 +527,10 @@ def update_bill_payment(bill_id):
             [(bill_id, p["payment_method"], float(p["amount"])) for p in payments],
         )
         db.execute(
-            """
+            f"""
             UPDATE bills SET
                 payment_mode_type = ?,
-                updated_at = datetime('now', '+5 hours', '+30 minutes')
+                updated_at = {IST_NOW}
             WHERE id = ?
             """,
             (payment_mode_type, bill_id),
@@ -549,6 +552,45 @@ def update_bill_payment(bill_id):
         return jsonify({"error": str(e)}), 500
 
 
+def _renumber_bills_after_delete(db, deleted_num, bill_fy):
+    """Shift bill numbers down by 1 for all bills in the same FY above the deleted sequence number."""
+    if bill_fy:
+        higher = db.execute(
+            """
+            SELECT id, bill_number FROM bills
+            WHERE bill_number LIKE ?
+              AND CAST(SUBSTR(bill_number, 5) AS INTEGER) > ?
+            ORDER BY CAST(SUBSTR(bill_number, 5) AS INTEGER) ASC
+            """,
+            (f"SHN-%/{bill_fy}", deleted_num),
+        ).fetchall()
+        for b in higher:
+            m = re.match(r'^SHN-(\d+)/(.+)$', b["bill_number"])
+            if m:
+                db.execute(
+                    "UPDATE bills SET bill_number = ? WHERE id = ?",
+                    (f"SHN-{int(m.group(1)) - 1:04d}/{m.group(2)}", b["id"]),
+                )
+    else:
+        # Legacy bills without a FY suffix
+        higher = db.execute(
+            """
+            SELECT id, bill_number FROM bills
+            WHERE bill_number NOT LIKE '%/%'
+              AND CAST(SUBSTR(bill_number, 5) AS INTEGER) > ?
+            ORDER BY CAST(SUBSTR(bill_number, 5) AS INTEGER) ASC
+            """,
+            (deleted_num,),
+        ).fetchall()
+        for b in higher:
+            m = re.match(r'^SHN-(\d+)$', b["bill_number"])
+            if m:
+                db.execute(
+                    "UPDATE bills SET bill_number = ? WHERE id = ?",
+                    (f"SHN-{int(m.group(1)) - 1:04d}", b["id"]),
+                )
+
+
 # ---------------------------------------------------------------------------
 # DELETE /api/bills/<id>  — hard delete + renumber higher bills
 # ---------------------------------------------------------------------------
@@ -558,23 +600,19 @@ def delete_bill(bill_id):
     try:
         db = get_db()
 
-        # 1. Check bill exists
         bill = db.execute(
             "SELECT bill_number FROM bills WHERE id = ?", (bill_id,)
         ).fetchone()
         if not bill:
             return jsonify({"error": "Bill not found"}), 404
 
-        # 2–3. Parse the numeric part and FY.
-        # Supports "SHN-0003/26-27" (new) and "SHN-0003" (old format).
-        bill_number = bill["bill_number"]
-        m = re.match(r'^SHN-(\d+)(?:/(.+))?$', bill_number)
+        # Supports "SHN-0003/26-27" (new format) and "SHN-0003" (legacy)
+        m = re.match(r'^SHN-(\d+)(?:/(.+))?$', bill["bill_number"])
         if not m:
             return jsonify({"error": "Unexpected bill_number format"}), 500
         deleted_num = int(m.group(1))
-        bill_fy     = m.group(2)  # e.g. "26-27", or None for old-format bills
+        bill_fy     = m.group(2)
 
-        # 4. Restore inventory stock for linked items before deleting
         inv_items = db.execute(
             "SELECT inventory_item_id, quantity FROM bill_items WHERE bill_id = ? AND inventory_item_id IS NOT NULL",
             (bill_id,),
@@ -582,51 +620,13 @@ def delete_bill(bill_id):
         for inv in inv_items:
             restore_stock(db, inv["inventory_item_id"], inv["quantity"], bill_id, session.get("username"))
 
-        # 5. Delete items
         db.execute("DELETE FROM bill_items    WHERE bill_id = ?", (bill_id,))
-        # 6. Delete payments
         db.execute("DELETE FROM bill_payments WHERE bill_id = ?", (bill_id,))
-        # 7. Delete the bill itself
-        db.execute("DELETE FROM bills WHERE id = ?", (bill_id,))
+        db.execute("DELETE FROM bills         WHERE id = ?",      (bill_id,))
 
-        # 8. Renumber bills in the same FY with a higher number than the deleted one
-        if bill_fy:
-            higher_bills = db.execute(
-                """
-                SELECT id, bill_number FROM bills
-                WHERE bill_number LIKE ?
-                  AND CAST(SUBSTR(bill_number, 5) AS INTEGER) > ?
-                ORDER BY CAST(SUBSTR(bill_number, 5) AS INTEGER) ASC
-                """,
-                (f"SHN-%/{bill_fy}", deleted_num),
-            ).fetchall()
-            for b in higher_bills:
-                bm = re.match(r'^SHN-(\d+)/(.+)$', b["bill_number"])
-                if bm:
-                    db.execute(
-                        "UPDATE bills SET bill_number = ? WHERE id = ?",
-                        (f"SHN-{int(bm.group(1)) - 1:04d}/{bm.group(2)}", b["id"]),
-                    )
-        else:
-            higher_bills = db.execute(
-                """
-                SELECT id, bill_number FROM bills
-                WHERE bill_number NOT LIKE '%/%'
-                  AND CAST(SUBSTR(bill_number, 5) AS INTEGER) > ?
-                ORDER BY CAST(SUBSTR(bill_number, 5) AS INTEGER) ASC
-                """,
-                (deleted_num,),
-            ).fetchall()
-            for b in higher_bills:
-                bm = re.match(r'^SHN-(\d+)$', b["bill_number"])
-                if bm:
-                    db.execute(
-                        "UPDATE bills SET bill_number = ? WHERE id = ?",
-                        (f"SHN-{int(bm.group(1)) - 1:04d}", b["id"]),
-                    )
+        _renumber_bills_after_delete(db, deleted_num, bill_fy)
 
-        # 9. Sync seq next_val to the new max for the current FY
-        fy = _current_fy()
+        fy = current_fy()
         db.execute(
             "UPDATE bill_number_seq SET next_val = "
             "(SELECT COALESCE(MAX(CAST(SUBSTR(bill_number, 5) AS INTEGER)), 0) "
@@ -673,7 +673,7 @@ def cancel_bill(bill_id):
             restore_stock(db, inv["inventory_item_id"], inv["quantity"], bill_id, session.get("username"))
 
         db.execute(
-            "UPDATE bills SET status = 'cancelled', updated_at = datetime('now', '+5 hours', '+30 minutes') WHERE id = ?",
+            f"UPDATE bills SET status = 'cancelled', updated_at = {IST_NOW} WHERE id = ?",
             (bill_id,),
         )
         db.commit()
@@ -709,7 +709,7 @@ def restore_bill(bill_id):
             deduct_stock(db, inv["inventory_item_id"], inv["quantity"], bill_id, session.get("username"))
 
         db.execute(
-            "UPDATE bills SET status = 'active', updated_at = datetime('now', '+5 hours', '+30 minutes') WHERE id = ?",
+            f"UPDATE bills SET status = 'active', updated_at = {IST_NOW} WHERE id = ?",
             (bill_id,),
         )
         db.commit()
@@ -770,9 +770,9 @@ def record_payment(bill_id):
             (bill_id, payment_method, amount, paid_date),
         )
         db.execute(
-            """UPDATE bills
+            f"""UPDATE bills
                SET advance_paid = ?, remaining = ?,
-                   updated_at = datetime('now', '+5 hours', '+30 minutes')
+                   updated_at = {IST_NOW}
                WHERE id = ?""",
             (new_advance, new_remaining, bill_id),
         )

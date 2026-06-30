@@ -1,6 +1,6 @@
 import os
 import subprocess
-from flask import Flask, session
+from flask import Flask, jsonify, session
 try:
     from dotenv import load_dotenv
     load_dotenv()
@@ -45,12 +45,13 @@ app.secret_key = os.environ.get('SECRET_KEY', 'dev-only-change-in-production')
 # bill links are clickable for customers on any network.
 # Example: 'https://xyz.trycloudflare.com' or 'https://shubhamnx.pythonanywhere.com'
 # Leave empty to fall back to the browser's current origin (local network only).
-SHARE_BASE_URL = os.environ.get('SHARE_BASE_URL', 'https://shubhamnxtailoring.pythonanywhere.com').rstrip('/')
+SHARE_BASE_URL = os.environ.get('SHARE_BASE_URL', '').rstrip('/')
 
 # Session cookie settings
 app.config['SESSION_PERMANENT'] = False         # session cookie expires when browser closes
 app.config['SESSION_COOKIE_HTTPONLY'] = True    # JS cannot read the cookie
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # Protects against CSRF
+app.config['SESSION_COOKIE_SECURE'] = os.environ.get('SESSION_COOKIE_SECURE', 'false').lower() == 'true'
 app.config['TEMPLATES_AUTO_RELOAD'] = True
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0  # disable static file caching
 
@@ -89,6 +90,11 @@ def inject_globals():
             'is_staff': session.get('role') == 'staff',
         }
     }
+
+
+@app.route("/health")
+def health():
+    return jsonify({"status": "ok"}), 200
 
 
 # Register blueprints

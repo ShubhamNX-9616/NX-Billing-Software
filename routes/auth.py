@@ -1,8 +1,8 @@
-import re
+﻿import re
 import time
 import threading
 from flask import Blueprint, render_template, request, redirect, url_for, session, jsonify
-from db import get_db
+from db import get_db, IST_NOW
 from extensions import bcrypt
 from services.auth import api_admin_required, api_login_required
 
@@ -128,7 +128,7 @@ def change_own_password():
 
         new_hash = bcrypt.generate_password_hash(new_password).decode('utf-8')
         db.execute(
-            "UPDATE users SET password_hash = ?, updated_at = datetime('now', '+5 hours', '+30 minutes') WHERE id = ?",
+            f"UPDATE users SET password_hash = ?, updated_at = {IST_NOW} WHERE id = ?",
             (new_hash, session['user_id']),
         )
         db.commit()
@@ -224,7 +224,7 @@ def change_password(user_id):
 
         password_hash = bcrypt.generate_password_hash(new_password).decode('utf-8')
         db.execute(
-            "UPDATE users SET password_hash = ?, updated_at = datetime('now', '+5 hours', '+30 minutes') WHERE id = ?",
+            f"UPDATE users SET password_hash = ?, updated_at = {IST_NOW} WHERE id = ?",
             (password_hash, user_id),
         )
         db.commit()
@@ -260,7 +260,7 @@ def toggle_user_status(user_id):
 
         new_status = 0 if user['is_active'] == 1 else 1
         db.execute(
-            "UPDATE users SET is_active = ?, updated_at = datetime('now', '+5 hours', '+30 minutes') WHERE id = ?",
+            f"UPDATE users SET is_active = ?, updated_at = {IST_NOW} WHERE id = ?",
             (new_status, user_id),
         )
         db.commit()

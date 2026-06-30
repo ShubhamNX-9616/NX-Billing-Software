@@ -117,16 +117,50 @@ async function doMobileSearch() {
 }
 
 // ---- Name search (suggestion dropdown) ----
+let _nameActiveIdx = -1;
+
 function setupNameSearch() {
   const input = document.getElementById('customer-name');
   if (!input) return;
   input.addEventListener('input', debounce(doNameSuggest, 250));
+  input.addEventListener('keydown', onNameSuggestKeydown);
   input.addEventListener('blur', () => setTimeout(hideNameSuggestions, 150));
 }
 
 function hideNameSuggestions() {
   const box = document.getElementById('name-suggestions');
   if (box) { box.innerHTML = ''; box.style.display = 'none'; }
+  _nameActiveIdx = -1;
+}
+
+function _nameHighlight(idx) {
+  const box = document.getElementById('name-suggestions');
+  if (!box) return;
+  const items = box.querySelectorAll('[data-suggest-item]');
+  items.forEach((el, i) => { el.style.background = i === idx ? 'var(--bg)' : ''; });
+  if (items[idx]) items[idx].scrollIntoView({ block: 'nearest' });
+}
+
+function onNameSuggestKeydown(e) {
+  const box = document.getElementById('name-suggestions');
+  if (!box || box.style.display === 'none') return;
+  const items = box.querySelectorAll('[data-suggest-item]');
+  if (!items.length) return;
+
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    _nameActiveIdx = (_nameActiveIdx + 1) % items.length;
+    _nameHighlight(_nameActiveIdx);
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    _nameActiveIdx = (_nameActiveIdx - 1 + items.length) % items.length;
+    _nameHighlight(_nameActiveIdx);
+  } else if (e.key === 'Enter' && _nameActiveIdx >= 0) {
+    e.preventDefault();
+    items[_nameActiveIdx].dispatchEvent(new MouseEvent('mousedown'));
+  } else if (e.key === 'Escape') {
+    hideNameSuggestions();
+  }
 }
 
 async function doNameSuggest() {
@@ -139,9 +173,11 @@ async function doNameSuggest() {
     const res  = await fetch(`/api/customers/suggest?q=${encodeURIComponent(q)}`);
     const list = await res.json();
     if (!Array.isArray(list) || !list.length) { hideNameSuggestions(); return; }
+    _nameActiveIdx = -1;
     box.innerHTML = '';
     list.forEach(c => {
       const item = document.createElement('div');
+      item.setAttribute('data-suggest-item', '');
       item.style.cssText = 'padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border);font-size:14px;color:var(--text);';
       const nameSpan = document.createElement('strong');
       nameSpan.textContent = c.name;
@@ -151,8 +187,8 @@ async function doNameSuggest() {
       mobileSpan.style.cssText = 'color:var(--text-muted);font-size:12px;margin-left:6px;';
       item.appendChild(nameSpan);
       item.appendChild(mobileSpan);
-      item.addEventListener('mouseover', () => { item.style.background = 'var(--bg)'; item.style.color = 'var(--text)'; });
-      item.addEventListener('mouseout',  () => { item.style.background = ''; item.style.color = 'var(--text)'; });
+      item.addEventListener('mouseover', () => { item.style.background = 'var(--bg)'; });
+      item.addEventListener('mouseout',  () => { if (item !== box.querySelectorAll('[data-suggest-item]')[_nameActiveIdx]) item.style.background = ''; });
       item.addEventListener('mousedown', () => {
         document.getElementById('customer-name').value   = c.name;
         document.getElementById('customer-mobile').value = c.mobile || '';

@@ -81,9 +81,10 @@ function showPostSaveActions(bill) {
   const paymentBtn = document.getElementById('update-payment-btn');
   if (paymentBtn) {
     paymentBtn.style.display = '';
-    paymentBtn.dataset.billId = bill.id;
+    paymentBtn.dataset.billId     = bill.id;
     paymentBtn.dataset.billNumber = bill.bill_number;
     paymentBtn.dataset.finalTotal = bill.final_total;
+    paymentBtn.dataset.advancePaid = bill.advance_paid || 0;
   }
 
   const section = document.getElementById('post-save-actions');
@@ -131,9 +132,15 @@ function closeInlinePaymentUpdateModal() {
   document.getElementById('inline-payment-modal').classList.add('hidden');
 }
 
-function syncInlinePaymentMode() {
+function _inlinePaymentTotal() {
   const btn = document.getElementById('update-payment-btn');
-  const total = Number(btn?.dataset.finalTotal || 0);
+  const advance = Number(btn?.dataset.advancePaid || 0);
+  const final   = Number(btn?.dataset.finalTotal  || 0);
+  return advance > 0 ? advance : final;
+}
+
+function syncInlinePaymentMode() {
+  const total = _inlinePaymentTotal();
   const mode = document.getElementById('inline-payment-mode').value;
   const singleWrap = document.getElementById('inline-payment-single-wrap');
   const comboWrap = document.getElementById('inline-payment-combo-wrap');
@@ -151,7 +158,7 @@ function syncInlinePaymentMode() {
 }
 
 function syncInlineCombo() {
-  const total = Number(document.getElementById('update-payment-btn')?.dataset.finalTotal || 0);
+  const total = _inlinePaymentTotal();
   const methods = ['Cash', 'Card', 'UPI'];
   const checked = methods.filter(m => document.getElementById(`inline-combo-${m.toLowerCase()}`).checked);
   methods.forEach(m => {
@@ -177,7 +184,7 @@ async function saveInlinePayment() {
   const err = document.getElementById('inline-payment-error');
   const billBtn = document.getElementById('update-payment-btn');
   const billId = billBtn?.dataset.billId;
-  const total = Number(billBtn?.dataset.finalTotal || 0);
+  const total  = _inlinePaymentTotal();
   const mode = document.getElementById('inline-payment-mode').value;
   err.textContent = '';
 
