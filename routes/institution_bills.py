@@ -2,8 +2,7 @@
 from flask import Blueprint, jsonify, request
 from db import get_db, generate_inst_bill_number, current_fy, IST_NOW
 from services.auth import api_login_required, api_admin_required
-from services.billing import calculate_inst_items
-from utils import r2
+from services.billing import calculate_inst_items, parse_inst_advance, apply_payment
 
 inst_bills_bp = Blueprint("institution_bills", __name__)
 
@@ -24,8 +23,6 @@ def create_institution_bill():
     payment_mode_type     = (body.get("payment_mode_type")     or "").strip()
     items                 = body.get("items", [])
     payments              = body.get("payments", [])
-    advance_paid          = r2(float(body.get("advance_paid") or 0))
-
     errors = []
     if not company_name:    errors.append("company_name is required")
     if not bill_date:       errors.append("bill_date is required")
@@ -42,7 +39,7 @@ def create_institution_bill():
         return jsonify({"error": str(e)}), 400
 
     final_total = subtotal
-    remaining   = r2(max(0, final_total - advance_paid))
+    advance_paid, remaining = parse_inst_advance(body.get("advance_paid"), final_total)
     stored_mode = payment_mode_type or "Pending"
 
     db = None
@@ -204,8 +201,6 @@ def update_institution_bill(bill_id):
     payment_mode_type     = (body.get("payment_mode_type")     or "").strip()
     items                 = body.get("items", [])
     payments              = body.get("payments", [])
-    advance_paid          = r2(float(body.get("advance_paid") or 0))
-
     errors = []
     if not company_name:    errors.append("company_name is required")
     if not bill_date:       errors.append("bill_date is required")
@@ -221,7 +216,7 @@ def update_institution_bill(bill_id):
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
     final_total = subtotal
-    remaining   = r2(max(0, final_total - advance_paid))
+    advance_paid, remaining = parse_inst_advance(body.get("advance_paid"), final_total)
     stored_mode = payment_mode_type or "Pending"
 
     try:
@@ -396,8 +391,7 @@ def record_inst_payment(bill_id):
         if bill["status"] == "cancelled":
             return jsonify({"error": "Cannot record payment on a cancelled bill"}), 400
 
-        remaining = r2(float(bill["remaining"] or 0))
-        if remaining <= 0:
+        if float(bill["remaining"] or 0) <= 0:
             return jsonify({"error": "No balance due on this bill"}), 400
 
         body = request.get_json(force=True)
@@ -405,22 +399,17 @@ def record_inst_payment(bill_id):
         if payment_method not in {"Cash", "Card", "UPI", "Cheque", "NEFT"}:
             return jsonify({"error": "payment_method must be Cash, Card, UPI, Cheque, or NEFT"}), 400
 
-        try:
-            amount = r2(float(body.get("amount") or 0))
-        except (TypeError, ValueError):
-            return jsonify({"error": "amount must be a number"}), 400
-        if amount <= 0:
-            return jsonify({"error": "amount must be greater than 0"}), 400
-        if amount > remaining:
-            return jsonify({"error": f"amount ({amount}) exceeds balance due ({remaining})"}), 400
-
         paid_date = (body.get("paid_date") or "").strip()
         if not paid_date:
             from datetime import datetime, timezone, timedelta
             paid_date = datetime.now(timezone(timedelta(hours=5, minutes=30))).strftime("%Y-%m-%d")
 
-        new_advance   = r2(float(bill["advance_paid"] or 0) + amount)
-        new_remaining = r2(remaining - amount)
+        try:
+            remaining, amount, new_advance, new_remaining = apply_payment(
+                bill["remaining"], bill["advance_paid"], body.get("amount")
+            )
+        except ValueError as e:
+            return jsonify({"error": str(e)}), 400
 
         db.execute(
             "INSERT INTO institution_bill_payments (bill_id, payment_method, amount, paid_at)"

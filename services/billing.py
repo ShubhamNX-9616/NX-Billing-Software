@@ -1,5 +1,5 @@
 from db import get_db
-from utils import r2
+from utils import r2, normalize_mobile, validate_indian_mobile
 
 VALID_PAYMENT_METHODS = {"Cash", "Card", "UPI"}
 
@@ -213,3 +213,47 @@ def find_or_create_customer(db, customer_name, norm_mobile):
         (customer_name, norm_mobile, norm_mobile),
     )
     return cursor.lastrowid
+
+
+def normalize_and_validate_mobile(raw):
+    """Normalize raw mobile and validate it's a valid Indian number.
+    Raises ValueError if invalid."""
+    norm = normalize_mobile(raw)
+    if not validate_indian_mobile(norm):
+        raise ValueError("Invalid Indian mobile number")
+    return norm
+
+
+def parse_inst_advance(raw, final_total):
+    """Parse advance_paid for institution bills. Clips remaining to 0 if advance exceeds total."""
+    try:
+        advance_paid = r2(float(raw or 0))
+    except (TypeError, ValueError):
+        advance_paid = 0.0
+    return advance_paid, r2(max(0.0, final_total - advance_paid))
+
+
+def apply_payment(raw_remaining, raw_advance, raw_amount):
+    """Validate and compute a payment against a balance.
+    Returns (remaining, amount, new_advance, new_remaining). Raises ValueError on bad input."""
+    remaining = r2(float(raw_remaining or 0))
+    try:
+        amount = r2(float(raw_amount or 0))
+    except (TypeError, ValueError):
+        raise ValueError("amount must be a number")
+    if amount <= 0:
+        raise ValueError("amount must be greater than 0")
+    if amount > remaining:
+        raise ValueError(f"amount ({amount}) exceeds balance due ({remaining})")
+    return remaining, amount, r2(float(raw_advance or 0) + amount), r2(remaining - amount)
+
+
+def compute_bill_display_fields(bill, items):
+    """Compute gross_final_total and round_off for a bill GET response."""
+    gross_final_total = r2(sum(float(i["final_amount"] or 0) for i in items))
+    stored_round_off = float(bill["round_off"] or 0)
+    if stored_round_off != 0:
+        round_off = stored_round_off
+    else:
+        round_off = r2(gross_final_total - float(bill["final_total"] or 0))
+    return gross_final_total, round_off

@@ -3,36 +3,9 @@ import qrcode
 from flask import Blueprint, jsonify, request, send_file, session
 from db import get_db, IST_NOW
 from services.auth import api_login_required, api_admin_required
-from utils import r2, cloth_type_prefix as _item_prefix
+from services.inventory import compute_special_code, next_item_code, adjust_stock
 
 inventory_bp = Blueprint("inventory", __name__)
-
-_CIPHER = 'RAYMONDSUI'
-
-def _compute_special_code(cost_price, supplier_name=''):
-    n = round(abs(float(cost_price or 0)))
-    encoded = ''.join(_CIPHER[int(d)] for d in str(n))
-    if supplier_name:
-        initials = ''.join(w[0].upper() for w in str(supplier_name).strip().split() if w)
-        if initials:
-            return f"{initials}-{encoded}"
-    return encoded
-
-def _next_item_code(db, cloth_type):
-    prefix = _item_prefix(cloth_type)
-    row = db.execute(
-        "SELECT item_code FROM inventory_items WHERE item_code LIKE ? ORDER BY item_code DESC LIMIT 1",
-        (f"{prefix}-%",)
-    ).fetchone()
-    if row:
-        try:
-            last_num = int(row['item_code'].split('-')[1])
-        except (IndexError, ValueError):
-            last_num = 0
-        next_num = last_num + 1
-    else:
-        next_num = 1
-    return f"{prefix}-{next_num:03d}"
 
 
 def _generate_label_png(item):
@@ -301,10 +274,10 @@ def create_inventory_item():
                 ).fetchone()
                 if inv_row and inv_row['name']:
                     sup_name = inv_row['name']
-            special_code = _compute_special_code(cost_price, sup_name)
+            special_code = compute_special_code(cost_price, sup_name)
 
         try:
-            item_code = _next_item_code(db, cloth_type)
+            item_code = next_item_code(db, cloth_type)
             cur = db.execute(
                 """INSERT INTO inventory_items
                    (cloth_type, company_name, quality_number, unit_label,
@@ -375,7 +348,7 @@ def update_inventory_item(item_id):
                 ).fetchone()
                 if inv_row and inv_row['name']:
                     sup_name = inv_row['name']
-            special_code = _compute_special_code(cost_price, sup_name)
+            special_code = compute_special_code(cost_price, sup_name)
 
         db.execute(
             f"""UPDATE inventory_items
@@ -440,9 +413,9 @@ def batch_create_inventory_items():
                 min_stock_alert = float(item.get("min_stock_alert") or 5)
                 notes          = (item.get("notes") or "").strip() or None
                 unit_label     = (item.get("unit_label") or "m").strip()
-                special_code   = _compute_special_code(cost_price, inv_supplier_name)
+                special_code   = compute_special_code(cost_price, inv_supplier_name)
 
-                item_code = _next_item_code(db, cloth_type)
+                item_code = next_item_code(db, cloth_type)
                 cur = db.execute(
                     """INSERT INTO inventory_items
                        (cloth_type, company_name, quality_number, unit_label,
@@ -512,21 +485,9 @@ def adjust_item(item_id):
             return jsonify({"error": "quantity cannot be zero"}), 400
 
         db = get_db()
-        item = db.execute("SELECT current_stock FROM inventory_items WHERE id = ?", (item_id,)).fetchone()
-        if not item:
+        new_stock = adjust_stock(db, item_id, quantity, notes, session.get("username"))
+        if new_stock is None:
             return jsonify({"error": "Item not found"}), 404
-
-        new_stock = r2(item["current_stock"] + quantity)
-        db.execute(
-            f"UPDATE inventory_items SET current_stock = ?, updated_at = {IST_NOW} WHERE id = ?",
-            (new_stock, item_id),
-        )
-        db.execute(
-            """INSERT INTO inventory_transactions
-               (item_id, txn_type, quantity, reference_type, notes, created_by)
-               VALUES (?, 'adjustment', ?, 'manual', ?, ?)""",
-            (item_id, quantity, notes, session.get("username")),
-        )
         db.commit()
         return jsonify({"success": True, "new_stock": new_stock})
 
@@ -720,7 +681,7 @@ def current_stock_qr():
         ).fetchone()
 
         if not existing:
-            item_code = _next_item_code(db, cloth_type)
+            item_code = next_item_code(db, cloth_type)
             db.execute(
                 """INSERT INTO inventory_items
                    (cloth_type, company_name, quality_number, unit_label, mrp,

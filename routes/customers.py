@@ -1,7 +1,7 @@
 from flask import Blueprint, jsonify, request
 from db import get_db
 from services.auth import api_login_required, api_admin_required
-from utils import normalize_mobile
+from services.customers import get_customer_by_mobile, get_customer_stats
 
 customers_bp = Blueprint("customers", __name__)
 
@@ -38,13 +38,10 @@ def search_customer_by_mobile():
         raw = request.args.get("mobile", "").strip()
         if not raw:
             return jsonify({"error": "mobile param required"}), 400
-        norm = normalize_mobile(raw)
         db = get_db()
-        row = db.execute(
-            "SELECT * FROM customers WHERE normalized_mobile = ?", (norm,)
-        ).fetchone()
-        if row:
-            return jsonify({"found": True, "customer": dict(row)})
+        _, customer = get_customer_by_mobile(db, raw)
+        if customer:
+            return jsonify({"found": True, "customer": customer})
         return jsonify({"found": False})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -80,28 +77,8 @@ def customer_summary():
         raw = request.args.get("mobile", "").strip()
         if not raw:
             return jsonify({"error": "mobile required"}), 400
-        norm = normalize_mobile(raw)
-        db   = get_db()
-
-        stats = db.execute("""
-            SELECT COUNT(b.id)                        AS total_bills,
-                   COALESCE(SUM(b.final_total), 0)    AS total_spent
-            FROM   customers c
-            JOIN   bills b ON b.customer_id = c.id
-            WHERE  c.normalized_mobile = ?
-              AND  b.status != 'cancelled'
-        """, (norm,)).fetchone()
-
-        last = db.execute("""
-            SELECT b.bill_number, b.bill_date, b.final_total
-            FROM   bills b
-            JOIN   customers c ON c.id = b.customer_id
-            WHERE  c.normalized_mobile = ?
-              AND  b.status != 'cancelled'
-            ORDER  BY b.bill_date DESC, b.id DESC
-            LIMIT  1
-        """, (norm,)).fetchone()
-
+        db = get_db()
+        _, stats, last = get_customer_stats(db, raw)
         return jsonify({
             "total_bills":       int(stats["total_bills"]  or 0),
             "total_spent":       round(float(stats["total_spent"] or 0), 2),

@@ -4,15 +4,17 @@ from flask import Blueprint, jsonify, request, session
 from db import get_db, generate_bill_number, IST_NOW
 from db import current_fy
 from services.auth import api_login_required, api_admin_required
-from utils import normalize_mobile, validate_indian_mobile, r2
 from services.billing import (
     validate_and_calculate_items,
     calculate_bill_totals,
     validate_payments,
     parse_advance,
     find_or_create_customer,
+    normalize_and_validate_mobile,
+    apply_payment,
+    compute_bill_display_fields,
 )
-from services.inventory import deduct_stock, restore_stock
+from services.inventory import deduct_stock, restore_stock, apply_inventory_diff
 
 bills_bp = Blueprint("bills", __name__)
 
@@ -165,12 +167,7 @@ def get_bill(bill_id):
             (bill_id,),
         ).fetchall()
 
-        gross_final_total = r2(sum(float(i["final_amount"] or 0) for i in items))
-        stored_round_off = float(bill["round_off"] or 0)
-        if stored_round_off != 0:
-            round_off = stored_round_off
-        else:
-            round_off = r2(gross_final_total - float(bill["final_total"] or 0))
+        gross_final_total, round_off = compute_bill_display_fields(bill, items)
 
         result = dict(bill)
         result["gross_final_total"] = gross_final_total
@@ -210,9 +207,10 @@ def create_bill():
         if errors:
             return jsonify({"error": "; ".join(errors)}), 400
 
-        norm_mobile = normalize_mobile(customer_mobile)
-        if not validate_indian_mobile(norm_mobile):
-            return jsonify({"error": "Invalid Indian mobile number"}), 400
+        try:
+            norm_mobile = normalize_and_validate_mobile(customer_mobile)
+        except ValueError as e:
+            return jsonify({"error": str(e)}), 400
 
         db = get_db()
 
@@ -352,9 +350,10 @@ def update_bill(bill_id):
         if errors:
             return jsonify({"error": "; ".join(errors)}), 400
 
-        norm_mobile = normalize_mobile(customer_mobile)
-        if not validate_indian_mobile(norm_mobile):
-            return jsonify({"error": "Invalid Indian mobile number"}), 400
+        try:
+            norm_mobile = normalize_and_validate_mobile(customer_mobile)
+        except ValueError as e:
+            return jsonify({"error": str(e)}), 400
 
         db = get_db()
 
@@ -453,14 +452,7 @@ def update_bill(bill_id):
             )
 
         # Apply only the net change per inventory item
-        for inv_id in set(old_qty_map) | set(new_qty_map):
-            old_qty = r2(old_qty_map.get(inv_id, 0))
-            new_qty = r2(new_qty_map.get(inv_id, 0))
-            diff    = r2(new_qty - old_qty)
-            if diff > 0:
-                deduct_stock(db, inv_id, diff, bill_id, username)
-            elif diff < 0:
-                restore_stock(db, inv_id, -diff, bill_id, username)
+        apply_inventory_diff(db, old_qty_map, new_qty_map, bill_id, username)
 
         db.commit()
 
@@ -739,8 +731,7 @@ def record_payment(bill_id):
         if bill["status"] == "cancelled":
             return jsonify({"error": "Cannot record payment on a cancelled bill"}), 400
 
-        remaining = r2(float(bill["remaining"] or 0))
-        if remaining <= 0:
+        if float(bill["remaining"] or 0) <= 0:
             return jsonify({"error": "No balance due on this bill"}), 400
 
         body           = request.get_json(force=True)
@@ -748,22 +739,17 @@ def record_payment(bill_id):
         if payment_method not in {"Cash", "Card", "UPI"}:
             return jsonify({"error": "payment_method must be Cash, Card, or UPI"}), 400
 
-        try:
-            amount = r2(float(body.get("amount") or 0))
-        except (TypeError, ValueError):
-            return jsonify({"error": "amount must be a number"}), 400
-        if amount <= 0:
-            return jsonify({"error": "amount must be greater than 0"}), 400
-        if amount > remaining:
-            return jsonify({"error": f"amount ({amount}) exceeds balance due ({remaining})"}), 400
-
         paid_date = (body.get("paid_date") or "").strip()
         if not paid_date:
             from datetime import datetime, timezone, timedelta
             paid_date = datetime.now(timezone(timedelta(hours=5, minutes=30))).strftime("%Y-%m-%d")
 
-        new_advance   = r2(float(bill["advance_paid"] or 0) + amount)
-        new_remaining = r2(remaining - amount)
+        try:
+            remaining, amount, new_advance, new_remaining = apply_payment(
+                bill["remaining"], bill["advance_paid"], body.get("amount")
+            )
+        except ValueError as e:
+            return jsonify({"error": str(e)}), 400
 
         db.execute(
             "INSERT INTO bill_payments (bill_id, payment_method, amount, paid_at) VALUES (?, ?, ?, ?)",
