@@ -41,6 +41,11 @@
         <span class="nav-icon">&#127970;</span>
         Institution Bill
       </a>
+      <a href="/tailoring"
+         class="nav-link {% if request.path.startswith('/tailoring') %}active{% endif %}">
+        <span class="nav-icon">&#9986;</span>
+        Tailoring
+      </a>
 
       {# Admin-only nav links #}
       {% if current_user.is_admin %}
@@ -63,6 +68,11 @@
          class="nav-link {% if request.path.startswith('/inventory') %}active{% endif %}">
         <span class="nav-icon">&#128230;</span>
         Inventory
+      </a>
+      <a href="/loyalty"
+         class="nav-link {% if request.path.startswith('/loyalty') %}active{% endif %}">
+        <span class="nav-icon">&#127873;</span>
+        Loyalty
       </a>
       <a href="/admin/users"
          class="nav-link {% if request.path.startswith('/admin/users') %}active{% endif %}">
@@ -162,6 +172,16 @@
       </svg>
       <span>Inst. Bill</span>
     </a>
+    <a href="/tailoring" class="mob-nav-item" data-page="tailoring">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="6" cy="6" r="3"/>
+        <circle cx="6" cy="18" r="3"/>
+        <line x1="20" y1="4" x2="8.12" y2="15.88"/>
+        <line x1="14.47" y1="14.48" x2="20" y2="20"/>
+        <line x1="8.12" y1="8.12" x2="12" y2="12"/>
+      </svg>
+      <span>Tailoring</span>
+    </a>
 
     {# Admin-only tabs #}
     {% if current_user.is_admin %}
@@ -211,6 +231,7 @@
         'history':   path.startsWith('/bill'),
         'customers': path.startsWith('/customers'),
         'inventory': path.startsWith('/inventory'),
+        'tailoring': path.startsWith('/tailoring'),
       };
       document.querySelectorAll('.mob-nav-item').forEach(function (el) {
         if (map[el.dataset.page]) el.classList.add('active');
@@ -221,6 +242,8 @@
   <script>
     window.SHARE_BASE_URL = "{{ share_base_url }}";
   </script>
+
+  <script src="{{ url_for('static', filename='js/common.js') }}?v={{ sv }}"></script>
 
   <script>
     // Alt+N → New Bill from anywhere in the app

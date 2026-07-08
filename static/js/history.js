@@ -131,8 +131,8 @@ function renderTable(bills, titleText) {
     return `
       <tr onclick="location.href='/bills/${b.id}'" style="cursor:pointer;${rowStyle}">
         <td>${billNumHtml}</td>
-        <td style="${cancelled ? 'color:var(--text-muted);' : ''}">${b.customer_name_snapshot || '—'}</td>
-        <td class="col-mobile" style="color:var(--text-muted);">${b.customer_mobile_snapshot || '—'}</td>
+        <td style="${cancelled ? 'color:var(--text-muted);' : ''}">${escapeHtml(b.customer_name_snapshot) || '—'}</td>
+        <td class="col-mobile" style="color:var(--text-muted);">${escapeHtml(b.customer_mobile_snapshot) || '—'}</td>
         <td class="col-date" style="${cancelled ? 'color:var(--text-muted);' : ''}">${b.bill_date || '—'}</td>
         <td class="col-items text-right" style="${cancelled ? 'color:var(--text-muted);' : ''}">${itemCount}</td>
         <td class="text-right">

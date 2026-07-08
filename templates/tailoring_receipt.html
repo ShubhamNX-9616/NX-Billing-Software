@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Order #{{ order.order_number }} — Tailoring Needs</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #f3f4f6;
+      font-family: 'Segoe UI', sans-serif;
+      font-size: 14px;
+      color: #111827;
+    }
+    .wrapper { max-width: 460px; margin: 0 auto; padding: 16px 14px 80px; }
+
+    .receipt {
+      background: #fff;
+      border: 2px solid #b91c1c;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .r-head {
+      text-align: center;
+      padding: 16px 12px 10px;
+      border-bottom: 2px solid #b91c1c;
+    }
+    .r-shop {
+      color: #b91c1c;
+      font-size: 26px;
+      font-weight: 800;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+    }
+    .r-sub { font-size: 12px; color: #7f1d1d; margin-top: 2px; }
+
+    .r-meta {
+      display: flex; justify-content: space-between; flex-wrap: wrap; gap: 6px;
+      padding: 10px 14px; border-bottom: 1px solid #fecaca; font-size: 13px;
+    }
+    .r-meta b { font-size: 14px; }
+
+    .r-cust { padding: 10px 14px; border-bottom: 1px solid #fecaca; font-size: 13px; }
+
+    table.r-items { width: 100%; border-collapse: collapse; }
+    .r-items th {
+      text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .04em;
+      color: #b91c1c; padding: 8px 10px; border-bottom: 1px solid #fecaca;
+    }
+    .r-items td { padding: 7px 10px; border-bottom: 1px dashed #fee2e2; font-size: 13.5px; }
+    .r-items .num { text-align: right; white-space: nowrap; }
+
+    .r-summary { padding: 10px 14px; border-bottom: 1px solid #fecaca; }
+    .r-sumrow { display: flex; justify-content: space-between; padding: 3px 0; font-size: 13.5px; }
+    .r-sumrow.total { font-weight: 700; font-size: 15px; }
+    .r-sumrow.balance b { color: #b91c1c; }
+
+    .r-dates { padding: 10px 14px; border-bottom: 1px solid #fecaca; font-size: 13.5px; }
+    .r-dates div { padding: 2px 0; }
+
+    .r-photos { padding: 10px 14px; border-bottom: 1px solid #fecaca; }
+    .r-photos-title { font-size: 11px; text-transform: uppercase; color: #b91c1c;
+                      letter-spacing: .04em; margin-bottom: 6px; }
+    .r-photos-label { font-size: 12px; font-weight: 600; margin: 6px 0 4px; }
+    .r-photos-grid { display: flex; gap: 8px; flex-wrap: wrap; }
+    .r-photos-grid img {
+      width: 92px; height: 92px; object-fit: cover; border-radius: 6px;
+      border: 1px solid #fecaca;
+    }
+
+    .r-policy { padding: 10px 14px; font-size: 12px; color: #6b7280; line-height: 1.6; }
+    .r-policy .mr { font-size: 12.5px; }
+
+    .print-bar { text-align: center; margin-top: 14px; }
+    .print-btn {
+      background: #b91c1c; color: #fff; border: none; border-radius: 8px;
+      padding: 10px 26px; font-size: 15px; font-weight: 600; cursor: pointer;
+    }
+
+    @media print {
+      body { background: #fff; }
+      .wrapper { max-width: none; padding: 0; }
+      .receipt { border-radius: 0; }
+      .print-bar { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="receipt">
+      <div class="r-head">
+        <div class="r-shop">Tailoring Needs</div>
+        <div class="r-sub">New Sangvi, Pune - 27. &nbsp;Mob : 9284630254</div>
+      </div>
+
+      <div class="r-meta">
+        <span>Date : <b>{{ order.order_date | format_date }}</b></span>
+        <span>No. : <b>{{ order.order_number }}</b></span>
+      </div>
+
+      <div class="r-cust">
+        Name : <b>{{ order.customer_name }}</b>
+        {% if order.address %}<br/>Address : {{ order.address }}{% endif %}
+        {% if order.mobile %}<br/>Mob : {{ order.mobile }}{% endif %}
+      </div>
+
+      <table class="r-items">
+        <thead>
+          <tr>
+            <th>Particulars</th>
+            <th class="num">Qty</th>
+            <th class="num">Rate</th>
+            <th class="num">Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for it in order["items"] %}
+          <tr>
+            <td>{{ it.garment_type }}</td>
+            <td class="num">{{ it.qty }}</td>
+            <td class="num">&#8377;{{ '%.2f' | format(it.rate) }}</td>
+            <td class="num">&#8377;{{ '%.2f' | format(it.amount) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <div class="r-summary">
+        <div class="r-sumrow total"><span>Total</span><b>&#8377;{{ '%.2f' | format(order.total) }}</b></div>
+        <div class="r-sumrow"><span>Advance{% if order.payment_mode %} ({{ order.payment_mode }}){% endif %}</span>
+          <b>&#8377;{{ '%.2f' | format(order.advance) }}</b></div>
+        <div class="r-sumrow balance"><span>Balance</span><b>&#8377;{{ '%.2f' | format(order.balance) }}</b></div>
+      </div>
+
+      <div class="r-dates">
+        {% if order.trial_date %}<div>Trial Date : <b>{{ order.trial_date | format_date }}</b></div>{% endif %}
+        <div>Delivery Date : <b>{{ order.delivery_date | format_date if order.delivery_date else '—' }}</b></div>
+      </div>
+
+      {% if order.photos %}
+      <div class="r-photos">
+        <div class="r-photos-title">Cloth Samples</div>
+        {% for it in order["items"] if it.photos %}
+        <div class="r-photos-label">{{ it.garment_type }}</div>
+        <div class="r-photos-grid">
+          {% for p in it.photos %}
+          <img src="/tailoring/photos/{{ p.filename }}" alt="{{ it.garment_type }} cloth sample" />
+          {% endfor %}
+        </div>
+        {% endfor %}
+        {% if order.general_photos %}
+        {% if order.photos | length > order.general_photos | length %}
+        <div class="r-photos-label">Other</div>
+        {% endif %}
+        <div class="r-photos-grid">
+          {% for p in order.general_photos %}
+          <img src="/tailoring/photos/{{ p.filename }}" alt="Cloth sample" />
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+      {% endif %}
+
+      {% if order.notes %}
+      <div class="r-cust">Notes : {{ order.notes }}</div>
+      {% endif %}
+
+      <div class="r-policy">
+        Delivery after 7 pm. &nbsp;·&nbsp; Monday closed.<br/>
+        <span class="mr">सूचना : कपडे ३० दिवसांच्या आत न नेल्यास आम्ही जबाबदार नाही.</span>
+      </div>
+    </div>
+
+    <div class="print-bar">
+      <button class="print-btn" onclick="window.print()">&#128424; Print Receipt</button>
+    </div>
+  </div>
+</body>
+</html>

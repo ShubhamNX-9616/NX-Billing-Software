@@ -9,6 +9,7 @@ __pycache__/
 *.db
 *.db-shm
 *.db-wal
+uploads/
 .claude/
 .mcp.json
 .opencode.json

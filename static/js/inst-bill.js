@@ -524,10 +524,10 @@ function onInstSaveSuccess(bill) {
   successBar.style.display = 'block';
 
   const invoiceBtn  = document.getElementById('inst-invoice-btn');
-  if (invoiceBtn)  invoiceBtn.onclick  = function () { buildPerformaWindow(bill, bill.items, 'invoice'); };
+  if (invoiceBtn)  invoiceBtn.onclick  = function () { buildPerformaWindow(bill, bill.items, bill.payments, 'invoice'); };
 
   const perfornaBtn = document.getElementById('inst-performa-btn');
-  if (perfornaBtn) perfornaBtn.onclick = function () { buildPerformaWindow(bill, bill.items, 'proforma'); };
+  if (perfornaBtn) perfornaBtn.onclick = function () { buildPerformaWindow(bill, bill.items, bill.payments, 'proforma'); };
 
   document.getElementById('inst-save-btn').style.display = 'none';
   document.getElementById('inst-save-error').textContent = '';

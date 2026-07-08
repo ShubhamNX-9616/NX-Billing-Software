@@ -245,7 +245,7 @@ function renderRecentBills(bills) {
   tbody.innerHTML = bills.slice(0, 10).map(b => `
     <tr onclick="location.href='/bills/${b.id}'" style="cursor:pointer;">
       <td><span class="fw-600">${b.bill_number}</span></td>
-      <td>${b.customer_name_snapshot || '—'}</td>
+      <td>${escapeHtml(b.customer_name_snapshot) || '—'}</td>
       <td class="col-date">${b.bill_date || '—'}</td>
       <td class="text-right fw-600">${fmtCurrency(b.final_total)}</td>
       <td class="col-payment">${paymentBadge(b.payment_mode_type)}</td>

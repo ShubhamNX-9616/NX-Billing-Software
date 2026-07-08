@@ -97,8 +97,8 @@ function renderCustomerList(customers) {
 
     return `
       <tr onclick="location.href='/customers/${c.id}'" style="cursor:pointer;">
-        <td><span class="fw-600">${c.name}</span></td>
-        <td style="color:var(--text-muted);">${c.mobile}</td>
+        <td><span class="fw-600">${escapeHtml(c.name)}</span></td>
+        <td style="color:var(--text-muted);">${escapeHtml(c.mobile)}</td>
         <td class="text-right col-bills">
           <span class="badge badge-info">${billCount}</span>
         </td>
@@ -133,6 +133,13 @@ function filterCustomers() {
 // CUSTOMER DETAIL PAGE
 // ================================================================
 async function loadCustomerDetail() {
+  // Loyalty is optional — fetched separately so a failure there can never
+  // block the customer page itself.
+  fetch(`/api/loyalty/customer/${CUSTOMER_ID}`)
+    .then(res => (res.ok ? res.json() : null))
+    .then(loyalty => { if (loyalty) renderLoyaltySection(loyalty); })
+    .catch(() => {});
+
   try {
     const [custRes, billsRes] = await Promise.all([
       fetch(`/api/customers/${CUSTOMER_ID}`),
@@ -152,6 +159,75 @@ async function loadCustomerDetail() {
     errEl.textContent   = err.message;
     errEl.style.display = 'block';
   }
+}
+
+function renderLoyaltySection(loyalty) {
+  const card = document.getElementById('cd-loyalty-card');
+  const body = document.getElementById('cd-loyalty-body');
+  const fyEl = document.getElementById('cd-loyalty-fy');
+  if (!card || !body) return;
+
+  if (!loyalty.started) {
+    fyEl.textContent = '';
+    body.innerHTML = `<div style="color:var(--text-muted);font-size:13px;">
+      The loyalty program hasn't started yet.
+    </div>`;
+    card.style.display = '';
+    return;
+  }
+
+  const cycle = loyalty.current_cycle;
+  fyEl.textContent = cycle ? `Cycle ${cycle.start_date} – ${cycle.end_date}` : '';
+
+  const tierBadge = loyalty.current_tier
+    ? `<span class="badge ${TIER_CSS[loyalty.current_tier]}">${TIER_LABEL[loyalty.current_tier]}</span>`
+    : `<span class="badge badge-neutral">No tier yet</span>`;
+
+  const nextThreshold = loyalty.next_threshold;
+  const progressPct = nextThreshold
+    ? Math.max(0, Math.min(100, (loyalty.cycle_spent / nextThreshold) * 100))
+    : 100;
+
+  const progressLine = nextThreshold
+    ? `<div style="margin-top:6px;height:8px;border-radius:4px;background:var(--bg);overflow:hidden;width:220px;">
+         <div style="height:100%;width:${progressPct}%;background:var(--primary);"></div>
+       </div>
+       <div style="margin-top:4px;font-size:12px;color:var(--text-muted);">
+         ${fmt(loyalty.amount_to_next)} more to ${TIER_LABEL[loyalty.next_tier]}
+       </div>`
+    : `<div style="margin-top:6px;font-size:12px;color:var(--success);font-weight:600;">Highest tier reached!</div>`;
+
+  const giftsHtml = loyalty.gifts && loyalty.gifts.length
+    ? loyalty.gifts.map(g => `
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+          <span class="badge ${TIER_CSS[g.tier]}">${TIER_LABEL[g.tier]}</span>
+          ${g.given_at
+            ? `<span style="color:var(--success);font-size:12px;">&#10003; Given on ${g.given_at.slice(0, 10)}</span>`
+            : `<span style="color:var(--warning);font-size:12px;">&#9888; Pending</span>`}
+        </div>
+      `).join('')
+    : `<div style="color:var(--text-muted);font-size:12px;">No gifts earned this cycle yet.</div>`;
+
+  body.innerHTML = `
+    <div>
+      <div class="text-muted" style="font-size:11.5px;font-weight:600;text-transform:uppercase;
+           letter-spacing:.4px;margin-bottom:4px;">Current Tier</div>
+      ${tierBadge}
+    </div>
+    <div>
+      <div class="text-muted" style="font-size:11.5px;font-weight:600;text-transform:uppercase;
+           letter-spacing:.4px;margin-bottom:4px;">Cycle Spend</div>
+      <div style="font-size:18px;font-weight:700;">${fmt(loyalty.cycle_spent)}</div>
+      ${progressLine}
+    </div>
+    <div>
+      <div class="text-muted" style="font-size:11.5px;font-weight:600;text-transform:uppercase;
+           letter-spacing:.4px;margin-bottom:4px;">Gifts Earned</div>
+      ${giftsHtml}
+    </div>
+  `;
+
+  card.style.display = '';
 }
 
 function renderCustomerDetail(customer, bills) {

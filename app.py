@@ -1,6 +1,7 @@
 import os
 import subprocess
-from flask import Flask, jsonify, session
+from urllib.parse import urlparse
+from flask import Flask, jsonify, request, session
 try:
     from dotenv import load_dotenv
     load_dotenv()
@@ -21,6 +22,9 @@ from routes.inventory import inventory_bp
 from routes.suppliers import suppliers_bp
 from routes.invoices import invoices_bp
 from routes.institution_bills import inst_bills_bp
+from routes.loyalty import loyalty_bp
+from db.tailoring import init_tailoring_db, close_tailoring_db
+from routes.tailoring import tailoring_api_bp, tailoring_pages_bp
 
 app = Flask(__name__)
 
@@ -37,8 +41,20 @@ except Exception:
     _ver = "1"
 STATIC_VERSION = _ver
 
-# Secret key for signing session cookies
-app.secret_key = os.environ.get('SECRET_KEY', 'dev-only-change-in-production')
+# Secret key for signing session cookies. Never fall back to a hardcoded
+# value: with a known key anyone can forge an admin session cookie. If the
+# env var is missing we use a random per-boot key — the app still works,
+# but everyone is logged out on restart, which makes the misconfiguration
+# visible instead of silently insecure.
+_secret = os.environ.get('SECRET_KEY')
+if not _secret:
+    import secrets
+    _secret = secrets.token_hex(32)
+    app.logger.warning(
+        "SECRET_KEY is not set — using a random key for this run. "
+        "Sessions will not survive a restart. Set SECRET_KEY in .env (see .env.example)."
+    )
+app.secret_key = _secret
 
 # Public base URL used for shareable bill links sent via WhatsApp.
 # Set this to your Cloudflare tunnel URL or PythonAnywhere URL so that
@@ -53,17 +69,20 @@ app.config['SESSION_COOKIE_HTTPONLY'] = True    # JS cannot read the cookie
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # Protects against CSRF
 app.config['SESSION_COOKIE_SECURE'] = os.environ.get('SESSION_COOKIE_SECURE', 'false').lower() == 'true'
 app.config['TEMPLATES_AUTO_RELOAD'] = True
-app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0  # disable static file caching
+# Static files are cache-busted with ?v=<git hash> (see STATIC_VERSION above),
+# so browsers may cache them freely — Flask's default max age applies.
 
 # Initialize bcrypt
 bcrypt.init_app(app)
 
-# Close the per-request DB connection after each request/appcontext teardown
+# Close the per-request DB connections after each request/appcontext teardown
 app.teardown_appcontext(close_db)
+app.teardown_appcontext(close_tailoring_db)
 
 # Ensure tables exist and seed defaults on every startup
 init_db()
 seed_default_users(bcrypt)
+init_tailoring_db()  # separate tailoring.db for the tailoring delivery system
 
 @app.template_filter("format_date")
 def format_date_filter(date_str):
@@ -92,6 +111,19 @@ def inject_globals():
     }
 
 
+@app.before_request
+def reject_cross_origin_writes():
+    """Lightweight CSRF guard on top of SameSite=Lax: browsers always send
+    an Origin header on cross-site state-changing requests, so reject any
+    write whose Origin doesn't match the host we're being served on.
+    Requests without an Origin header (curl, same-origin navigations in
+    older browsers) are allowed through."""
+    if request.method in ("POST", "PUT", "PATCH", "DELETE"):
+        origin = request.headers.get("Origin")
+        if origin and urlparse(origin).netloc != request.host:
+            return jsonify({"error": "Cross-origin request rejected"}), 403
+
+
 @app.route("/health")
 def health():
     return jsonify({"status": "ok"}), 200
@@ -110,6 +142,9 @@ app.register_blueprint(inventory_bp,   url_prefix="/api")
 app.register_blueprint(suppliers_bp,   url_prefix="/api")
 app.register_blueprint(invoices_bp,    url_prefix="/api")
 app.register_blueprint(inst_bills_bp,  url_prefix="/api")
+app.register_blueprint(loyalty_bp,     url_prefix="/api")
+app.register_blueprint(tailoring_api_bp, url_prefix="/api")
+app.register_blueprint(tailoring_pages_bp)
 app.register_blueprint(pages_bp)
 
 

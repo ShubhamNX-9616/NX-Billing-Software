@@ -419,6 +419,99 @@ def _m20_inst_bill_payments_paid_at(conn):
         conn.execute("ALTER TABLE institution_bill_payments ADD COLUMN paid_at TEXT")
 
 
+def _m21_loyalty_gifts(conn):
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS loyalty_gifts (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            customer_id INTEGER NOT NULL REFERENCES customers(id),
+            tier        TEXT    NOT NULL,
+            fy          TEXT    NOT NULL,
+            bill_id     INTEGER REFERENCES bills(id),
+            given_at    TEXT,
+            given_by    TEXT,
+            created_at  TEXT DEFAULT (datetime('now','localtime')),
+            UNIQUE(customer_id, tier, fy)
+        )
+    """)
+
+
+def _m22_loyalty_settings(conn):
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS loyalty_settings (
+            id      INTEGER PRIMARY KEY CHECK (id = 1),
+            enabled INTEGER NOT NULL DEFAULT 1
+        )
+    """)
+    conn.execute("INSERT OR IGNORE INTO loyalty_settings (id, enabled) VALUES (1, 1)")
+
+
+def _m23_loyalty_cycles(conn):
+    """Loyalty runs on a rolling 1-year cycle from an admin-chosen activation
+    date rather than the government fiscal year. loyalty_cycles rows are
+    immutable once created; loyalty_settings.activation_date is only used to
+    seed the *next* cycle, so editing it never touches a cycle already
+    running."""
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS loyalty_cycles (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            cycle_number INTEGER NOT NULL,
+            start_date   TEXT NOT NULL,
+            end_date     TEXT NOT NULL,
+            created_at   TEXT DEFAULT (datetime('now','localtime'))
+        )
+    """)
+
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(loyalty_settings)").fetchall()}
+    if "activation_date" not in cols:
+        conn.execute("ALTER TABLE loyalty_settings ADD COLUMN activation_date TEXT")
+
+    gift_cols = {row[1] for row in conn.execute("PRAGMA table_info(loyalty_gifts)").fetchall()}
+    if "cycle_id" not in gift_cols:
+        conn.execute("""
+            CREATE TABLE loyalty_gifts_new (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                customer_id INTEGER NOT NULL REFERENCES customers(id),
+                tier        TEXT    NOT NULL,
+                fy          TEXT    NOT NULL,
+                cycle_id    INTEGER REFERENCES loyalty_cycles(id),
+                bill_id     INTEGER REFERENCES bills(id),
+                given_at    TEXT,
+                given_by    TEXT,
+                created_at  TEXT DEFAULT (datetime('now','localtime')),
+                UNIQUE(customer_id, tier, cycle_id)
+            )
+        """)
+        conn.execute("""
+            INSERT INTO loyalty_gifts_new
+                (id, customer_id, tier, fy, cycle_id, bill_id, given_at, given_by, created_at)
+            SELECT id, customer_id, tier, fy, NULL, bill_id, given_at, given_by, created_at
+            FROM loyalty_gifts
+        """)
+        conn.execute("DROP TABLE loyalty_gifts")
+        conn.execute("ALTER TABLE loyalty_gifts_new RENAME TO loyalty_gifts")
+
+
+def _m24_loyalty_cycles_unique(conn):
+    """Cycles are created lazily by get_current_cycle during request
+    handling; two concurrent requests hitting a rollover could both insert
+    the same cycle. These indexes make the second insert fail so the code
+    can fall back to the row the winner created."""
+    conn.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_loyalty_cycles_number ON loyalty_cycles(cycle_number)"
+    )
+    conn.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_loyalty_cycles_start ON loyalty_cycles(start_date)"
+    )
+
+
+def _m25_drop_loyalty_gifts_fy(conn):
+    """Gifts are keyed by loyalty cycle (cycle_id) since _m23; the fy column
+    was a leftover from the fiscal-year design and is no longer written."""
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(loyalty_gifts)").fetchall()}
+    if "fy" in cols:
+        conn.execute("ALTER TABLE loyalty_gifts DROP COLUMN fy")
+
+
 MIGRATIONS = [
     (1,  _m01_baseline_schema),
     (2,  _m02_bills_extra_columns),
@@ -440,6 +533,11 @@ MIGRATIONS = [
     (18, _m18_inst_company_address),
     (19, _m19_bill_payments_paid_at),
     (20, _m20_inst_bill_payments_paid_at),
+    (21, _m21_loyalty_gifts),
+    (22, _m22_loyalty_settings),
+    (23, _m23_loyalty_cycles),
+    (24, _m24_loyalty_cycles_unique),
+    (25, _m25_drop_loyalty_gifts_fy),
 ]
 
 

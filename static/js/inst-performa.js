@@ -10,8 +10,9 @@ function _fmtPerformaDate(dateStr) {
 }
 
 // type: 'proforma' | 'invoice'
-function buildPerformaWindow(bill, items, type, winRef) {
+function buildPerformaWindow(bill, items, payments, type, winRef) {
   type = type || 'proforma';
+  payments = Array.isArray(payments) ? payments : [];
   const isProforma = type === 'proforma';
   const docTitle   = isProforma ? 'Proforma Invoice' : 'Invoice';
   const salutation = isProforma
@@ -42,6 +43,15 @@ function buildPerformaWindow(bill, items, type, winRef) {
         <td class="td-right">${total.toFixed(2)}</td>
       </tr>`;
   }).join('');
+
+  // Payment transactions (advance + later balance payments). Creation-time
+  // payments have no paid_at, so fall back to the bill date.
+  const paymentRows = payments.map(p => `
+      <tr>
+        <td class="td-center">${_fmtPerformaDate(p.paid_at || bill.bill_date)}</td>
+        <td class="td-center">${p.payment_method || '—'}</td>
+        <td class="td-right">${Number(p.amount || 0).toFixed(2)}</td>
+      </tr>`).join('');
 
   const html = `<!DOCTYPE html>
 <html>
@@ -147,7 +157,7 @@ function buildPerformaWindow(bill, items, type, winRef) {
       </tr>
       ${!isProforma ? `
       <tr>
-        <td style="padding:4px 16px 4px 8px;border:1px solid #555;">Advance Paid</td>
+        <td style="padding:4px 16px 4px 8px;border:1px solid #555;">Amount Received</td>
         <td style="padding:4px 12px;text-align:right;border:1px solid #555;">₹${Number(bill.advance_paid || 0).toFixed(2)}</td>
       </tr>
       <tr>
@@ -156,6 +166,23 @@ function buildPerformaWindow(bill, items, type, winRef) {
       </tr>` : ''}
     </table>
   </div>
+
+  ${!isProforma && paymentRows ? `
+  <div style="margin-bottom:14px;">
+    <div style="font-weight:700;font-size:13px;margin-bottom:5px;">Payment Details</div>
+    <table style="width:auto;min-width:50%;">
+      <thead>
+        <tr>
+          <th style="width:110px;">Date</th>
+          <th style="width:130px;">Payment Mode</th>
+          <th style="width:120px;">Amount (₹)</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${paymentRows}
+      </tbody>
+    </table>
+  </div>` : ''}
 
   <div class="footer-note"><strong>Note:</strong></div>
   <div class="footer-note">All the above rates does include GST.</div>
@@ -184,7 +211,7 @@ async function openInstPerformaInvoice(billId) {
     const res  = await fetch(`/api/institution-bills/${billId}`);
     if (!res.ok) throw new Error('Bill not found');
     const data = await res.json();
-    buildPerformaWindow(data.bill, data.items, 'proforma', win);
+    buildPerformaWindow(data.bill, data.items, data.payments, 'proforma', win);
   } catch (err) {
     if (win) win.close();
     alert('Failed to load bill for printing: ' + err.message);
@@ -198,7 +225,7 @@ async function openInstInvoice(billId) {
     const res  = await fetch(`/api/institution-bills/${billId}`);
     if (!res.ok) throw new Error('Bill not found');
     const data = await res.json();
-    buildPerformaWindow(data.bill, data.items, 'invoice', win);
+    buildPerformaWindow(data.bill, data.items, data.payments, 'invoice', win);
   } catch (err) {
     if (win) win.close();
     alert('Failed to load bill for printing: ' + err.message);

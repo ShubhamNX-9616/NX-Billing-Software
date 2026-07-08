@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+
+{% block title %}Loyalty Program — SHUBHAM NX{% endblock %}
+{% block page_title %}Loyalty Program{% endblock %}
+
+{% block topbar_actions %}
+  <span id="lp-status-badge" class="badge badge-neutral" style="margin-right:8px;">…</span>
+  <button type="button" id="lp-toggle-btn" class="btn btn-secondary" onclick="toggleLoyaltyProgram()" disabled>…</button>
+{% endblock %}
+
+{% block content %}
+
+<!-- Paused banner -->
+<div id="lp-paused-banner" class="alert alert-warning" style="display:none;margin-bottom:16px;">
+  &#9888; The loyalty program is currently paused. No new gifts will be unlocked until it's resumed.
+</div>
+
+<!-- Not started banner -->
+<div id="lp-not-started-banner" class="alert alert-warning" style="display:none;margin-bottom:16px;">
+  &#9888; The loyalty program hasn't started yet — set an activation date below.
+</div>
+
+<!-- Program cycle -->
+<div class="card mb-3">
+  <div class="card-header">
+    <span class="card-title">Program Cycle</span>
+  </div>
+  <div style="display:flex;gap:24px;flex-wrap:wrap;align-items:flex-end;padding:4px 0;">
+    <div id="lp-cycle-info" style="color:var(--text-muted);font-size:13px;"></div>
+    <div style="display:flex;gap:8px;align-items:flex-end;">
+      <div>
+        <label for="lp-activation-date" style="display:block;font-size:11.5px;font-weight:600;
+             text-transform:uppercase;letter-spacing:.4px;color:var(--text-muted);margin-bottom:4px;">
+          Activation Date
+        </label>
+        <input type="date" id="lp-activation-date" class="input">
+      </div>
+      <button type="button" id="lp-save-activation-btn" class="btn btn-secondary"
+              onclick="saveActivationDate()">Save</button>
+    </div>
+  </div>
+  <div id="lp-activation-hint" style="margin-top:8px;font-size:12px;color:var(--text-muted);">
+    Each cycle runs for one year from the activation date. Changing this date only shifts the
+    <strong>next</strong> cycle — the cycle currently in progress is never affected.
+  </div>
+  <div id="lp-activation-error" class="alert alert-danger" style="display:none;margin-top:8px;"></div>
+</div>
+
+<!-- Tier thresholds -->
+<div class="card mb-3">
+  <div class="card-header">
+    <span class="card-title">Tier Thresholds</span>
+  </div>
+  <div style="display:flex;gap:20px;flex-wrap:wrap;padding:4px 0;">
+    <div>
+      <span class="badge tier-silver">Silver</span>
+      <span style="color:var(--text-muted);font-size:13px;margin-left:6px;">&ge; &#8377;10,000</span>
+    </div>
+    <div>
+      <span class="badge tier-gold">Gold</span>
+      <span style="color:var(--text-muted);font-size:13px;margin-left:6px;">&ge; &#8377;20,000</span>
+    </div>
+    <div>
+      <span class="badge tier-platinum">Platinum</span>
+      <span style="color:var(--text-muted);font-size:13px;margin-left:6px;">&ge; &#8377;30,000</span>
+    </div>
+    <div>
+      <span class="badge tier-diamond">Diamond</span>
+      <span style="color:var(--text-muted);font-size:13px;margin-left:6px;">&ge; &#8377;50,000</span>
+    </div>
+  </div>
+</div>
+
+<!-- Pending gifts -->
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">Pending Gifts</span>
+    <span id="lp-count" style="font-size:12px;color:var(--text-muted);"></span>
+  </div>
+
+  <div id="lp-loading" class="loading-row">
+    <div class="spinner spinner-lg"></div> Loading pending gifts…
+  </div>
+
+  <div id="lp-error" class="alert alert-danger" style="display:none;"></div>
+
+  <div id="lp-empty" class="empty-state" style="display:none;">
+    <div class="empty-state-icon">&#127873;</div>
+    <div>No pending gifts right now.</div>
+  </div>
+
+  <div id="lp-table-wrap" class="table-scroll-wrapper" style="display:none;">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Customer</th>
+          <th>Mobile</th>
+          <th>Tier Reached</th>
+          <th>Unlocked On</th>
+          <th style="text-align:center;">Action</th>
+        </tr>
+      </thead>
+      <tbody id="lp-body"></tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/loyalty.js') }}?v={{ sv }}"></script>
+{% endblock %}

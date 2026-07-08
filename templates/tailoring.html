@@ -1,0 +1,228 @@
+{% extends "base.html" %}
+
+{% block title %}Tailoring — SHUBHAM NX{% endblock %}
+{% block page_title %}Tailoring Delivery{% endblock %}
+
+{% block topbar_actions %}
+  <button type="button" class="btn btn-primary" onclick="openOrderModal()">+ New Order</button>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+  /* ---- Tailoring page (tl-) ---- */
+  .tl-stats { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px; }
+  .tl-stat {
+    flex:1; min-width:110px; padding:10px 14px; border-radius:10px;
+    background:var(--surface); border:1px solid var(--border);
+    color:var(--text); cursor:pointer; text-align:center;
+  }
+  .tl-stat.active { outline:2px solid var(--primary); }
+  .tl-stat-num { font-size:20px; font-weight:700; }
+  .tl-stat-label { font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.4px; }
+  .tl-stat.danger .tl-stat-num { color:#dc2626; }
+
+  .tl-filters { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
+  .tl-filters .input { max-width:220px; }
+
+  .tl-order-row {
+    display:flex; justify-content:space-between; gap:12px; align-items:center;
+    padding:12px 14px; border-bottom:1px solid var(--border);
+    cursor:pointer; flex-wrap:wrap;
+  }
+  .tl-order-row:hover { background:var(--bg); }
+  .tl-order-main { flex:1; min-width:200px; }
+  .tl-order-no { font-weight:700; }
+  .tl-order-cust { font-size:13px; }
+  .tl-order-items { font-size:12px; color:var(--text-muted); }
+  .tl-order-dates { font-size:12px; color:var(--text-muted); min-width:140px; }
+  .tl-order-dates .due-today { color:#d97706; font-weight:600; }
+  .tl-order-dates .overdue { color:#dc2626; font-weight:600; }
+  .tl-order-right { text-align:right; min-width:110px; }
+  .tl-balance { font-size:13px; font-weight:600; }
+  .tl-balance.paid { color:#057a55; }
+  .tl-balance.pending { color:#dc2626; }
+
+  .tl-badge {
+    display:inline-block; padding:2px 10px; border-radius:999px;
+    font-size:11.5px; font-weight:600; white-space:nowrap;
+  }
+  .tl-badge.s0 { background:#fef3c7; color:#92400e; }  /* In Stitching */
+  .tl-badge.s1 { background:#dbeafe; color:#1e40af; }  /* Trial Ready */
+  .tl-badge.s2 { background:#d1fae5; color:#065f46; }  /* Full Stitched */
+  .tl-badge.s3 { background:#e5e7eb; color:#374151; }  /* Delivered */
+  [data-theme="dark"] .tl-badge.s0 { background:#78350f; color:#fde68a; }
+  [data-theme="dark"] .tl-badge.s1 { background:#1e3a8a; color:#bfdbfe; }
+  [data-theme="dark"] .tl-badge.s2 { background:#064e3b; color:#a7f3d0; }
+  [data-theme="dark"] .tl-badge.s3 { background:#374151; color:#d1d5db; }
+
+  .tl-item-line {
+    display:flex; gap:8px; align-items:center; flex-wrap:wrap;
+    padding:8px 0; border-bottom:1px dashed var(--border);
+  }
+  .tl-item-line select { padding:4px 8px; }
+
+  .tl-photos { display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
+  .tl-photos.small img { width:60px; height:60px; }
+  .tl-photo-btns { display:flex; gap:6px; margin-top:6px; flex-wrap:wrap; }
+  .tl-photo-thumb { position:relative; }
+  .tl-photo-thumb img {
+    width:84px; height:84px; object-fit:cover; border-radius:8px;
+    border:1px solid var(--border); cursor:pointer;
+  }
+  .tl-photo-del {
+    position:absolute; top:-6px; right:-6px; width:20px; height:20px;
+    border-radius:50%; border:none; background:#dc2626; color:#fff;
+    font-size:12px; line-height:1; cursor:pointer;
+  }
+
+  /* order form item rows */
+  .tlf-item-row { display:flex; gap:6px; align-items:center; margin-bottom:6px; flex-wrap:wrap; }
+  .tlf-item-row select { flex:2; min-width:120px; }
+  .tlf-item-row .tlf-qty { width:64px; }
+  .tlf-item-row .tlf-rate { width:90px; }
+  .tlf-item-row .tlf-amount { width:90px; text-align:right; font-weight:600; }
+  .tlf-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  @media (max-width:600px){ .tlf-grid { grid-template-columns:1fr; } }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Stat chips -->
+<div class="tl-stats" id="tl-stats"></div>
+
+<!-- Filters -->
+<div class="card">
+  <div class="tl-filters">
+    <input type="text" id="tl-search" class="input" placeholder="Search name / mobile / order no."
+           oninput="debouncedLoad()" />
+    <select id="tl-stage-filter" class="input" style="max-width:160px;" onchange="loadOrders()">
+      <option value="">All stages</option>
+    </select>
+    <select id="tl-due-filter" class="input" style="max-width:170px;" onchange="loadOrders()">
+      <option value="">All dates</option>
+      <option value="trial-today">Trial due today</option>
+      <option value="delivery-today">Delivery due today</option>
+      <option value="overdue">Overdue delivery</option>
+    </select>
+  </div>
+  <div id="tl-orders-list"></div>
+  <div id="tl-empty" style="display:none;padding:32px;text-align:center;color:var(--text-muted);">
+    No orders found.
+  </div>
+</div>
+
+<!-- ====== New / Edit Order modal ====== -->
+<div class="modal-overlay hidden" id="tl-order-modal">
+  <div class="modal-box" style="max-width:680px;width:95vw;">
+    <div class="modal-header">
+      <h3 id="tl-order-modal-title">New Tailoring Order</h3>
+      <button class="modal-close" onclick="closeOrderModal()">&#215;</button>
+    </div>
+    <div class="modal-body">
+      <div class="tlf-grid">
+        <div>
+          <label>Customer Name <span class="text-danger">*</span></label>
+          <input type="text" id="tlf-name" class="input" placeholder="e.g. Bawaskar" />
+        </div>
+        <div>
+          <label>Mobile</label>
+          <input type="tel" id="tlf-mobile" class="input" placeholder="10-digit mobile" />
+        </div>
+        <div>
+          <label>Address</label>
+          <input type="text" id="tlf-address" class="input" placeholder="Optional" />
+        </div>
+        <div>
+          <label>Order Date</label>
+          <input type="date" id="tlf-order-date" class="input" />
+        </div>
+        <div>
+          <label>Trial Date</label>
+          <input type="date" id="tlf-trial-date" class="input" />
+        </div>
+        <div>
+          <label>Delivery Date</label>
+          <input type="date" id="tlf-delivery-date" class="input" />
+        </div>
+      </div>
+
+      <div style="margin-top:16px;">
+        <label style="font-weight:600;">Items for Stitching</label>
+        <div style="display:flex;gap:6px;font-size:11px;color:var(--text-muted);margin:4px 0 2px;">
+          <span style="flex:2;min-width:120px;">Garment</span>
+          <span style="width:64px;">Qty</span>
+          <span style="width:90px;">Rate</span>
+          <span style="width:90px;text-align:right;">Amount</span>
+          <span style="width:28px;"></span>
+        </div>
+        <div id="tlf-items"></div>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="addItemRow()">+ Add Item</button>
+      </div>
+
+      <div class="tlf-grid" style="margin-top:16px;">
+        <div>
+          <label>Total</label>
+          <input type="text" id="tlf-total" class="input" readonly value="0.00" />
+        </div>
+        <div>
+          <label>Advance</label>
+          <input type="number" id="tlf-advance" class="input" min="0" value="0"
+                 oninput="recalcTotals()" />
+        </div>
+        <div>
+          <label>Balance</label>
+          <input type="text" id="tlf-balance" class="input" readonly value="0.00" />
+        </div>
+        <div>
+          <label>Payment Mode</label>
+          <select id="tlf-payment-mode" class="input">
+            <option value="">— select —</option>
+            <option value="Phone Pay">Phone Pay</option>
+            <option value="Cash">Cash</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="margin-top:12px;">
+        <label>Notes</label>
+        <input type="text" id="tlf-notes" class="input" placeholder="Optional" />
+      </div>
+
+      <div id="tlf-error" class="alert alert-danger" style="display:none;margin-top:12px;"></div>
+
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;">
+        <button type="button" class="btn btn-secondary" onclick="closeOrderModal()">Cancel</button>
+        <button type="button" class="btn btn-primary" id="tlf-save-btn" onclick="saveOrder()">Save Order</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ====== Order detail modal ====== -->
+<div class="modal-overlay hidden" id="tl-detail-modal">
+  <div class="modal-box" style="max-width:640px;width:95vw;">
+    <div class="modal-header">
+      <h3 id="tl-detail-title">Order</h3>
+      <button class="modal-close" onclick="closeDetailModal()">&#215;</button>
+    </div>
+    <div class="modal-body" id="tl-detail-body"></div>
+  </div>
+</div>
+
+<!-- Hidden inputs for cloth sample photos: direct camera + gallery (multi-select) -->
+<input type="file" id="tl-photo-camera" accept="image/*" capture="environment"
+       style="display:none;" onchange="uploadPhotos(this)" />
+<input type="file" id="tl-photo-gallery" accept="image/*" multiple
+       style="display:none;" onchange="uploadPhotos(this)" />
+
+<!-- Photo lightbox -->
+<div class="modal-overlay hidden" id="tl-lightbox" onclick="this.classList.add('hidden')">
+  <img id="tl-lightbox-img" style="max-width:92vw;max-height:88vh;border-radius:10px;" />
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/tailoring.js') }}?v={{ sv }}"></script>
+{% endblock %}

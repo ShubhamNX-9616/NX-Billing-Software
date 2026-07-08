@@ -65,6 +65,12 @@ def inventory():
     return render_template("inventory.html")
 
 
+@pages_bp.route("/loyalty")
+@admin_required
+def loyalty():
+    return render_template("loyalty.html")
+
+
 @pages_bp.route("/new-institution-bill")
 @login_required
 def new_institution_bill():

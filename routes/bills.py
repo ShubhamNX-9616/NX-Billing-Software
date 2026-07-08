@@ -1,6 +1,6 @@
 ﻿import re
 from collections import defaultdict
-from flask import Blueprint, jsonify, request, session
+from flask import Blueprint, current_app, jsonify, request, session
 from db import get_db, generate_bill_number, IST_NOW
 from db import current_fy
 from services.auth import api_login_required, api_admin_required
@@ -15,11 +15,29 @@ from services.billing import (
     compute_bill_display_fields,
 )
 from services.inventory import deduct_stock, restore_stock, apply_inventory_diff
+from services.loyalty import check_and_unlock_gifts
 
 bills_bp = Blueprint("bills", __name__)
 
 VALID_PAYMENT_MODES = {"Cash", "Card", "UPI", "Combination"}
 PENDING_PAYMENT_MODE = "Pending"
+
+
+def _run_loyalty_check(db, customer_id, bill_id):
+    """Unlock any newly earned loyalty gifts in a follow-up transaction.
+    Runs after the bill itself is committed: a loyalty failure must never
+    fail the bill, but it is rolled back and logged. Returns the list of
+    newly unlocked tier names (empty on failure)."""
+    try:
+        unlocked = check_and_unlock_gifts(db, customer_id, bill_id)
+        db.commit()
+        return unlocked
+    except Exception:
+        db.rollback()
+        current_app.logger.exception(
+            "Loyalty gift check failed for bill %s (customer %s)", bill_id, customer_id
+        )
+        return []
 
 
 # ---------------------------------------------------------------------------
@@ -289,6 +307,8 @@ def create_bill():
 
         db.commit()
 
+        loyalty_unlocked = _run_loyalty_check(db, customer_id, bill_id)
+
         return jsonify({
             "id":                       bill_id,
             "bill_number":              bill_number,
@@ -309,6 +329,7 @@ def create_bill():
             "salesperson_name":         salesperson_name,
             "payment_mode_type":        stored_payment_mode,
             "share_link":               f"/bill/share/{bill_number}",
+            "loyalty_unlocked":         loyalty_unlocked,
         }), 201
 
     except ValueError as e:
@@ -456,6 +477,8 @@ def update_bill(bill_id):
 
         db.commit()
 
+        loyalty_unlocked = _run_loyalty_check(db, customer_id, bill_id)
+
         return jsonify({
             "id":                       bill_id,
             "bill_number":              existing_bill["bill_number"],
@@ -473,6 +496,7 @@ def update_bill(bill_id):
             "remaining":                remaining,
             "salesperson_name":         salesperson_name,
             "payment_mode_type":        stored_payment_mode,
+            "loyalty_unlocked":         loyalty_unlocked,
         }), 200
 
     except ValueError as e:
