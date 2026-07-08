@@ -472,13 +472,48 @@ async function deleteOrder(orderId) {
 
 let tlPhotoItemId = null;   // garment line the next photo(s) attach to; null → whole order
 
+/* On low-RAM tablets Android may kill the browser while the camera app is
+   open; the page reloads on return and the in-memory modal state is lost.
+   Persist the upload target in sessionStorage so we can recover after the
+   reload (and warn the user if the photo itself was lost). */
+const TL_PENDING_PHOTO_KEY = 'tl-pending-photo';
+
+function readPendingPhoto() {
+  try {
+    const p = JSON.parse(sessionStorage.getItem(TL_PENDING_PHOTO_KEY));
+    if (!p || !p.orderId || Date.now() - (p.at || 0) > 10 * 60 * 1000) return null;
+    return p;
+  } catch (e) { return null; }
+}
+
+function clearPendingPhoto() {
+  try { sessionStorage.removeItem(TL_PENDING_PHOTO_KEY); } catch (e) { /* ignore */ }
+}
+
 function addPhotoFor(itemId, source) {
   tlPhotoItemId = itemId;
+  try {
+    sessionStorage.setItem(TL_PENDING_PHOTO_KEY, JSON.stringify({
+      orderId: tlDetailOrderId, itemId: itemId, at: Date.now(),
+    }));
+  } catch (e) { /* ignore */ }
   document.getElementById(source === 'camera' ? 'tl-photo-camera' : 'tl-photo-gallery').click();
 }
 
 async function uploadPhotos(input) {
-  if (!input.files || !input.files.length || !tlDetailOrderId) return;
+  // Page may have been reloaded while the camera was open — recover the target.
+  if (!tlDetailOrderId) {
+    const pending = readPendingPhoto();
+    if (pending) {
+      tlDetailOrderId = pending.orderId;
+      tlPhotoItemId = pending.itemId || null;
+    }
+  }
+  if (!input.files || !input.files.length || !tlDetailOrderId) {
+    clearPendingPhoto();
+    return;
+  }
+  clearPendingPhoto();
   const files = [...input.files];
   input.value = '';
   try {
@@ -491,11 +526,27 @@ async function uploadPhotos(input) {
         method: 'POST', body: fd,
       });
     }
-    if (o) renderDetail(o);
+    if (o) {
+      renderDetail(o);
+      document.getElementById('tl-detail-modal').classList.remove('hidden');
+    }
     loadOrders();
   } catch (e) {
     alert(e.message);
   }
+}
+
+function showPhotoRecoveryNotice() {
+  const body = document.getElementById('tl-detail-body');
+  if (!body) return;
+  const div = document.createElement('div');
+  div.style.cssText = 'margin-bottom:12px;padding:10px 12px;border-radius:8px;' +
+    'background:#fef3c7;color:#92400e;font-size:13px;line-height:1.4;';
+  div.innerHTML = '&#9888;&#65039; If the photo you just took is not shown below, ' +
+    'the browser reloaded before it could be saved. Please add it again — ' +
+    'on this device the <strong>&#128444; Gallery</strong> button is more reliable ' +
+    'than Camera (take photos with the camera app first, then attach them here).';
+  body.prepend(div);
 }
 
 async function deletePhoto(photoId) {
@@ -582,6 +633,20 @@ function fallbackTlCopy(text) {
 /* ---------- init ---------- */
 
 document.addEventListener('DOMContentLoaded', async () => {
+  // Restore the upload target synchronously, in case the browser re-delivers
+  // the camera file to the input right after a memory-kill reload.
+  const pendingPhoto = readPendingPhoto();
+  if (pendingPhoto) {
+    tlDetailOrderId = pendingPhoto.orderId;
+    tlPhotoItemId = pendingPhoto.itemId || null;
+  }
+
+  // A cancelled picker should not trigger the recovery notice later.
+  ['tl-photo-camera', 'tl-photo-gallery'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('cancel', clearPendingPhoto);
+  });
+
   try {
     await loadMeta();
     await loadOrders();
@@ -589,5 +654,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.error(e);
     const list = document.getElementById('tl-orders-list');
     if (list) list.innerHTML = `<div style="padding:20px;color:#dc2626;">${tlEsc(e.message)}</div>`;
+    return;
+  }
+
+  if (pendingPhoto) {
+    clearPendingPhoto();
+    try {
+      await openDetailModal(pendingPhoto.orderId);
+      showPhotoRecoveryNotice();
+    } catch (e) { /* order may have been deleted meanwhile */ }
   }
 });
