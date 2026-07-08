@@ -88,12 +88,22 @@ SCHEMA = f"""
         created_at TEXT DEFAULT ({IST_NOW})
     );
 
+    CREATE TABLE IF NOT EXISTS tailoring_payments (
+        id       INTEGER PRIMARY KEY AUTOINCREMENT,
+        order_id INTEGER NOT NULL REFERENCES tailoring_orders(id) ON DELETE CASCADE,
+        amount   REAL NOT NULL,
+        mode     TEXT,
+        note     TEXT,
+        paid_at  TEXT DEFAULT ({IST_NOW})
+    );
+
     CREATE TABLE IF NOT EXISTS tailoring_order_seq (
         id       INTEGER PRIMARY KEY CHECK (id = 1),
         next_val INTEGER NOT NULL
     );
 
-    CREATE INDEX IF NOT EXISTS idx_tailoring_items_order  ON tailoring_items(order_id);
+    CREATE INDEX IF NOT EXISTS idx_tailoring_items_order    ON tailoring_items(order_id);
+    CREATE INDEX IF NOT EXISTS idx_tailoring_payments_order ON tailoring_payments(order_id);
     CREATE INDEX IF NOT EXISTS idx_tailoring_photos_order ON tailoring_photos(order_id);
     CREATE INDEX IF NOT EXISTS idx_tailoring_orders_dates ON tailoring_orders(delivery_date, trial_date);
 """

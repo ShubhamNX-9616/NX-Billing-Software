@@ -83,32 +83,133 @@
   .tlf-item-row .tlf-amount { width:90px; text-align:right; font-weight:600; }
   .tlf-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
   @media (max-width:600px){ .tlf-grid { grid-template-columns:1fr; } }
+
+  .tl-pay-row {
+    display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap;
+    font-size:13px; padding:4px 0; border-bottom:1px dashed var(--border);
+  }
+  .tl-pay-del {
+    border:none; background:none; color:#dc2626; font-size:14px;
+    line-height:1; cursor:pointer; padding:0 2px;
+  }
+
+  /* The edit dialog is opened from inside the detail modal (both are
+     .modal-overlay, z-index 200); lift it so it never hides behind. */
+  #tl-order-modal { z-index: 210; }
+
+  /* ---- Dashboard tab ---- */
+  .tl-tabs { display:flex; gap:8px; margin-bottom:14px; }
+  .tl-tab {
+    padding:8px 18px; border-radius:999px; border:1px solid var(--border);
+    background:var(--surface); color:var(--text); font-weight:600; cursor:pointer;
+  }
+  .tl-tab.active { background:var(--primary); border-color:var(--primary); color:#fff; }
+
+  .tl-day-strip { display:flex; gap:8px; overflow-x:auto; padding-bottom:6px; }
+  .tl-day {
+    min-width:104px; flex:0 0 auto; padding:8px 10px; border-radius:10px;
+    border:1px solid var(--border); background:var(--bg); cursor:pointer;
+  }
+  .tl-day.today { outline:2px solid var(--primary); }
+  .tl-day.selected { background:var(--surface); border-color:var(--primary); }
+  .tl-day-name { font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.4px; }
+  .tl-day-count { font-size:17px; font-weight:700; margin:2px 0; }
+  .tl-day-count.free { color:#057a55; font-size:13px; }
+  .tl-day-count.busy { color:#dc2626; }
+  .tl-day-garments { font-size:11px; color:var(--text-muted); line-height:1.5; }
+  .tl-day-trials { font-size:11px; color:#1e40af; font-weight:600; }
+  [data-theme="dark"] .tl-day-trials { color:#93c5fd; }
+
+  .tl-dash-section { margin-top:14px; }
+  .tl-dash-head { font-weight:600; margin-bottom:2px; display:flex; align-items:center; gap:8px; }
+  .tl-dash-count {
+    display:inline-block; min-width:22px; text-align:center; padding:1px 7px;
+    border-radius:999px; font-size:12px; font-weight:700;
+    background:var(--bg); border:1px solid var(--border);
+  }
+  .tl-dash-count.danger { background:#dc2626; border-color:#dc2626; color:#fff; }
+  .tl-dash-empty { font-size:13px; color:var(--text-muted); padding:6px 0; }
+  .tl-dash-row {
+    display:flex; justify-content:space-between; gap:10px; align-items:center;
+    padding:9px 4px; border-bottom:1px solid var(--border); cursor:pointer; flex-wrap:wrap;
+  }
+  .tl-dash-row:hover { background:var(--bg); }
+  .tl-dash-row:last-child { border-bottom:none; }
+  .tl-dash-main { flex:1; min-width:180px; }
+  .tl-dash-meta { text-align:right; font-size:12.5px; }
+  .tl-ready { color:#057a55; font-weight:600; }
+  .tl-not-ready { color:#d97706; font-weight:600; }
+  .tl-late { color:#dc2626; font-weight:600; }
 </style>
 {% endblock %}
 
 {% block content %}
 
-<!-- Stat chips -->
-<div class="tl-stats" id="tl-stats"></div>
+<!-- Tabs: Dashboard (default) | Orders -->
+<div class="tl-tabs">
+  <button type="button" class="tl-tab active" data-tab="dashboard"
+          onclick="switchTlTab('dashboard')">Dashboard</button>
+  <button type="button" class="tl-tab" data-tab="orders"
+          onclick="switchTlTab('orders')">Orders</button>
+  <button type="button" class="tl-tab" data-tab="customers"
+          onclick="switchTlTab('customers')">Customers</button>
+</div>
 
-<!-- Filters -->
-<div class="card">
-  <div class="tl-filters">
-    <input type="text" id="tl-search" class="input" placeholder="Search name / mobile / order no."
-           oninput="debouncedLoad()" />
-    <select id="tl-stage-filter" class="input" style="max-width:160px;" onchange="loadOrders()">
-      <option value="">All stages</option>
-    </select>
-    <select id="tl-due-filter" class="input" style="max-width:170px;" onchange="loadOrders()">
-      <option value="">All dates</option>
-      <option value="trial-today">Trial due today</option>
-      <option value="delivery-today">Delivery due today</option>
-      <option value="overdue">Overdue delivery</option>
-    </select>
+<!-- ====== Dashboard tab ====== -->
+<div id="tl-tab-dashboard">
+  <div style="display:flex;justify-content:flex-end;margin-bottom:10px;">
+    <a class="btn btn-secondary" href="/tailoring/report" target="_blank" rel="noopener">
+      &#128424;&#65039; Tailor Report — overdue + tomorrow</a>
   </div>
-  <div id="tl-orders-list"></div>
-  <div id="tl-empty" style="display:none;padding:32px;text-align:center;color:var(--text-muted);">
-    No orders found.
+  <div class="card">
+    <div style="font-weight:600;margin-bottom:8px;">Delivery load — next 15 days
+      <span style="font-weight:400;font-size:12px;color:var(--text-muted);">(tap a day to see its orders)</span>
+    </div>
+    <div class="tl-day-strip" id="tl-day-strip"></div>
+    <div id="tl-day-detail" style="display:none;margin-top:10px;"></div>
+  </div>
+  <div id="tl-dash-sections"></div>
+</div>
+
+<!-- ====== Orders tab ====== -->
+<div id="tl-tab-orders" style="display:none;">
+  <!-- Stat chips -->
+  <div class="tl-stats" id="tl-stats"></div>
+
+  <!-- Filters -->
+  <div class="card">
+    <div class="tl-filters">
+      <input type="text" id="tl-search" class="input" placeholder="Search name / mobile / order no."
+             oninput="debouncedLoad()" />
+      <select id="tl-stage-filter" class="input" style="max-width:160px;" onchange="loadOrders()">
+        <option value="">All stages</option>
+      </select>
+      <select id="tl-due-filter" class="input" style="max-width:170px;" onchange="loadOrders()">
+        <option value="">All dates</option>
+        <option value="trial-today">Trial due today</option>
+        <option value="delivery-today">Delivery due today</option>
+        <option value="overdue">Overdue delivery</option>
+      </select>
+    </div>
+    <div id="tl-orders-list"></div>
+    <div id="tl-empty" style="display:none;padding:32px;text-align:center;color:var(--text-muted);">
+      No orders found.
+    </div>
+  </div>
+</div>
+
+<!-- ====== Customers tab ====== -->
+<div id="tl-tab-customers" style="display:none;">
+  <div class="card">
+    <div class="tl-filters">
+      <input type="text" id="tl-cust-search" class="input" placeholder="Search name / mobile"
+             oninput="debouncedLoadCustomers()" />
+      <span id="tl-cust-count" style="align-self:center;font-size:13px;color:var(--text-muted);"></span>
+    </div>
+    <div id="tl-customers-list"></div>
+    <div id="tl-cust-empty" style="display:none;padding:32px;text-align:center;color:var(--text-muted);">
+      No customers found.
+    </div>
   </div>
 </div>
 
@@ -121,6 +222,11 @@
     </div>
     <div class="modal-body">
       <div class="tlf-grid">
+        <div>
+          <label>Order No. <span class="text-danger">*</span></label>
+          <input type="number" id="tlf-order-no" class="input" min="1"
+                 placeholder="From the receipt book" />
+        </div>
         <div>
           <label>Customer Name <span class="text-danger">*</span></label>
           <input type="text" id="tlf-name" class="input" placeholder="e.g. Bawaskar" />

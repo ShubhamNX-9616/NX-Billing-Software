@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tailor Work Report — {{ tomorrow | format_date }}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif; background: #f3f4f6;
+      color: #111827; padding: 16px; font-size: 14px;
+    }
+    .sheet {
+      max-width: 720px; margin: 0 auto; background: #fff;
+      border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,.12);
+      padding: 20px 22px;
+    }
+    .head { border-bottom: 2px solid #111827; padding-bottom: 10px; margin-bottom: 14px; }
+    .head h1 { font-size: 19px; }
+    .head .sub { font-size: 12.5px; color: #6b7280; margin-top: 2px; }
+
+    .section { margin-top: 16px; }
+    .section > h2 {
+      font-size: 14px; text-transform: uppercase; letter-spacing: .05em;
+      padding: 6px 10px; border-radius: 6px; margin-bottom: 8px;
+    }
+    .section.overdue > h2   { background: #fee2e2; color: #991b1b; }
+    .section.delivery > h2  { background: #dbeafe; color: #1e40af; }
+    .section.trial > h2     { background: #fef3c7; color: #92400e; }
+
+    .order { padding: 8px 4px 10px; border-bottom: 1px dashed #d1d5db; }
+    .order:last-child { border-bottom: none; }
+    .order-head { font-weight: 700; font-size: 14.5px; }
+    .order-head .late { color: #dc2626; font-weight: 700; }
+    .order-notes { font-size: 12.5px; color: #6b7280; margin-top: 2px; }
+    ul.items { list-style: none; margin-top: 5px; }
+    ul.items li { padding: 2px 0 2px 14px; position: relative; }
+    ul.items li::before { content: '•'; position: absolute; left: 2px; }
+    ul.items li .stage { color: #6b7280; font-size: 12.5px; }
+    ul.items li.needs-work { font-weight: 700; }
+    ul.items li.needs-work .stage { color: #b45309; font-weight: 700; }
+    ul.items li.ok .tick { color: #057a55; }
+
+    .ph-grid { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0 4px 14px; }
+    .ph-grid img {
+      width: 76px; height: 76px; object-fit: cover;
+      border-radius: 6px; border: 1px solid #d1d5db;
+    }
+    .ph-label { font-size: 11.5px; color: #6b7280; margin: 6px 0 2px 14px;
+                text-transform: uppercase; letter-spacing: .04em; }
+
+    .empty { color: #6b7280; font-size: 13px; padding: 4px 10px; }
+    .all-clear { text-align: center; padding: 30px 0; font-size: 16px; color: #057a55; }
+
+    .actions { display: flex; gap: 10px; margin: 0 auto 14px; max-width: 720px; }
+    .btn {
+      flex: 1; text-align: center; padding: 11px 14px; border-radius: 8px;
+      font-weight: 600; text-decoration: none; font-size: 14px;
+      border: none; cursor: pointer; display: block;
+    }
+    .btn-print { background: #111827; color: #fff; }
+    .btn-wa { background: #25d366; color: #fff; }
+
+    @media print {
+      body { background: #fff; padding: 0; }
+      .sheet { box-shadow: none; border-radius: 0; max-width: none; padding: 0; }
+      .actions { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="actions">
+    <button type="button" class="btn btn-print" onclick="window.print()">&#128424;&#65039; Print</button>
+    {% if not shared %}
+    <a class="btn btn-wa" id="wa-btn" href="#" target="_blank" rel="noopener">&#128172; Send on WhatsApp</a>
+    {% endif %}
+  </div>
+
+  <div class="sheet">
+    <div class="head">
+      <h1>Tailor Work Report</h1>
+      <div class="sub">For <b>{{ tomorrow | format_date }}</b> · prepared {{ today | format_date }}</div>
+    </div>
+
+    {% if not overdue and not deliveries and not trials %}
+    <div class="all-clear">&#127881; Nothing pending — no overdue work and nothing due tomorrow.</div>
+    {% endif %}
+
+    {% macro order_block(e, show_late=False) %}
+    <div class="order">
+      <div class="order-head">
+        #{{ e.order_number }} — {{ e.customer_name }}
+        {% if show_late %}<span class="late">({{ e.days_late }} day{{ 's' if e.days_late > 1 }} late)</span>{% endif %}
+      </div>
+      {% if e.notes %}<div class="order-notes">Note: {{ e.notes }}</div>{% endif %}
+      <ul class="items">
+        {% for i in e['items'] %}
+        <li class="{{ 'needs-work' if i.needs_work else 'ok' }}">
+          {{ i.garment_type }} × {{ i.qty }}
+          {% if i.needs_work %}
+            <span class="stage">— {{ i.stage }}</span>
+          {% else %}
+            <span class="stage tick">— {{ i.stage }} &#10003;</span>
+          {% endif %}
+          {% if i.notes %}<span class="stage">({{ i.notes }})</span>{% endif %}
+          {% if i.photos %}
+          <div class="ph-grid">
+            {% for f in i.photos %}<img src="/tailoring/photos/{{ f }}" alt="{{ i.garment_type }} cloth" />{% endfor %}
+          </div>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% if e.measurement_photos %}
+      <div class="ph-label">Measurements</div>
+      <div class="ph-grid">
+        {% for f in e.measurement_photos %}<img src="/tailoring/photos/{{ f }}" alt="Measurement" />{% endfor %}
+      </div>
+      {% endif %}
+    </div>
+    {% endmacro %}
+
+    {% if overdue %}
+    <div class="section overdue">
+      <h2>&#128308; Overdue — finish first ({{ overdue | length }})</h2>
+      {% for e in overdue %}{{ order_block(e, show_late=True) }}{% endfor %}
+    </div>
+    {% endif %}
+
+    {% if deliveries %}
+    <div class="section delivery">
+      <h2>&#128230; Delivery tomorrow ({{ deliveries | length }})</h2>
+      {% for e in deliveries %}{{ order_block(e) }}{% endfor %}
+    </div>
+    {% endif %}
+
+    {% if trials %}
+    <div class="section trial">
+      <h2>&#128085; Trial tomorrow ({{ trials | length }})</h2>
+      {% for e in trials %}{{ order_block(e) }}{% endfor %}
+    </div>
+    {% endif %}
+  </div>
+
+  {% if not shared %}
+  <script>
+    const TOMORROW = {{ (tomorrow | format_date) | tojson }};
+    const SHARE_PATH = {{ share_path | tojson }};
+    const COUNTS = {
+      overdue: {{ overdue | length }},
+      deliveries: {{ deliveries | length }},
+      trials: {{ trials | length }},
+    };
+
+    function waText() {
+      const L = ['*Tailor Work Report* — for ' + TOMORROW, ''];
+      if (COUNTS.overdue) L.push('🔴 Overdue: ' + COUNTS.overdue);
+      if (COUNTS.deliveries) L.push('📦 Delivery tomorrow: ' + COUNTS.deliveries);
+      if (COUNTS.trials) L.push('👕 Trial tomorrow: ' + COUNTS.trials);
+      if (!COUNTS.overdue && !COUNTS.deliveries && !COUNTS.trials) {
+        L.push('Nothing pending — no overdue work and nothing due tomorrow. 🎉');
+      } else {
+        L.push('');
+        L.push('Open the full report (with photos):');
+        L.push((window.SHARE_BASE_URL || window.location.origin) + SHARE_PATH);
+      }
+      return L.join('\n');
+    }
+
+    document.getElementById('wa-btn').href =
+      'https://wa.me/?text=' + encodeURIComponent(waText());
+  </script>
+  {% endif %}
+</body>
+</html>

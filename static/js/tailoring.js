@@ -86,6 +86,8 @@ async function loadOrders() {
   tlOrders = data.orders;
   renderStats(data.counts);
   renderList();
+  // Every mutation ends in loadOrders(), so piggy-back the dashboard refresh here.
+  if (tlActiveTab === 'dashboard') loadDashboard();
 }
 
 function renderStats(c) {
@@ -163,6 +165,201 @@ function renderList() {
   });
 }
 
+/* ---------- dashboard tab ---------- */
+
+let tlActiveTab = 'dashboard';
+let tlSelectedDay = null;   // date whose orders are expanded under the strip
+let tlDashDays = [];        // last-loaded 15-day data, for the day detail
+
+function switchTlTab(tab) {
+  tlActiveTab = tab;
+  ['dashboard', 'orders', 'customers'].forEach(t => {
+    document.getElementById('tl-tab-' + t).style.display = t === tab ? '' : 'none';
+  });
+  document.querySelectorAll('.tl-tab').forEach(b =>
+    b.classList.toggle('active', b.dataset.tab === tab));
+  if (tab === 'dashboard') loadDashboard();
+  if (tab === 'customers') loadCustomers();
+}
+
+async function loadDashboard() {
+  try {
+    const d = await tlFetch('/api/tailoring/dashboard');
+    tlDashDays = d.days;
+    renderDayStrip(d);
+    renderDashSections(d);
+    renderDayDetail();   // keep the expanded day (if any) in sync
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+function tlDayName(iso, todayIso) {
+  const dt = new Date(iso + 'T00:00:00');
+  const names = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const tomorrow = new Date(todayIso + 'T00:00:00');
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  if (iso === todayIso) return 'Today';
+  if (dt.getTime() === tomorrow.getTime()) return 'Tomorrow';
+  return names[dt.getDay()];
+}
+
+function renderDayStrip(d) {
+  const strip = document.getElementById('tl-day-strip');
+  strip.innerHTML = '';
+  d.days.forEach(day => {
+    const card = document.createElement('div');
+    card.className = 'tl-day'
+      + (day.date === d.today ? ' today' : '')
+      + (day.date === tlSelectedDay ? ' selected' : '');
+    const garmentLines = Object.entries(day.garments)
+      .map(([g, n]) => `${tlEsc(g)} – ${n}`).join('<br/>');
+    const countHtml = day.orders
+      ? `<div class="tl-day-count${day.orders >= 4 ? ' busy' : ''}">${day.orders} order${day.orders > 1 ? 's' : ''}</div>`
+      : `<div class="tl-day-count free">Free</div>`;
+    card.innerHTML = `
+      <div class="tl-day-name">${tlDayName(day.date, d.today)} · ${tlFmtDate(day.date)}</div>
+      ${countHtml}
+      <div class="tl-day-garments">${garmentLines}</div>
+      ${day.trials ? `<div class="tl-day-trials">${day.trials} trial${day.trials > 1 ? 's' : ''}</div>` : ''}`;
+    card.onclick = () => {
+      tlSelectedDay = tlSelectedDay === day.date ? null : day.date;
+      renderDayStrip(d);
+      renderDayDetail();
+    };
+    strip.appendChild(card);
+  });
+}
+
+function renderDayDetail() {
+  const box = document.getElementById('tl-day-detail');
+  const day = tlDashDays.find(x => x.date === tlSelectedDay);
+  if (!day) { box.style.display = 'none'; box.innerHTML = ''; return; }
+  box.style.display = '';
+  box.innerHTML = `
+    <div style="font-weight:600;font-size:13px;margin-bottom:2px;">
+      Deliveries on ${tlFmtDate(day.date)}</div>
+    ${day.order_list.length
+      ? day.order_list.map(dashRowHtml).join('')
+      : '<div class="tl-dash-empty">No deliveries planned — good day to promise.</div>'}`;
+}
+
+function dashRowHtml(b) {
+  const allReady = b.ready_items === b.total_items;
+  const readiness = allReady
+    ? '<span class="tl-ready">✓ Ready</span>'
+    : `<span class="tl-not-ready">${b.ready_items}/${b.total_items} stitched</span>`;
+  const late = b.days_late
+    ? ` · <span class="tl-late">${b.days_late} day${b.days_late > 1 ? 's' : ''} late</span>` : '';
+  const waiting = b.days_waiting
+    ? ` · <span class="tl-late">waiting ${b.days_waiting} day${b.days_waiting > 1 ? 's' : ''}</span>` : '';
+  const bal = b.balance > 0
+    ? `<div class="tl-balance pending">Balance ${tlFmt(b.balance)}</div>` : '';
+  return `
+    <div class="tl-dash-row" onclick="openDetailModal(${b.id})">
+      <div class="tl-dash-main">
+        <span class="tl-order-no">#${b.order_number}</span>
+        <span class="tl-order-cust">&nbsp;${tlEsc(b.customer_name)}${b.mobile ? ' · ' + tlEsc(b.mobile) : ''}</span>
+        <div class="tl-order-items">${itemsSummary(b.items)}</div>
+      </div>
+      <div class="tl-dash-meta">
+        ${stageBadge(b.stage)}
+        <div>${readiness}${late}${waiting}</div>
+        ${bal}
+      </div>
+    </div>`;
+}
+
+function renderDashSections(d) {
+  const sections = [
+    { title: '🔴 Overdue — stitching pending', rows: d.overdue, danger: true,
+      empty: 'Nothing overdue. 🎉' },
+    { title: '📞 Ready & waiting pickup — call the customer', rows: d.ready_waiting,
+      empty: 'No stitched orders waiting for pickup.' },
+    { title: '📦 Deliveries today', rows: d.deliveries_today,
+      empty: 'No deliveries due today.' },
+    { title: '📦 Deliveries tomorrow', rows: d.deliveries_tomorrow,
+      empty: 'No deliveries due tomorrow.' },
+    { title: '👕 Trials today', rows: d.trials_today,
+      empty: 'No trials due today.' },
+    { title: '👕 Trials tomorrow', rows: d.trials_tomorrow,
+      empty: 'No trials due tomorrow.' },
+  ];
+  const wrap = document.getElementById('tl-dash-sections');
+  wrap.innerHTML = sections.map(s => `
+    <div class="card tl-dash-section">
+      <div class="tl-dash-head">${s.title}
+        <span class="tl-dash-count${s.danger && s.rows.length ? ' danger' : ''}">${s.rows.length}</span>
+      </div>
+      ${s.rows.length
+        ? s.rows.map(dashRowHtml).join('')
+        : `<div class="tl-dash-empty">${s.empty}</div>`}
+    </div>`).join('');
+}
+
+/* ---------- customers tab ---------- */
+
+let tlCustDebounce = null;
+function debouncedLoadCustomers() {
+  clearTimeout(tlCustDebounce);
+  tlCustDebounce = setTimeout(loadCustomers, 300);
+}
+
+async function loadCustomers() {
+  const q = document.getElementById('tl-cust-search').value.trim();
+  const params = q ? '?q=' + encodeURIComponent(q) : '';
+  try {
+    const data = await tlFetch('/api/tailoring/customers' + params);
+    renderCustomers(data);
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+function renderCustomers(data) {
+  const list = document.getElementById('tl-customers-list');
+  const empty = document.getElementById('tl-cust-empty');
+  document.getElementById('tl-cust-count').textContent =
+    data.total ? `${data.total} customer${data.total > 1 ? 's' : ''}` : '';
+  list.innerHTML = '';
+  empty.style.display = data.customers.length ? 'none' : 'block';
+
+  data.customers.forEach(c => {
+    const row = document.createElement('div');
+    row.className = 'tl-order-row';
+    const balHtml = c.pending_balance > 0
+      ? `<div class="tl-balance pending">Balance ${tlFmt(c.pending_balance)}</div>`
+      : '<div class="tl-balance paid">Fully paid</div>';
+    row.innerHTML = `
+      <div class="tl-order-main">
+        <span class="tl-order-no">${tlEsc(c.customer_name)}</span>
+        <span class="tl-order-cust">${c.mobile ? '&nbsp;· ' + tlEsc(c.mobile) : ''}</span>
+        <div class="tl-order-items">
+          ${c.address ? tlEsc(c.address) + ' · ' : ''}Customer since ${tlFmtDate(c.first_order_date)}
+        </div>
+      </div>
+      <div class="tl-order-dates">
+        <div>${c.orders} order${c.orders > 1 ? 's' : ''}${c.open_orders ? ` (${c.open_orders} open)` : ''}</div>
+        <div>Last: ${tlFmtDate(c.last_order_date)}</div>
+      </div>
+      <div class="tl-order-right">
+        <div style="font-weight:600;">${tlFmt(c.total_business)}</div>
+        ${balHtml}
+      </div>`;
+    row.onclick = () => showCustomerOrders(c);
+    list.appendChild(row);
+  });
+}
+
+function showCustomerOrders(c) {
+  // Jump to the Orders tab pre-filtered to this customer
+  document.getElementById('tl-search').value = c.mobile || c.customer_name;
+  document.getElementById('tl-stage-filter').value = '';
+  document.getElementById('tl-due-filter').value = '';
+  switchTlTab('orders');
+  loadOrders();
+}
+
 /* ---------- new / edit order modal ---------- */
 
 function garmentOptions(selected) {
@@ -238,6 +435,7 @@ function openOrderModal(order) {
   document.getElementById('tl-order-modal-title').textContent =
     order ? `Edit Order #${order.order_number}` : 'New Tailoring Order';
   document.getElementById('tlf-error').style.display = 'none';
+  document.getElementById('tlf-order-no').value = order ? order.order_number : '';
   document.getElementById('tlf-name').value = order ? order.customer_name : '';
   document.getElementById('tlf-mobile').value = order ? (order.mobile || '') : '';
   document.getElementById('tlf-address').value = order ? (order.address || '') : '';
@@ -264,6 +462,7 @@ async function saveOrder() {
   err.style.display = 'none';
 
   const body = {
+    order_number: document.getElementById('tlf-order-no').value.trim(),
     customer_name: document.getElementById('tlf-name').value.trim(),
     mobile: document.getElementById('tlf-mobile').value.trim(),
     address: document.getElementById('tlf-address').value.trim(),
@@ -276,6 +475,9 @@ async function saveOrder() {
     items: readItemRows(),
   };
 
+  if (!body.order_number || !(parseInt(body.order_number, 10) > 0)) {
+    err.textContent = 'Order number from the receipt book is required.'; err.style.display = 'block'; return;
+  }
   if (!body.customer_name) { err.textContent = 'Customer name is required.'; err.style.display = 'block'; return; }
   if (!body.items.length || body.items.some(i => !i.garment_type)) {
     err.textContent = 'Every item needs a garment selected.'; err.style.display = 'block'; return;
@@ -382,7 +584,9 @@ function renderDetail(o) {
     </div>
 
     <div style="margin-top:14px;">
-      <div style="font-weight:600;">Other Photos (whole order)</div>
+      <div style="font-weight:600;">Measurement Photos
+        <span style="font-weight:400;font-size:12px;color:var(--text-muted);">(internal — never shown on the customer receipt)</span>
+      </div>
       <div class="tl-photos">${generalPhotosHtml || '<span style="color:var(--text-muted);font-size:13px;">No photos yet.</span>'}</div>
       ${photoButtons(null)}
     </div>
@@ -391,20 +595,21 @@ function renderDetail(o) {
       <div style="font-weight:600;margin-bottom:4px;">Payment</div>
       <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:14px;">
         <span>Total: <strong>${tlFmt(o.total)}</strong></span>
-        <span>Advance: <strong>${tlFmt(o.advance)}</strong></span>
+        <span>Paid: <strong>${tlFmt(o.advance)}</strong></span>
         <span>Balance: <strong style="color:${o.balance > 0 ? '#dc2626' : '#057a55'};">${tlFmt(o.balance)}</strong></span>
-        ${o.payment_mode ? `<span>Mode: <strong>${tlEsc(o.payment_mode)}</strong></span>` : ''}
       </div>
+      ${paymentHistoryHtml(o)}
+      ${o.balance > 0 ? `
       <div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap;">
-        <input type="number" class="input" id="tl-pay-amount" placeholder="Paid so far (total)"
-               style="max-width:170px;" min="0" value="${o.advance}" />
+        <input type="number" class="input" id="tl-pay-amount" placeholder="Amount received now"
+               style="max-width:180px;" min="0" />
         <select class="input" id="tl-pay-mode" style="max-width:140px;">
           <option value="" ${!o.payment_mode ? 'selected' : ''}>— mode —</option>
           <option value="Phone Pay" ${o.payment_mode === 'Phone Pay' ? 'selected' : ''}>Phone Pay</option>
           <option value="Cash" ${o.payment_mode === 'Cash' ? 'selected' : ''}>Cash</option>
         </select>
-        <button type="button" class="btn btn-secondary btn-sm" onclick="savePayment()">Update Payment</button>
-      </div>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="recordPayment()">Record Payment</button>
+      </div>` : ''}
     </div>
 
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:18px;">
@@ -439,17 +644,58 @@ async function setWholeOrderStage(stage) {
   loadOrders();
 }
 
-async function savePayment() {
+function tlFmtDateTime(ts) {
+  // "2026-07-08 14:22:33" → "8 Jul 2026, 2:22 pm"
+  if (!ts) return '';
+  const [d, t] = ts.split(' ');
+  let out = tlFmtDate(d);
+  if (t) {
+    let [h, m] = t.split(':');
+    h = parseInt(h, 10);
+    const ap = h >= 12 ? 'pm' : 'am';
+    out += `, ${h % 12 || 12}:${m} ${ap}`;
+  }
+  return out;
+}
+
+function paymentHistoryHtml(o) {
+  const legacy = o.unrecorded_paid > 0 ? `
+    <div class="tl-pay-row">
+      <span><strong>${tlFmt(o.unrecorded_paid)}</strong> · earlier payments</span>
+      <span style="color:var(--text-muted);">no details recorded</span>
+    </div>` : '';
+  const rows = o.payments.map(p => `
+    <div class="tl-pay-row">
+      <span><strong>${tlFmt(p.amount)}</strong>${p.mode ? ' · ' + tlEsc(p.mode) : ''}${p.note ? ' · ' + tlEsc(p.note) : ''}</span>
+      <span style="color:var(--text-muted);">${tlFmtDateTime(p.paid_at)}
+        <button type="button" class="tl-pay-del" title="Delete this payment entry"
+                onclick="deleteTlPayment(${p.id})">&#215;</button>
+      </span>
+    </div>`).join('');
+  return legacy || rows ? `<div style="margin-top:6px;">${legacy}${rows}</div>` : '';
+}
+
+async function recordPayment() {
   if (!tlDetailOrderId) return;
+  const amount = parseFloat(document.getElementById('tl-pay-amount').value);
+  if (!(amount > 0)) { alert('Enter the amount received now.'); return; }
   try {
-    const o = await tlFetch(`/api/tailoring/orders/${tlDetailOrderId}/payment`, {
-      method: 'PATCH',
+    const o = await tlFetch(`/api/tailoring/orders/${tlDetailOrderId}/payments`, {
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        advance: parseFloat(document.getElementById('tl-pay-amount').value) || 0,
-        payment_mode: document.getElementById('tl-pay-mode').value,
-      }),
+      body: JSON.stringify({ amount, mode: document.getElementById('tl-pay-mode').value }),
     });
+    renderDetail(o);
+    loadOrders();
+  } catch (e) {
+    alert(e.message);
+  }
+}
+
+async function deleteTlPayment(paymentId) {
+  if (!confirm('Delete this payment entry? The balance will go back up.')) return;
+  try {
+    const o = await tlFetch(`/api/tailoring/payments/${paymentId}`, { method: 'DELETE' });
     renderDetail(o);
     loadOrders();
   } catch (e) {

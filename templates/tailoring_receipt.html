@@ -137,10 +137,13 @@
         <div>Delivery Date : <b>{{ order.delivery_date | format_date if order.delivery_date else '—' }}</b></div>
       </div>
 
-      {% if order.photos %}
+      {# Only per-garment cloth photos are shown to the customer; whole-order
+         measurement photos (general_photos) are internal and never sent. #}
+      {% set garments_with_photos = order["items"] | selectattr("photos") | list %}
+      {% if garments_with_photos %}
       <div class="r-photos">
         <div class="r-photos-title">Cloth Samples</div>
-        {% for it in order["items"] if it.photos %}
+        {% for it in garments_with_photos %}
         <div class="r-photos-label">{{ it.garment_type }}</div>
         <div class="r-photos-grid">
           {% for p in it.photos %}
@@ -148,16 +151,6 @@
           {% endfor %}
         </div>
         {% endfor %}
-        {% if order.general_photos %}
-        {% if order.photos | length > order.general_photos | length %}
-        <div class="r-photos-label">Other</div>
-        {% endif %}
-        <div class="r-photos-grid">
-          {% for p in order.general_photos %}
-          <img src="/tailoring/photos/{{ p.filename }}" alt="Cloth sample" />
-          {% endfor %}
-        </div>
-        {% endif %}
       </div>
       {% endif %}
 

@@ -3,11 +3,14 @@
 Fully separate from the billing system: uses tailoring.db via db.tailoring,
 its own upload folder, and its own page + share templates.
 """
+import hashlib
+import hmac
 import os
 import uuid
-from datetime import date
-from flask import Blueprint, jsonify, request, render_template, send_from_directory
-from db.tailoring import get_tailoring_db, next_order_number, STAGES, GARMENT_TYPES, IST_NOW
+from datetime import date, timedelta
+from flask import (Blueprint, current_app, jsonify, request, render_template,
+                   send_from_directory)
+from db.tailoring import get_tailoring_db, STAGES, GARMENT_TYPES, IST_NOW
 from services.auth import api_login_required, login_required
 
 tailoring_api_bp = Blueprint("tailoring_api", __name__)
@@ -23,6 +26,14 @@ def _today_ist():
     # SQLite IST_NOW handles timestamps; for date comparisons use local date,
     # which on this deployment (shop PC, IST timezone) matches IST.
     return date.today().isoformat()
+
+
+def _is_overdue(order, today_s):
+    """Overdue = delivery date passed and stitching still pending.
+    Once every garment is Full Stitched, collecting the order is the
+    customer's responsibility, so it no longer counts as overdue."""
+    return (bool(order["delivery_date"]) and order["delivery_date"] < today_s
+            and order["stage"] not in ("Full Stitched", "Delivered"))
 
 
 def _derived_stage(item_stages):
@@ -46,6 +57,14 @@ def _order_payload(db, order_row):
     order["photos"] = photos          # all photos (incl. per-item ones)
     order["general_photos"] = [p for p in photos if not p["item_id"]]
     order["stage"] = _derived_stage([i["stage"] for i in items])
+    payments = [dict(r) for r in db.execute(
+        "SELECT * FROM tailoring_payments WHERE order_id = ? ORDER BY id", (order["id"],)
+    ).fetchall()]
+    order["payments"] = payments
+    # Orders from before payment history existed (or edited via the old
+    # set-total endpoint) may have paid more than the recorded entries.
+    order["unrecorded_paid"] = round(
+        order["advance"] - sum(p["amount"] for p in payments), 2)
     return order
 
 
@@ -80,6 +99,16 @@ def _parse_items(body):
     return parsed
 
 
+def _parse_order_number(body):
+    """The order number is typed from the paper receipt book — required."""
+    raw = str(body.get("order_number") or "").strip()
+    if not raw:
+        raise ValueError("Order number is required (copy it from the receipt book)")
+    if not raw.isdigit() or int(raw) <= 0:
+        raise ValueError("Order number must be a positive number")
+    return int(raw)
+
+
 # ---------------------------------------------------------------------------
 # GET /api/tailoring/meta — stage + garment lists for the UI
 # ---------------------------------------------------------------------------
@@ -104,6 +133,7 @@ def create_order():
 
         try:
             items = _parse_items(body)
+            order_number = _parse_order_number(body)
         except ValueError as ve:
             return jsonify({"error": str(ve)}), 400
 
@@ -124,7 +154,9 @@ def create_order():
         balance = round(total - advance, 2)
 
         db = get_tailoring_db()
-        order_number = next_order_number(db)
+        if db.execute("SELECT 1 FROM tailoring_orders WHERE order_number = ?",
+                      (order_number,)).fetchone():
+            return jsonify({"error": f"Order number {order_number} already exists"}), 400
         cur = db.execute(
             """INSERT INTO tailoring_orders
                (order_number, order_date, customer_name, mobile, address,
@@ -143,6 +175,12 @@ def create_order():
                    VALUES (?, ?, ?, ?, ?, ?, ?)""",
                 (order_id, it["garment_type"], it["qty"], it["rate"],
                  it["amount"], it["stage"], it["notes"]),
+            )
+        if advance > 0:
+            db.execute(
+                "INSERT INTO tailoring_payments (order_id, amount, mode, note) "
+                "VALUES (?, ?, ?, 'Advance')",
+                (order_id, advance, payment_mode),
             )
         db.commit()
 
@@ -185,8 +223,7 @@ def list_orders():
     elif due == "delivery-today":
         orders = [o for o in orders if o["delivery_date"] == today and o["stage"] != "Delivered"]
     elif due == "overdue":
-        orders = [o for o in orders
-                  if o["delivery_date"] and o["delivery_date"] < today and o["stage"] != "Delivered"]
+        orders = [o for o in orders if _is_overdue(o, today)]
 
     # Dashboard counts (computed over all orders, ignoring the filters)
     all_orders = [_order_payload(db, r) for r in
@@ -200,7 +237,7 @@ def list_orders():
                 trial_today += 1
             if o["delivery_date"] == today:
                 delivery_today += 1
-            if o["delivery_date"] and o["delivery_date"] < today:
+            if _is_overdue(o, today):
                 overdue += 1
 
     return jsonify({
@@ -213,6 +250,147 @@ def list_orders():
             "total": len(all_orders),
         },
     })
+
+
+# ---------------------------------------------------------------------------
+# GET /api/tailoring/dashboard — preparation view for the staff
+# ---------------------------------------------------------------------------
+def _order_brief(order):
+    """Compact order summary for dashboard lists (no photos)."""
+    return {
+        "id": order["id"],
+        "order_number": order["order_number"],
+        "customer_name": order["customer_name"],
+        "mobile": order["mobile"],
+        "trial_date": order["trial_date"],
+        "delivery_date": order["delivery_date"],
+        "stage": order["stage"],
+        "balance": order["balance"],
+        "items": [{"garment_type": i["garment_type"], "qty": i["qty"], "stage": i["stage"]}
+                  for i in order["items"]],
+        "ready_items": sum(1 for i in order["items"]
+                           if i["stage"] in ("Full Stitched", "Delivered")),
+        "total_items": len(order["items"]),
+    }
+
+
+@tailoring_api_bp.route("/tailoring/dashboard", methods=["GET"])
+@api_login_required
+def tailoring_dashboard():
+    db = get_tailoring_db()
+    today = date.today()
+    today_s = today.isoformat()
+    tomorrow_s = (today + timedelta(days=1)).isoformat()
+
+    orders = [_order_payload(db, r) for r in
+              db.execute("SELECT * FROM tailoring_orders").fetchall()]
+    open_orders = [o for o in orders if o["stage"] != "Delivered"]
+
+    # Delivery load per day for the next 15 days (today included):
+    # order count plus pending-garment breakdown, e.g. {"Shirt": 5, "Trouser": 6}
+    days = []
+    for n in range(15):
+        ds = (today + timedelta(days=n)).isoformat()
+        due = [o for o in open_orders if o["delivery_date"] == ds]
+        garments = {}
+        for o in due:
+            for i in o["items"]:
+                if i["stage"] != "Delivered":
+                    garments[i["garment_type"]] = garments.get(i["garment_type"], 0) + i["qty"]
+        days.append({
+            "date": ds,
+            "orders": len(due),
+            "garments": garments,
+            "trials": sum(1 for o in open_orders if o["trial_date"] == ds),
+            "order_list": [_order_brief(o) for o in due],
+        })
+
+    overdue = sorted(
+        (_order_brief(o) for o in open_orders if _is_overdue(o, today_s)),
+        key=lambda b: b["delivery_date"],
+    )
+    for b in overdue:
+        b["days_late"] = (today - date.fromisoformat(b["delivery_date"])).days
+
+    # Fully stitched, delivery date arrived/passed (or never set) — the
+    # customer needs a reminder call to come and collect.
+    ready_waiting = sorted(
+        (_order_brief(o) for o in open_orders
+         if o["stage"] == "Full Stitched"
+         and (not o["delivery_date"] or o["delivery_date"] <= today_s)),
+        key=lambda b: b["delivery_date"] or "",
+    )
+    for b in ready_waiting:
+        if b["delivery_date"] and b["delivery_date"] < today_s:
+            b["days_waiting"] = (today - date.fromisoformat(b["delivery_date"])).days
+
+    def due_on(field, ds):
+        return [_order_brief(o) for o in open_orders if o[field] == ds]
+
+    return jsonify({
+        "today": today_s,
+        "days": days,
+        "overdue": overdue,
+        "ready_waiting": ready_waiting,
+        "deliveries_today": due_on("delivery_date", today_s),
+        "deliveries_tomorrow": due_on("delivery_date", tomorrow_s),
+        "trials_today": due_on("trial_date", today_s),
+        "trials_tomorrow": due_on("trial_date", tomorrow_s),
+    })
+
+
+# ---------------------------------------------------------------------------
+# GET /api/tailoring/customers — customer list derived from orders
+# ---------------------------------------------------------------------------
+@tailoring_api_bp.route("/tailoring/customers", methods=["GET"])
+@api_login_required
+def tailoring_customers():
+    """Tailoring has no customers table; group orders by mobile number
+    (falling back to the name when no mobile was recorded)."""
+    db = get_tailoring_db()
+    q = (request.args.get("q") or "").strip().lower()
+
+    orders = [_order_payload(db, r) for r in db.execute(
+        "SELECT * FROM tailoring_orders ORDER BY order_number").fetchall()]
+
+    groups = {}
+    for o in orders:
+        key = (o["mobile"] or "").strip() or "name:" + o["customer_name"].strip().lower()
+        g = groups.setdefault(key, {
+            "customer_name": o["customer_name"],
+            "mobile": o["mobile"],
+            "address": o["address"],
+            "orders": 0,
+            "open_orders": 0,
+            "total_business": 0.0,
+            "pending_balance": 0.0,
+            "first_order_date": o["order_date"],
+            "last_order_date": o["order_date"],
+        })
+        # Orders come in ascending order_number, so the latest spelling wins
+        g["customer_name"] = o["customer_name"]
+        if o["address"]:
+            g["address"] = o["address"]
+        g["orders"] += 1
+        if o["stage"] != "Delivered":
+            g["open_orders"] += 1
+        g["total_business"] += o["total"]
+        g["pending_balance"] += o["balance"]
+        if o["order_date"] < g["first_order_date"]:
+            g["first_order_date"] = o["order_date"]
+        if o["order_date"] > g["last_order_date"]:
+            g["last_order_date"] = o["order_date"]
+
+    customers = list(groups.values())
+    for c in customers:
+        c["total_business"] = round(c["total_business"], 2)
+        c["pending_balance"] = round(c["pending_balance"], 2)
+
+    if q:
+        customers = [c for c in customers
+                     if q in c["customer_name"].lower() or q in (c["mobile"] or "")]
+    customers.sort(key=lambda c: c["customer_name"].lower())
+    return jsonify({"customers": customers, "total": len(customers)})
 
 
 # ---------------------------------------------------------------------------
@@ -247,8 +425,16 @@ def update_order(order_id):
 
         try:
             items = _parse_items(body)
+            # Absent in older clients → keep the current number
+            order_number = (_parse_order_number(body)
+                            if "order_number" in body else existing["order_number"])
         except ValueError as ve:
             return jsonify({"error": str(ve)}), 400
+
+        if order_number != existing["order_number"] and db.execute(
+                "SELECT 1 FROM tailoring_orders WHERE order_number = ?",
+                (order_number,)).fetchone():
+            return jsonify({"error": f"Order number {order_number} already exists"}), 400
 
         mobile        = (body.get("mobile") or "").strip() or None
         address       = (body.get("address") or "").strip() or None
@@ -296,12 +482,13 @@ def update_order(order_id):
 
         db.execute(
             f"""UPDATE tailoring_orders
-               SET customer_name = ?, mobile = ?, address = ?, order_date = ?,
-                   trial_date = ?, delivery_date = ?, total = ?, advance = ?,
-                   balance = ?, payment_mode = ?, notes = ?, updated_at = {IST_NOW}
+               SET order_number = ?, customer_name = ?, mobile = ?, address = ?,
+                   order_date = ?, trial_date = ?, delivery_date = ?, total = ?,
+                   advance = ?, balance = ?, payment_mode = ?, notes = ?,
+                   updated_at = {IST_NOW}
                WHERE id = ?""",
-            (customer_name, mobile, address, order_date, trial_date, delivery_date,
-             total, advance, balance, payment_mode, notes, order_id),
+            (order_number, customer_name, mobile, address, order_date, trial_date,
+             delivery_date, total, advance, balance, payment_mode, notes, order_id),
         )
         db.commit()
         row = db.execute("SELECT * FROM tailoring_orders WHERE id = ?", (order_id,)).fetchone()
@@ -382,6 +569,80 @@ def update_payment(order_id):
         )
         db.commit()
         row = db.execute("SELECT * FROM tailoring_orders WHERE id = ?", (order_id,)).fetchone()
+        return jsonify(_order_payload(db, row))
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# ---------------------------------------------------------------------------
+# POST /api/tailoring/orders/<id>/payments — record one payment (with history)
+# ---------------------------------------------------------------------------
+@tailoring_api_bp.route("/tailoring/orders/<int:order_id>/payments", methods=["POST"])
+@api_login_required
+def record_payment(order_id):
+    try:
+        body = request.get_json(force=True, silent=True) or {}
+        db = get_tailoring_db()
+        row = db.execute("SELECT * FROM tailoring_orders WHERE id = ?", (order_id,)).fetchone()
+        if not row:
+            return jsonify({"error": "Order not found"}), 404
+
+        try:
+            amount = round(float(body.get("amount") or 0), 2)
+        except (TypeError, ValueError):
+            return jsonify({"error": "Amount must be a number"}), 400
+        if amount <= 0:
+            return jsonify({"error": "Amount must be greater than zero"}), 400
+        mode = (body.get("mode") or "").strip() or None
+
+        new_advance = round(row["advance"] + amount, 2)
+        if new_advance > row["total"]:
+            return jsonify({"error":
+                f"This would make total paid ₹{new_advance:.2f}, "
+                f"more than the order total ₹{row['total']:.2f}"}), 400
+
+        db.execute(
+            "INSERT INTO tailoring_payments (order_id, amount, mode) VALUES (?, ?, ?)",
+            (order_id, amount, mode),
+        )
+        db.execute(
+            f"""UPDATE tailoring_orders
+               SET advance = ?, balance = ?, payment_mode = ?, updated_at = {IST_NOW}
+               WHERE id = ?""",
+            (new_advance, round(row["total"] - new_advance, 2),
+             mode or row["payment_mode"], order_id),
+        )
+        db.commit()
+        row = db.execute("SELECT * FROM tailoring_orders WHERE id = ?", (order_id,)).fetchone()
+        return jsonify(_order_payload(db, row)), 201
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# ---------------------------------------------------------------------------
+# DELETE /api/tailoring/payments/<id> — undo a wrongly entered payment
+# ---------------------------------------------------------------------------
+@tailoring_api_bp.route("/tailoring/payments/<int:payment_id>", methods=["DELETE"])
+@api_login_required
+def delete_payment(payment_id):
+    try:
+        db = get_tailoring_db()
+        p = db.execute("SELECT * FROM tailoring_payments WHERE id = ?", (payment_id,)).fetchone()
+        if not p:
+            return jsonify({"error": "Payment not found"}), 404
+        order = db.execute("SELECT * FROM tailoring_orders WHERE id = ?",
+                           (p["order_id"],)).fetchone()
+
+        db.execute("DELETE FROM tailoring_payments WHERE id = ?", (payment_id,))
+        new_advance = max(0.0, round(order["advance"] - p["amount"], 2))
+        db.execute(
+            f"""UPDATE tailoring_orders
+               SET advance = ?, balance = ?, updated_at = {IST_NOW}
+               WHERE id = ?""",
+            (new_advance, round(order["total"] - new_advance, 2), order["id"]),
+        )
+        db.commit()
+        row = db.execute("SELECT * FROM tailoring_orders WHERE id = ?", (order["id"],)).fetchone()
         return jsonify(_order_payload(db, row))
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -483,6 +744,93 @@ def delete_photo(photo_id):
 @login_required
 def tailoring_page():
     return render_template("tailoring.html")
+
+
+def _report_token(day_s):
+    """Unguessable token for the public tailor-report link, tied to a date so
+    old links stop working (valid the day it was made and the next)."""
+    secret = str(current_app.secret_key or "tailoring-report")
+    return hmac.new(secret.encode(), f"tailor-report:{day_s}".encode(),
+                    hashlib.sha256).hexdigest()[:20]
+
+
+def _build_report_data():
+    """Tailor work report data: overdue orders + tomorrow's deliveries/trials."""
+    db = get_tailoring_db()
+    today = date.today()
+    today_s = today.isoformat()
+    tomorrow_s = (today + timedelta(days=1)).isoformat()
+
+    orders = [_order_payload(db, r) for r in
+              db.execute("SELECT * FROM tailoring_orders").fetchall()]
+    open_orders = [o for o in orders if o["stage"] != "Delivered"]
+
+    def entry(o, mode):
+        """mode 'trial': work needed until Trial Ready; else until Full Stitched."""
+        items = []
+        for i in o["items"]:
+            if i["stage"] == "Delivered":
+                continue
+            done_stages = ("Trial Ready", "Full Stitched") if mode == "trial" \
+                else ("Full Stitched",)
+            items.append({
+                "garment_type": i["garment_type"],
+                "qty": i["qty"],
+                "stage": i["stage"],
+                "notes": i["notes"],
+                "needs_work": i["stage"] not in done_stages,
+                "photos": [p["filename"] for p in i["photos"]],
+            })
+        e = {
+            "order_number": o["order_number"],
+            "customer_name": o["customer_name"],
+            "trial_date": o["trial_date"],
+            "delivery_date": o["delivery_date"],
+            "notes": o["notes"],
+            "items": items,
+            "measurement_photos": [p["filename"] for p in o["general_photos"]],
+        }
+        if mode == "overdue":
+            e["days_late"] = (today - date.fromisoformat(o["delivery_date"])).days
+        return e
+
+    overdue = sorted((entry(o, "overdue") for o in open_orders
+                      if _is_overdue(o, today_s)),
+                     key=lambda e: e["delivery_date"])
+    deliveries = [entry(o, "delivery") for o in open_orders
+                  if o["delivery_date"] == tomorrow_s
+                  and o["stage"] not in ("Full Stitched",)]
+    trials = [entry(o, "trial") for o in open_orders
+              if o["trial_date"] == tomorrow_s]
+
+    return {"overdue": overdue, "deliveries": deliveries, "trials": trials,
+            "today": today_s, "tomorrow": tomorrow_s}
+
+
+@tailoring_pages_bp.route("/tailoring/report")
+@login_required
+def tailoring_report():
+    """Staff view — printable, with a WhatsApp button carrying the share link."""
+    data = _build_report_data()
+    token = _report_token(data["today"])
+    return render_template("tailoring_report.html", shared=False,
+                           share_path=f"/tailoring/report/share/{token}", **data)
+
+
+@tailoring_pages_bp.route("/tailoring/report/share/<token>")
+def tailoring_report_shared(token):
+    """Public tailor view, opened from the WhatsApp link — no login needed.
+    Accepts today's and yesterday's token so a 10pm link survives midnight."""
+    today = date.today()
+    valid = {_report_token(today.isoformat()),
+             _report_token((today - timedelta(days=1)).isoformat())}
+    if token not in valid:
+        return ("<h3 style='font-family:sans-serif;text-align:center;margin-top:40px;'>"
+                "This report link has expired. Please ask the shop for today's link."
+                "</h3>"), 404
+    data = _build_report_data()
+    return render_template("tailoring_report.html", shared=True,
+                           share_path=None, **data)
 
 
 @tailoring_pages_bp.route("/tailoring/photos/<path:filename>")
