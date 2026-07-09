@@ -93,9 +93,10 @@
     line-height:1; cursor:pointer; padding:0 2px;
   }
 
-  /* The edit dialog is opened from inside the detail modal (both are
-     .modal-overlay, z-index 200); lift it so it never hides behind. */
-  #tl-order-modal { z-index: 210; }
+  /* The edit dialog and the photo-save confirmation are both opened from
+     inside the detail modal (all are .modal-overlay, z-index 200); lift
+     them so they never hide behind it. */
+  #tl-order-modal, #tl-photo-preview-modal { z-index: 210; }
 
   /* ---- Dashboard tab ---- */
   .tl-tabs { display:flex; gap:8px; margin-bottom:14px; }
@@ -325,6 +326,24 @@
 <!-- Photo lightbox -->
 <div class="modal-overlay hidden" id="tl-lightbox" onclick="this.classList.add('hidden')">
   <img id="tl-lightbox-img" style="max-width:92vw;max-height:88vh;border-radius:10px;" />
+</div>
+
+<!-- Photo save confirmation — shown after picking from camera/gallery, before uploading -->
+<div class="modal-overlay hidden" id="tl-photo-preview-modal">
+  <div class="modal-box" style="max-width:420px;width:92vw;">
+    <div class="modal-header">
+      <h3 id="tl-photo-preview-title">Save this photo?</h3>
+      <button class="modal-close" onclick="cancelPhotoPreview()">&#215;</button>
+    </div>
+    <div class="modal-body">
+      <div id="tl-photo-preview-grid" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;"></div>
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;">
+        <button type="button" class="btn btn-secondary" onclick="cancelPhotoPreview()">Cancel</button>
+        <button type="button" class="btn btn-primary" id="tl-photo-save-btn"
+                onclick="confirmPhotoUpload()">Save Photo</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 {% endblock %}

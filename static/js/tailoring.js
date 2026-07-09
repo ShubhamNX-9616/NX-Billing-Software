@@ -431,6 +431,11 @@ function recalcTotals() {
   const advance = parseFloat(document.getElementById('tlf-advance').value) || 0;
   document.getElementById('tlf-total').value = total.toFixed(2);
   document.getElementById('tlf-balance').value = Math.max(0, total - advance).toFixed(2);
+
+  // Nothing was paid yet — a payment mode has nothing to describe.
+  const modeSel = document.getElementById('tlf-payment-mode');
+  modeSel.disabled = advance <= 0;
+  if (advance <= 0) modeSel.value = '';
 }
 
 function openOrderModal(order) {
@@ -749,7 +754,10 @@ function addPhotoFor(itemId, source) {
   document.getElementById(source === 'camera' ? 'tl-photo-camera' : 'tl-photo-gallery').click();
 }
 
-async function uploadPhotos(input) {
+let tlPendingFiles = [];
+let tlPendingPreviewUrls = [];
+
+function uploadPhotos(input) {
   // Page may have been reloaded while the camera was open — recover the target.
   if (!tlDetailOrderId) {
     const pending = readPendingPhoto();
@@ -762,19 +770,60 @@ async function uploadPhotos(input) {
     clearPendingPhoto();
     return;
   }
+  // The file itself is safely in hand now — no need for the reload-recovery flag.
   clearPendingPhoto();
-  const files = [...input.files];
+
+  tlPendingFiles = [...input.files];
   input.value = '';
+
+  const grid = document.getElementById('tl-photo-preview-grid');
+  grid.innerHTML = '';
+  tlPendingPreviewUrls = tlPendingFiles.map(f => {
+    const url = URL.createObjectURL(f);
+    const img = document.createElement('img');
+    img.src = url;
+    img.style.cssText = 'width:84px;height:84px;object-fit:cover;border-radius:8px;border:1px solid var(--border);';
+    grid.appendChild(img);
+    return url;
+  });
+
+  const n = tlPendingFiles.length;
+  document.getElementById('tl-photo-preview-title').textContent =
+    n > 1 ? `Save ${n} photos?` : 'Save this photo?';
+  document.getElementById('tl-photo-save-btn').textContent =
+    n > 1 ? `Save ${n} Photos` : 'Save Photo';
+  document.getElementById('tl-photo-preview-modal').classList.remove('hidden');
+}
+
+function tlClosePhotoPreview() {
+  tlPendingPreviewUrls.forEach(u => URL.revokeObjectURL(u));
+  tlPendingPreviewUrls = [];
+  tlPendingFiles = [];
+  document.getElementById('tl-photo-preview-modal').classList.add('hidden');
+}
+
+function cancelPhotoPreview() {
+  tlClosePhotoPreview();
+}
+
+async function confirmPhotoUpload() {
+  if (!tlPendingFiles.length || !tlDetailOrderId) { tlClosePhotoPreview(); return; }
+  const files = tlPendingFiles;
+  const orderId = tlDetailOrderId;
+  const itemId = tlPhotoItemId;
+  const btn = document.getElementById('tl-photo-save-btn');
+  btn.disabled = true;
   try {
     let o = null;
     for (const f of files) {
       const fd = new FormData();
       fd.append('photo', f);
-      if (tlPhotoItemId) fd.append('item_id', tlPhotoItemId);
-      o = await tlFetch(`/api/tailoring/orders/${tlDetailOrderId}/photos`, {
+      if (itemId) fd.append('item_id', itemId);
+      o = await tlFetch(`/api/tailoring/orders/${orderId}/photos`, {
         method: 'POST', body: fd,
       });
     }
+    tlClosePhotoPreview();
     if (o) {
       renderDetail(o);
       document.getElementById('tl-detail-modal').classList.remove('hidden');
@@ -782,6 +831,8 @@ async function uploadPhotos(input) {
     loadOrders();
   } catch (e) {
     alert(e.message);
+  } finally {
+    btn.disabled = false;
   }
 }
 
