@@ -5,14 +5,16 @@ its own upload folder, and its own page + share templates.
 """
 import hashlib
 import hmac
+import io
 import os
 import sqlite3
 import uuid
 from datetime import date, timedelta
 from flask import (Blueprint, current_app, jsonify, request, render_template,
-                   send_from_directory)
+                   redirect, send_from_directory)
 from db.tailoring import get_tailoring_db, STAGES, GARMENT_TYPES, IST_NOW
 from services.auth import api_login_required, login_required
+from services import r2_storage
 
 tailoring_api_bp = Blueprint("tailoring_api", __name__)
 tailoring_pages_bp = Blueprint("tailoring_pages", __name__)
@@ -677,6 +679,8 @@ def delete_order(order_id):
             os.remove(os.path.join(UPLOAD_DIR, p["filename"]))
         except OSError:
             pass
+        if r2_storage.is_configured():
+            r2_storage.delete_object(p["filename"])
     return jsonify({"success": True})
 
 
@@ -717,10 +721,19 @@ def upload_photo(order_id):
     except Exception:
         return jsonify({"error": "File is not a valid image"}), 400
 
-    os.makedirs(UPLOAD_DIR, exist_ok=True)
+    buf = io.BytesIO()
+    img.save(buf, "JPEG", quality=PHOTO_JPEG_QUALITY, optimize=True)
     filename = f"order{order_id}-{uuid.uuid4().hex[:10]}.jpg"
-    img.save(os.path.join(UPLOAD_DIR, filename), "JPEG",
-             quality=PHOTO_JPEG_QUALITY, optimize=True)
+
+    # Prefer Cloudflare R2 (keeps the server's disk quota free); fall back to
+    # local disk if R2 isn't configured, or if the upload fails, so a photo
+    # is never lost to a storage hiccup.
+    stored_on_r2 = r2_storage.is_configured() and r2_storage.upload_bytes(
+        buf.getvalue(), filename)
+    if not stored_on_r2:
+        os.makedirs(UPLOAD_DIR, exist_ok=True)
+        with open(os.path.join(UPLOAD_DIR, filename), "wb") as f:
+            f.write(buf.getvalue())
 
     db.execute(
         "INSERT INTO tailoring_photos (order_id, item_id, filename) VALUES (?, ?, ?)",
@@ -744,6 +757,8 @@ def delete_photo(photo_id):
         os.remove(os.path.join(UPLOAD_DIR, photo["filename"]))
     except OSError:
         pass
+    if r2_storage.is_configured():
+        r2_storage.delete_object(photo["filename"])
     return jsonify({"success": True})
 
 
@@ -845,8 +860,14 @@ def tailoring_report_shared(token):
 
 @tailoring_pages_bp.route("/tailoring/photos/<path:filename>")
 def tailoring_photo_file(filename):
-    """Serve uploaded cloth-sample photos (also used by the public receipt)."""
-    return send_from_directory(os.path.abspath(UPLOAD_DIR), filename)
+    """Serve uploaded cloth-sample photos (also used by the public receipt).
+    Older photos live on local disk; newer ones are offloaded to R2 — check
+    disk first so nothing existing breaks, then redirect to R2 if needed."""
+    if os.path.isfile(os.path.join(os.path.abspath(UPLOAD_DIR), filename)):
+        return send_from_directory(os.path.abspath(UPLOAD_DIR), filename)
+    if r2_storage.is_configured():
+        return redirect(r2_storage.public_url(filename))
+    return jsonify({"error": "Photo not found"}), 404
 
 
 @tailoring_pages_bp.route("/tailoring/share/<int:order_number>")

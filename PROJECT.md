@@ -672,11 +672,38 @@ On both the **Add Inventory Item** and **Current Stock QR** modals, selecting `+
 |---|---|---|
 | `SECRET_KEY` | `'dev-only-change-in-production'` | Flask session signing key |
 | `SHARE_BASE_URL` | `'https://shubhamnxtailoring.pythonanywhere.com'` | Base URL for WhatsApp bill share links |
+| `R2_ACCOUNT_ID` | unset | Cloudflare account ID for R2 photo storage (optional) |
+| `R2_ACCESS_KEY_ID` | unset | R2 API token access key (optional) |
+| `R2_SECRET_ACCESS_KEY` | unset | R2 API token secret (optional) |
+| `R2_BUCKET_NAME` | unset | R2 bucket that holds tailoring photos (optional) |
+| `R2_PUBLIC_URL` | unset | Public URL of that bucket, e.g. `https://pub-xxxx.r2.dev` (optional) |
 
 Generate a strong secret key:
 ```bash
 python -c "import secrets; print(secrets.token_hex(32))"
 ```
+
+### Cloudflare R2 photo storage (optional)
+
+Tailoring photos (cloth samples + measurements) are saved to local disk by
+default. To offload new uploads to Cloudflare R2 instead — free up to 10 GB,
+keeping the server's own disk quota for the app and database — set all five
+`R2_*` variables above and restart the app. Leave them all blank to keep the
+previous local-disk behavior; nothing else changes.
+
+Setup, in the [Cloudflare dashboard](https://dash.cloudflare.com/):
+1. **R2 → Create bucket** — name it (e.g. `tailoring-photos`). This is `R2_BUCKET_NAME`.
+2. Open the bucket → **Settings → Public Access** → enable the `r2.dev` subdomain
+   (or connect a custom domain). Copy that URL as `R2_PUBLIC_URL`.
+3. **R2 → Manage API Tokens → Create API Token**, with **Object Read & Write**
+   permission scoped to that bucket. Copy the Access Key ID, Secret Access
+   Key, and the Account ID shown on the R2 overview page.
+4. Cloudflare requires a payment method on file to activate R2, but you are
+   not charged while staying under the free tier (10 GB storage, 1M writes/
+   month, 10M reads/month, $0 egress).
+
+Photos already on local disk keep working after this is turned on — only new
+uploads go to R2. Deleting a photo removes it from wherever it's actually stored.
 
 ---
 

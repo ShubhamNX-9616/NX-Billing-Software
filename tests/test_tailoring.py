@@ -592,3 +592,48 @@ def test_tailor_report_share_link(client):
     # any non-200 proves the guard kicked in)
     assert client.get("/tailoring/report/share/deadbeef00").status_code == 404
     assert client.get("/tailoring/report").status_code != 200
+
+
+def test_photos_use_r2_when_configured(client, monkeypatch, tmp_path):
+    try:
+        from PIL import Image
+    except ImportError:
+        pytest.skip("Pillow not installed")
+    from services import r2_storage
+
+    uploaded = {}
+    deleted = []
+    monkeypatch.setattr(r2_storage, "is_configured", lambda: True)
+    monkeypatch.setattr(r2_storage, "upload_bytes",
+                        lambda data, key, content_type="image/jpeg":
+                            uploaded.setdefault(key, data) or True)
+    monkeypatch.setattr(r2_storage, "delete_object", lambda key: deleted.append(key))
+    monkeypatch.setattr(r2_storage, "public_url", lambda key: f"https://pub-test.r2.dev/{key}")
+
+    o = make_order(client).get_json()
+    buf = io.BytesIO()
+    Image.new("RGB", (50, 50), (5, 5, 5)).save(buf, "JPEG")
+    buf.seek(0)
+    res = client.post(f"/api/tailoring/orders/{o['id']}/photos",
+                      data={"photo": (buf, "cloth.jpg")},
+                      content_type="multipart/form-data")
+    assert res.status_code == 201
+    photo = res.get_json()["photos"][0]
+
+    # Went to R2, not local disk
+    assert photo["filename"] in uploaded
+    assert not (tmp_path / "uploads" / photo["filename"]).exists()
+
+    # Serving redirects to the R2 public URL
+    res = client.get(f"/tailoring/photos/{photo['filename']}", follow_redirects=False)
+    assert res.status_code == 302
+    assert res.headers["Location"] == f"https://pub-test.r2.dev/{photo['filename']}"
+
+    # Deleting also removes it from R2
+    client.delete(f"/api/tailoring/photos/{photo['id']}")
+    assert photo["filename"] in deleted
+
+
+def test_photos_fall_back_to_local_disk_when_r2_not_configured(client):
+    from services import r2_storage
+    assert r2_storage.is_configured() is False   # no R2 env vars set in tests
