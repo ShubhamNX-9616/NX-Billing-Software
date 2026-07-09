@@ -228,13 +228,18 @@
           <input type="number" id="tlf-order-no" class="input" min="1"
                  placeholder="From the receipt book" />
         </div>
-        <div>
+        <div style="position:relative;">
           <label>Customer Name <span class="text-danger">*</span></label>
-          <input type="text" id="tlf-name" class="input" placeholder="e.g. Bawaskar" />
+          <input type="text" id="tlf-name" class="input" placeholder="Enter name or search…"
+                 autocomplete="off" />
+          <div id="tlf-name-suggestions" style="display:none;position:absolute;z-index:200;background:var(--surface);border:1px solid var(--border);border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,.15);width:100%;top:calc(100% + 2px);left:0;max-height:220px;overflow-y:auto;"></div>
         </div>
         <div>
-          <label>Mobile</label>
-          <input type="tel" id="tlf-mobile" class="input" placeholder="10-digit mobile" />
+          <label>Mobile <span id="tlf-cust-status" style="font-size:12px;"></span></label>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input type="tel" id="tlf-mobile" class="input" placeholder="10-digit mobile" />
+            <div id="tlf-mobile-spinner" class="spinner" style="display:none;flex-shrink:0;"></div>
+          </div>
         </div>
         <div>
           <label>Address</label>

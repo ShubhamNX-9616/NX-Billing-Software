@@ -15,6 +15,7 @@ from flask import (Blueprint, current_app, jsonify, request, render_template,
 from db.tailoring import get_tailoring_db, STAGES, GARMENT_TYPES, IST_NOW
 from services.auth import api_login_required, login_required
 from services import r2_storage
+from utils import normalize_mobile
 
 tailoring_api_bp = Blueprint("tailoring_api", __name__)
 tailoring_pages_bp = Blueprint("tailoring_pages", __name__)
@@ -347,6 +348,65 @@ def tailoring_dashboard():
     })
 
 
+def _customer_index(db):
+    """Name/mobile/address per customer, derived from orders.
+
+    Unlike /tailoring/customers this reads the orders table directly instead
+    of building full order payloads, so it is cheap enough to call on every
+    keystroke of the order form's customer lookup. Mobiles are stored raw, so
+    they are normalized here to make '+91 98765 43210' and '9876543210' match.
+    Rows ascend by order_number, so the most recent spelling and address win.
+    """
+    index = {}
+    rows = db.execute(
+        "SELECT customer_name, mobile, address FROM tailoring_orders "
+        "ORDER BY order_number"
+    ).fetchall()
+    for r in rows:
+        norm = normalize_mobile(r["mobile"] or "")
+        key = norm or "name:" + (r["customer_name"] or "").strip().lower()
+        c = index.setdefault(key, {"customer_name": "", "mobile": "", "address": ""})
+        c["customer_name"] = r["customer_name"]
+        if r["mobile"]:
+            c["mobile"] = r["mobile"]
+        if r["address"]:
+            c["address"] = r["address"]
+    return index
+
+
+# ---------------------------------------------------------------------------
+# GET /api/tailoring/customers/search?mobile= — existing-customer lookup
+# ---------------------------------------------------------------------------
+@tailoring_api_bp.route("/tailoring/customers/search", methods=["GET"])
+@api_login_required
+def tailoring_customer_search():
+    raw = (request.args.get("mobile") or "").strip()
+    if not raw:
+        return jsonify({"error": "mobile param required"}), 400
+    norm = normalize_mobile(raw)
+    if len(norm) != 10:
+        return jsonify({"found": False})
+    customer = _customer_index(get_tailoring_db()).get(norm)
+    if not customer:
+        return jsonify({"found": False})
+    return jsonify({"found": True, "customer": customer})
+
+
+# ---------------------------------------------------------------------------
+# GET /api/tailoring/customers/suggest?q= — name typeahead
+# ---------------------------------------------------------------------------
+@tailoring_api_bp.route("/tailoring/customers/suggest", methods=["GET"])
+@api_login_required
+def tailoring_customer_suggest():
+    q = (request.args.get("q") or "").strip().lower()
+    if len(q) < 2:
+        return jsonify([])
+    matches = [c for c in _customer_index(get_tailoring_db()).values()
+               if q in (c["customer_name"] or "").lower()]
+    matches.sort(key=lambda c: (c["customer_name"] or "").lower())
+    return jsonify(matches[:8])
+
+
 # ---------------------------------------------------------------------------
 # GET /api/tailoring/customers — customer list derived from orders
 # ---------------------------------------------------------------------------
@@ -354,7 +414,9 @@ def tailoring_dashboard():
 @api_login_required
 def tailoring_customers():
     """Tailoring has no customers table; group orders by mobile number
-    (falling back to the name when no mobile was recorded)."""
+    (falling back to the name when no mobile was recorded). Mobiles are
+    normalized so the same person entered as '+91 98765 43210' and
+    '9876543210' groups into one customer, matching _customer_index()."""
     db = get_tailoring_db()
     q = (request.args.get("q") or "").strip().lower()
 
@@ -363,7 +425,8 @@ def tailoring_customers():
 
     groups = {}
     for o in orders:
-        key = (o["mobile"] or "").strip() or "name:" + o["customer_name"].strip().lower()
+        key = (normalize_mobile(o["mobile"] or "")
+               or "name:" + o["customer_name"].strip().lower())
         g = groups.setdefault(key, {
             "customer_name": o["customer_name"],
             "mobile": o["mobile"],
@@ -377,6 +440,8 @@ def tailoring_customers():
         })
         # Orders come in ascending order_number, so the latest spelling wins
         g["customer_name"] = o["customer_name"]
+        if o["mobile"]:
+            g["mobile"] = o["mobile"]
         if o["address"]:
             g["address"] = o["address"]
         g["orders"] += 1
@@ -395,8 +460,15 @@ def tailoring_customers():
         c["pending_balance"] = round(c["pending_balance"], 2)
 
     if q:
-        customers = [c for c in customers
-                     if q in c["customer_name"].lower() or q in (c["mobile"] or "")]
+        # Digits in the query are matched against the normalized mobile, so
+        # searching '9876543210' finds a number stored as '+91 98765 43210'.
+        q_digits = normalize_mobile(q)
+        def _matches(c):
+            mobile = c["mobile"] or ""
+            return (q in c["customer_name"].lower()
+                    or q in mobile
+                    or (bool(q_digits) and q_digits in normalize_mobile(mobile)))
+        customers = [c for c in customers if _matches(c)]
     customers.sort(key=lambda c: c["customer_name"].lower())
     return jsonify({"customers": customers, "total": len(customers)})
 

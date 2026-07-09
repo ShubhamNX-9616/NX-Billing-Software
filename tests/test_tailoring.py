@@ -441,6 +441,37 @@ def test_customers_list(client):
     assert data["customers"][0]["customer_name"] == "Bawaskar Ji"
 
 
+def test_customers_tab_groups_differently_formatted_mobiles(client):
+    make_order(client, customer_name="Bawaskar", mobile="9876543210")
+    make_order(client, customer_name="Bawaskar", mobile="+91 98765 43210")
+    make_order(client, customer_name="Bawaskar", mobile="098765 43210")
+
+    data = client.get("/api/tailoring/customers").get_json()
+    assert data["total"] == 1
+    c = data["customers"][0]
+    assert c["orders"] == 3
+    assert c["mobile"] == "098765 43210"      # latest spelling wins
+
+
+def test_customers_tab_search_matches_normalized_mobile(client):
+    make_order(client, customer_name="Kulkarni", mobile="+91 98765 11111")
+
+    # The stored string has spaces and a country code; the query has neither.
+    data = client.get("/api/tailoring/customers?q=9876511111").get_json()
+    assert data["total"] == 1
+    assert data["customers"][0]["customer_name"] == "Kulkarni"
+
+
+def test_customers_tab_name_search_is_unaffected_by_mobile_normalizing(client):
+    make_order(client, customer_name="Bawaskar", mobile="9876543210")
+    make_order(client, customer_name="Kulkarni", mobile="")
+
+    # A name query has no digits, so it must not fall through to mobile matching.
+    data = client.get("/api/tailoring/customers?q=kulkarni").get_json()
+    assert data["total"] == 1
+    assert data["customers"][0]["customer_name"] == "Kulkarni"
+
+
 def test_measurement_photos_hidden_on_receipt(client):
     try:
         from PIL import Image
@@ -637,3 +668,89 @@ def test_photos_use_r2_when_configured(client, monkeypatch, tmp_path):
 def test_photos_fall_back_to_local_disk_when_r2_not_configured(client):
     from services import r2_storage
     assert r2_storage.is_configured() is False   # no R2 env vars set in tests
+
+
+# ---------------------------------------------------------------------------
+# Customer lookup on the order form
+# ---------------------------------------------------------------------------
+
+def test_customer_search_finds_previous_order(client):
+    make_order(client, customer_name="Bawaskar", mobile="9876543210",
+               address="New Sangvi")
+
+    res = client.get("/api/tailoring/customers/search?mobile=9876543210")
+    assert res.status_code == 200
+    data = res.get_json()
+    assert data["found"] is True
+    assert data["customer"]["customer_name"] == "Bawaskar"
+    assert data["customer"]["address"] == "New Sangvi"
+
+
+def test_customer_search_normalizes_stored_and_queried_mobile(client):
+    # Stored raw, exactly as somebody typed it into the form.
+    make_order(client, customer_name="Kulkarni", mobile="+91 98765 11111")
+
+    for query in ("9876511111", "+919876511111", "098765 11111"):
+        data = client.get(f"/api/tailoring/customers/search?mobile={query}").get_json()
+        assert data["found"] is True, query
+        assert data["customer"]["customer_name"] == "Kulkarni"
+
+
+def test_customer_search_returns_latest_name_and_address(client):
+    make_order(client, customer_name="Patil", mobile="9876522222",
+               address="Old Address")
+    make_order(client, customer_name="Patil Sir", mobile="9876522222",
+               address="New Address")
+
+    c = client.get("/api/tailoring/customers/search?mobile=9876522222").get_json()["customer"]
+    assert c["customer_name"] == "Patil Sir"
+    assert c["address"] == "New Address"
+
+
+def test_customer_search_keeps_last_known_address_when_later_order_omits_it(client):
+    make_order(client, customer_name="Joshi", mobile="9876533333", address="Kothrud")
+    make_order(client, customer_name="Joshi", mobile="9876533333", address="")
+
+    c = client.get("/api/tailoring/customers/search?mobile=9876533333").get_json()["customer"]
+    assert c["address"] == "Kothrud"
+
+
+def test_customer_search_misses_are_not_errors(client):
+    make_order(client, mobile="9876543210")
+
+    assert client.get("/api/tailoring/customers/search?mobile=9999999999").get_json() == {"found": False}
+    # Too short to be a real number — not found, not a crash.
+    assert client.get("/api/tailoring/customers/search?mobile=98765").get_json() == {"found": False}
+    assert client.get("/api/tailoring/customers/search?mobile=").status_code == 400
+
+
+def test_customer_suggest_matches_name_substring(client):
+    make_order(client, customer_name="Bawaskar", mobile="9876544444")
+    make_order(client, customer_name="Kulkarni", mobile="9876555555")
+
+    rows = client.get("/api/tailoring/customers/suggest?q=waska").get_json()
+    assert [r["customer_name"] for r in rows] == ["Bawaskar"]
+    assert rows[0]["mobile"] == "9876544444"
+
+
+def test_customer_suggest_groups_orders_by_customer(client):
+    make_order(client, customer_name="Deshpande", mobile="9876566666")
+    make_order(client, customer_name="Deshpande", mobile="9876566666")
+
+    rows = client.get("/api/tailoring/customers/suggest?q=deshpande").get_json()
+    assert len(rows) == 1
+
+
+def test_customer_suggest_needs_two_characters(client):
+    make_order(client, customer_name="Bawaskar")
+    assert client.get("/api/tailoring/customers/suggest?q=B").get_json() == []
+    assert client.get("/api/tailoring/customers/suggest?q=").get_json() == []
+
+
+def test_customer_suggest_handles_orders_without_mobile(client):
+    make_order(client, customer_name="Walk In", mobile="")
+
+    rows = client.get("/api/tailoring/customers/suggest?q=walk").get_json()
+    assert len(rows) == 1
+    assert rows[0]["customer_name"] == "Walk In"
+    assert rows[0]["mobile"] == ""

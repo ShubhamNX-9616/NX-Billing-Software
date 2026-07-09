@@ -438,8 +438,160 @@ function recalcTotals() {
   if (advance <= 0) modeSel.value = '';
 }
 
+/* ---------- customer lookup (mobile + name) ---------- */
+
+// Customers here are derived from past tailoring orders only, so someone who
+// has bought cloth but never ordered stitching will show up as new.
+
+function tlNormalizeMobile(raw) {
+  const digits = String(raw).replace(/\D/g, '');
+  if (digits.length === 12 && digits.startsWith('91')) return digits.slice(2);
+  if (digits.length === 11 && digits.startsWith('0'))  return digits.slice(1);
+  return digits;
+}
+
+function tlDebounced(fn, ms) {
+  let timer = null;
+  return (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), ms); };
+}
+
+function tlSetCustomerStatus(found) {
+  const el = document.getElementById('tlf-cust-status');
+  if (el) el.innerHTML = found
+    ? '<span class="badge badge-success">&#10003; Existing Customer</span>' : '';
+}
+
+function tlFlashField(el) {
+  el.style.transition = 'background 0.15s';
+  el.style.background = '#fef9c3';
+  setTimeout(() => {
+    el.style.background = '';
+    setTimeout(() => { el.style.transition = ''; }, 300);
+  }, 600);
+}
+
+function tlApplyCustomer(c, { flash }) {
+  const nameEl = document.getElementById('tlf-name');
+  const addrEl = document.getElementById('tlf-address');
+  nameEl.value = c.customer_name || '';
+  // An address typed just now is more current than the one on file.
+  if (!addrEl.value.trim() && c.address) addrEl.value = c.address;
+  tlSetCustomerStatus(true);
+  if (flash) tlFlashField(nameEl);
+}
+
+async function tlMobileSearch() {
+  const norm = tlNormalizeMobile(document.getElementById('tlf-mobile').value);
+  const spinner = document.getElementById('tlf-mobile-spinner');
+  if (norm.length !== 10) { tlSetCustomerStatus(false); return; }
+
+  spinner.style.display = 'inline-block';
+  try {
+    const data = await tlFetch(`/api/tailoring/customers/search?mobile=${norm}`);
+    if (data.found) tlApplyCustomer(data.customer, { flash: true });
+    else tlSetCustomerStatus(false);
+  } catch (e) {
+    tlSetCustomerStatus(false);
+  } finally {
+    spinner.style.display = 'none';
+  }
+}
+
+let tlNameActiveIdx = -1;
+
+function tlHideNameSuggestions() {
+  const box = document.getElementById('tlf-name-suggestions');
+  if (box) { box.innerHTML = ''; box.style.display = 'none'; }
+  tlNameActiveIdx = -1;
+}
+
+function tlHighlightSuggestion(idx) {
+  const box = document.getElementById('tlf-name-suggestions');
+  if (!box) return;
+  const items = box.querySelectorAll('[data-suggest-item]');
+  items.forEach((el, i) => { el.style.background = i === idx ? 'var(--bg)' : ''; });
+  if (items[idx]) items[idx].scrollIntoView({ block: 'nearest' });
+}
+
+function tlOnNameKeydown(e) {
+  const box = document.getElementById('tlf-name-suggestions');
+  if (!box || box.style.display === 'none') return;
+  const items = box.querySelectorAll('[data-suggest-item]');
+  if (!items.length) return;
+
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    tlNameActiveIdx = (tlNameActiveIdx + 1) % items.length;
+    tlHighlightSuggestion(tlNameActiveIdx);
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    tlNameActiveIdx = (tlNameActiveIdx - 1 + items.length) % items.length;
+    tlHighlightSuggestion(tlNameActiveIdx);
+  } else if (e.key === 'Enter' && tlNameActiveIdx >= 0) {
+    e.preventDefault();
+    items[tlNameActiveIdx].dispatchEvent(new MouseEvent('mousedown'));
+  } else if (e.key === 'Escape') {
+    tlHideNameSuggestions();
+  }
+}
+
+async function tlNameSuggest() {
+  const box = document.getElementById('tlf-name-suggestions');
+  if (!box) return;
+  const q = document.getElementById('tlf-name').value.trim();
+  if (q.length < 2) { tlHideNameSuggestions(); return; }
+
+  let list;
+  try {
+    list = await tlFetch(`/api/tailoring/customers/suggest?q=${encodeURIComponent(q)}`);
+  } catch (e) {
+    tlHideNameSuggestions(); return;
+  }
+  if (!Array.isArray(list) || !list.length) { tlHideNameSuggestions(); return; }
+
+  tlNameActiveIdx = -1;
+  box.innerHTML = '';
+  list.forEach(c => {
+    const item = document.createElement('div');
+    item.setAttribute('data-suggest-item', '');
+    item.style.cssText = 'padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border);font-size:14px;color:var(--text);';
+    const nameSpan = document.createElement('span');
+    nameSpan.textContent = c.customer_name;
+    const mobileSpan = document.createElement('span');
+    mobileSpan.textContent = c.mobile ? ` ${c.mobile}` : '';
+    mobileSpan.style.cssText = 'color:var(--text-muted);font-size:12px;margin-left:6px;';
+    item.appendChild(nameSpan);
+    item.appendChild(mobileSpan);
+    item.addEventListener('mouseover', () => { item.style.background = 'var(--bg)'; });
+    item.addEventListener('mouseout', () => {
+      const items = box.querySelectorAll('[data-suggest-item]');
+      if (item !== items[tlNameActiveIdx]) item.style.background = '';
+    });
+    item.addEventListener('mousedown', () => {
+      document.getElementById('tlf-mobile').value = c.mobile || '';
+      tlApplyCustomer(c, { flash: false });
+      tlHideNameSuggestions();
+    });
+    box.appendChild(item);
+  });
+  box.style.display = 'block';
+}
+
+function setupCustomerLookup() {
+  const mobileEl = document.getElementById('tlf-mobile');
+  const nameEl = document.getElementById('tlf-name');
+  if (mobileEl) mobileEl.addEventListener('input', tlDebounced(tlMobileSearch, 300));
+  if (nameEl) {
+    nameEl.addEventListener('input', tlDebounced(tlNameSuggest, 250));
+    nameEl.addEventListener('keydown', tlOnNameKeydown);
+    nameEl.addEventListener('blur', () => setTimeout(tlHideNameSuggestions, 150));
+  }
+}
+
 function openOrderModal(order) {
   tlEditingOrderId = order ? order.id : null;
+  tlSetCustomerStatus(false);
+  tlHideNameSuggestions();
   document.getElementById('tl-order-modal-title').textContent =
     order ? `Edit Order #${order.order_number}` : 'New Tailoring Order';
   document.getElementById('tlf-error').style.display = 'none';
@@ -946,6 +1098,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const el = document.getElementById(id);
     if (el) el.addEventListener('cancel', clearPendingPhoto);
   });
+
+  setupCustomerLookup();
 
   try {
     await loadMeta();
