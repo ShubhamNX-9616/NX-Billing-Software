@@ -138,10 +138,13 @@ function renderList() {
     const row = document.createElement('div');
     row.className = 'tl-order-row';
     const notDone = o.stage !== 'Delivered';
+    // Matches the server's _is_overdue: once every garment is Full Stitched,
+    // a late pickup is on the customer, not a stitching delay — no red flag.
+    const stitchingPending = notDone && o.stage !== 'Full Stitched';
     const trialCls = notDone && o.trial_date === today ? 'due-today'
                    : notDone && o.trial_date && o.trial_date < today ? 'overdue' : '';
     const delCls   = notDone && o.delivery_date === today ? 'due-today'
-                   : notDone && o.delivery_date && o.delivery_date < today ? 'overdue' : '';
+                   : stitchingPending && o.delivery_date && o.delivery_date < today ? 'overdue' : '';
     const balCls = o.balance > 0 ? 'pending' : 'paid';
     const balText = o.balance > 0 ? `Balance ${tlFmt(o.balance)}` : 'Fully paid';
 

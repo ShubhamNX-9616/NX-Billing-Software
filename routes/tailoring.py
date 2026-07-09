@@ -6,6 +6,7 @@ its own upload folder, and its own page + share templates.
 import hashlib
 import hmac
 import os
+import sqlite3
 import uuid
 from datetime import date, timedelta
 from flask import (Blueprint, current_app, jsonify, request, render_template,
@@ -157,16 +158,21 @@ def create_order():
         if db.execute("SELECT 1 FROM tailoring_orders WHERE order_number = ?",
                       (order_number,)).fetchone():
             return jsonify({"error": f"Order number {order_number} already exists"}), 400
-        cur = db.execute(
-            """INSERT INTO tailoring_orders
-               (order_number, order_date, customer_name, mobile, address,
-                trial_date, delivery_date, total, advance, balance,
-                payment_mode, notes)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (order_number, order_date, customer_name, mobile, address,
-             trial_date, delivery_date, total, advance, balance,
-             payment_mode, notes),
-        )
+        try:
+            cur = db.execute(
+                """INSERT INTO tailoring_orders
+                   (order_number, order_date, customer_name, mobile, address,
+                    trial_date, delivery_date, total, advance, balance,
+                    payment_mode, notes)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (order_number, order_date, customer_name, mobile, address,
+                 trial_date, delivery_date, total, advance, balance,
+                 payment_mode, notes),
+            )
+        except sqlite3.IntegrityError:
+            # Two devices saved the same number in the same instant — the
+            # SELECT above missed it, but the UNIQUE constraint catches it.
+            return jsonify({"error": f"Order number {order_number} already exists"}), 400
         order_id = cur.lastrowid
         for it in items:
             db.execute(
@@ -480,16 +486,20 @@ def update_order(order_id):
         for gone in old_ids - sent_ids:
             db.execute("DELETE FROM tailoring_items WHERE id = ?", (gone,))
 
-        db.execute(
-            f"""UPDATE tailoring_orders
-               SET order_number = ?, customer_name = ?, mobile = ?, address = ?,
-                   order_date = ?, trial_date = ?, delivery_date = ?, total = ?,
-                   advance = ?, balance = ?, payment_mode = ?, notes = ?,
-                   updated_at = {IST_NOW}
-               WHERE id = ?""",
-            (order_number, customer_name, mobile, address, order_date, trial_date,
-             delivery_date, total, advance, balance, payment_mode, notes, order_id),
-        )
+        try:
+            db.execute(
+                f"""UPDATE tailoring_orders
+                   SET order_number = ?, customer_name = ?, mobile = ?, address = ?,
+                       order_date = ?, trial_date = ?, delivery_date = ?, total = ?,
+                       advance = ?, balance = ?, payment_mode = ?, notes = ?,
+                       updated_at = {IST_NOW}
+                   WHERE id = ?""",
+                (order_number, customer_name, mobile, address, order_date, trial_date,
+                 delivery_date, total, advance, balance, payment_mode, notes, order_id),
+            )
+        except sqlite3.IntegrityError:
+            # Another save took this number in the instant between our check and write.
+            return jsonify({"error": f"Order number {order_number} already exists"}), 400
         db.commit()
         row = db.execute("SELECT * FROM tailoring_orders WHERE id = ?", (order_id,)).fetchone()
         return jsonify(_order_payload(db, row))

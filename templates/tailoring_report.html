@@ -147,6 +147,7 @@
   <script>
     const TOMORROW = {{ (tomorrow | format_date) | tojson }};
     const SHARE_PATH = {{ share_path | tojson }};
+    const SHARE_BASE_URL = {{ (share_base_url or '') | tojson }};
     const COUNTS = {
       overdue: {{ overdue | length }},
       deliveries: {{ deliveries | length }},
@@ -163,7 +164,7 @@
       } else {
         L.push('');
         L.push('Open the full report (with photos):');
-        L.push((window.SHARE_BASE_URL || window.location.origin) + SHARE_PATH);
+        L.push((SHARE_BASE_URL || window.location.origin) + SHARE_PATH);
       }
       return L.join('\n');
     }

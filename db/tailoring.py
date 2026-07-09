@@ -21,9 +21,6 @@ GARMENT_TYPES = [
     "Blazer", "Jacket", "West Coat", "Jodhpuri", "Sherwani",
 ]
 
-# Order numbers continue the paper book series from here
-ORDER_SEQ_START = 1001
-
 
 def _open_connection():
     conn = sqlite3.connect(TAILORING_DB_PATH)
@@ -97,11 +94,6 @@ SCHEMA = f"""
         paid_at  TEXT DEFAULT ({IST_NOW})
     );
 
-    CREATE TABLE IF NOT EXISTS tailoring_order_seq (
-        id       INTEGER PRIMARY KEY CHECK (id = 1),
-        next_val INTEGER NOT NULL
-    );
-
     CREATE INDEX IF NOT EXISTS idx_tailoring_items_order    ON tailoring_items(order_id);
     CREATE INDEX IF NOT EXISTS idx_tailoring_payments_order ON tailoring_payments(order_id);
     CREATE INDEX IF NOT EXISTS idx_tailoring_photos_order ON tailoring_photos(order_id);
@@ -110,7 +102,7 @@ SCHEMA = f"""
 
 
 def init_tailoring_db(conn=None):
-    """Create tables and seed the order-number sequence."""
+    """Create tables, applying migrations for columns added after first release."""
     own = conn is None
     if own:
         conn = _open_connection()
@@ -122,23 +114,6 @@ def init_tailoring_db(conn=None):
             "ALTER TABLE tailoring_photos ADD COLUMN item_id INTEGER "
             "REFERENCES tailoring_items(id) ON DELETE SET NULL"
         )
-    row = conn.execute("SELECT next_val FROM tailoring_order_seq WHERE id = 1").fetchone()
-    if row is None:
-        conn.execute(
-            "INSERT INTO tailoring_order_seq (id, next_val) VALUES (1, ?)",
-            (ORDER_SEQ_START,),
-        )
     conn.commit()
     if own:
         conn.close()
-
-
-def next_order_number(conn):
-    """Reserve and return the next order number (1001, 1002, ...)."""
-    row = conn.execute("SELECT next_val FROM tailoring_order_seq WHERE id = 1").fetchone()
-    val = row["next_val"] if row else ORDER_SEQ_START
-    conn.execute(
-        "INSERT OR REPLACE INTO tailoring_order_seq (id, next_val) VALUES (1, ?)",
-        (val + 1,),
-    )
-    return val
