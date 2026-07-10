@@ -358,8 +358,9 @@ def test_staff_can_delete_order(client):
 
 
 def test_dashboard(client):
-    from datetime import date, timedelta
-    today = date.today()
+    from datetime import timedelta
+    from routes.tailoring import _ist_date
+    today = _ist_date()  # match the app's IST "today", not the CI runner's tz
     d = lambda n: (today + timedelta(days=n)).isoformat()
 
     # Overdue: delivery 3 days ago. Due tomorrow: one delivery, one trial.
@@ -544,8 +545,9 @@ def test_record_payment_with_history(client):
 
 
 def test_tailor_report(client):
-    from datetime import date, timedelta
-    today = date.today()
+    from datetime import timedelta
+    from routes.tailoring import _ist_date
+    today = _ist_date()  # match the app's IST "today", not the CI runner's tz
     d = lambda n: (today + timedelta(days=n)).isoformat()
 
     make_order(client, customer_name="LateGuy", trial_date=None, delivery_date=d(-2))
@@ -570,8 +572,9 @@ def test_tailor_report_includes_photos(client):
         from PIL import Image
     except ImportError:
         pytest.skip("Pillow not installed")
-    from datetime import date, timedelta
-    tomorrow = (date.today() + timedelta(days=1)).isoformat()
+    from datetime import timedelta
+    from routes.tailoring import _ist_date
+    tomorrow = (_ist_date() + timedelta(days=1)).isoformat()
 
     o = make_order(client, customer_name="PhotoGuy",
                    trial_date=None, delivery_date=tomorrow).get_json()
@@ -599,9 +602,9 @@ def test_tailor_report_includes_photos(client):
 
 def test_tailor_report_share_link(client):
     import re
-    from datetime import date, timedelta
+    from datetime import timedelta
     import routes.tailoring as tr
-    tomorrow = (date.today() + timedelta(days=1)).isoformat()
+    tomorrow = (tr._ist_date() + timedelta(days=1)).isoformat()
     make_order(client, customer_name="NightWork", trial_date=None,
                delivery_date=tomorrow)
 
