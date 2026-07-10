@@ -9,7 +9,7 @@ import io
 import os
 import sqlite3
 import uuid
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from flask import (Blueprint, current_app, jsonify, request, render_template,
                    redirect, send_from_directory)
 from db.tailoring import get_tailoring_db, STAGES, GARMENT_TYPES, IST_NOW
@@ -26,10 +26,20 @@ MAX_PHOTO_DIM = 1400          # px, longest side after resize
 PHOTO_JPEG_QUALITY = 82
 
 
+IST = timezone(timedelta(hours=5, minutes=30))
+
+
+def _ist_date():
+    """Actual IST calendar date as a date object, independent of the host's
+    timezone. date.today() returns the host-local date, which lags real IST on
+    a UTC (or USA) host — so yesterday's deliveries were not flagged overdue
+    until the host clock itself rolled past midnight. Deriving IST from UTC+5:30
+    keeps date comparisons correct wherever the app runs."""
+    return datetime.now(IST).date()
+
+
 def _today_ist():
-    # SQLite IST_NOW handles timestamps; for date comparisons use local date,
-    # which on this deployment (shop PC, IST timezone) matches IST.
-    return date.today().isoformat()
+    return _ist_date().isoformat()
 
 
 def _is_overdue(order, today_s):
@@ -287,7 +297,7 @@ def _order_brief(order):
 @api_login_required
 def tailoring_dashboard():
     db = get_tailoring_db()
-    today = date.today()
+    today = _ist_date()
     today_s = today.isoformat()
     tomorrow_s = (today + timedelta(days=1)).isoformat()
 
@@ -854,7 +864,7 @@ def _report_token(day_s):
 def _build_report_data():
     """Tailor work report data: overdue orders + tomorrow's deliveries/trials."""
     db = get_tailoring_db()
-    today = date.today()
+    today = _ist_date()
     today_s = today.isoformat()
     tomorrow_s = (today + timedelta(days=1)).isoformat()
 
@@ -918,7 +928,7 @@ def tailoring_report():
 def tailoring_report_shared(token):
     """Public tailor view, opened from the WhatsApp link — no login needed.
     Accepts today's and yesterday's token so a 10pm link survives midnight."""
-    today = date.today()
+    today = _ist_date()
     valid = {_report_token(today.isoformat()),
              _report_token((today - timedelta(days=1)).isoformat())}
     if token not in valid:
