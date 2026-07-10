@@ -775,6 +775,7 @@ function renderDetail(o) {
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:18px;">
       <a class="btn btn-primary" target="_blank" rel="noopener"
          href="${buildTlWhatsAppURL(o)}">&#128172; WhatsApp</a>
+      <a class="btn btn-secondary" href="${buildTlPhoneURL(o)}">&#128222; Call</a>
       <a class="btn btn-secondary" target="_blank" rel="noopener"
          href="/tailoring/share/${o.order_number}">&#128424; Receipt / Print</a>
       <button type="button" class="btn btn-secondary" onclick="copyTlLink(${o.order_number}, this)">Copy Link</button>
@@ -1052,10 +1053,18 @@ function buildTlWhatsAppURL(o) {
   lines.push('');
   lines.push('_Delivery after 7 pm. Monday closed._');
 
-  let m = (o.mobile || '').replace(/\D/g, '');
+  return 'https://wa.me/' + tlNormalizeMobile(o.mobile) + '?text=' + encodeURIComponent(lines.join('\n'));
+}
+
+function tlNormalizeMobile(mobile) {
+  let m = (mobile || '').replace(/\D/g, '');
   if (m.length === 10) m = '91' + m;
   else if (m.length === 11 && m.startsWith('0')) m = '91' + m.slice(1);
-  return 'https://wa.me/' + m + '?text=' + encodeURIComponent(lines.join('\n'));
+  return m;
+}
+
+function buildTlPhoneURL(o) {
+  return 'tel:+' + tlNormalizeMobile(o.mobile);
 }
 
 function copyTlLink(orderNumber, btn) {
