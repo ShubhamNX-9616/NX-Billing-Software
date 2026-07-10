@@ -37,8 +37,7 @@ function tlFmtDate(iso) {
 }
 
 function tlToday() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return istToday();  // IST calendar day, independent of operator timezone
 }
 
 function stageBadge(stage) {
@@ -1017,6 +1016,12 @@ function openLightbox(src) {
   document.getElementById('tl-lightbox-img').src = src;
   document.getElementById('tl-lightbox').classList.remove('hidden');
 }
+
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  const lb = document.getElementById('tl-lightbox');
+  if (lb && !lb.classList.contains('hidden')) lb.classList.add('hidden');
+});
 
 /* ---------- WhatsApp & share link ---------- */
 

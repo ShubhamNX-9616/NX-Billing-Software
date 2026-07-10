@@ -10,7 +10,7 @@ VALID_INST_PAYMENT_MODES = {"Cash", "Card", "UPI", "Cheque", "NEFT", "Combinatio
 
 
 @inst_bills_bp.route("/institution-bills", methods=["POST"])
-@api_login_required
+@api_admin_required
 def create_institution_bill():
     body = request.get_json(force=True) or {}
 

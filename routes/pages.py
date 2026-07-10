@@ -72,7 +72,7 @@ def loyalty():
 
 
 @pages_bp.route("/new-institution-bill")
-@login_required
+@admin_required
 def new_institution_bill():
     return render_template("new_institution_bill.html")
 

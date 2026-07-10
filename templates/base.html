@@ -36,11 +36,13 @@
         <span class="nav-icon">&#43;</span>
         New Bill
       </a>
+      {% if current_user.is_admin %}
       <a href="/new-institution-bill"
          class="nav-link {% if request.path == '/new-institution-bill' %}active{% endif %}">
         <span class="nav-icon">&#127970;</span>
         Institution Bill
       </a>
+      {% endif %}
       <a href="/tailoring"
          class="nav-link {% if request.path.startswith('/tailoring') %}active{% endif %}">
         <span class="nav-icon">&#9986;</span>
@@ -164,6 +166,7 @@
       </svg>
       <span>New Bill</span>
     </a>
+    {% if current_user.is_admin %}
     <a href="/new-institution-bill" class="mob-nav-item" data-page="inst-bill">
       <svg viewBox="0 0 24 24" aria-hidden="true">
         <rect x="3" y="3" width="18" height="18" rx="2"/>
@@ -172,6 +175,7 @@
       </svg>
       <span>Inst. Bill</span>
     </a>
+    {% endif %}
     <a href="/tailoring" class="mob-nav-item" data-page="tailoring">
       <svg viewBox="0 0 24 24" aria-hidden="true">
         <circle cx="6" cy="6" r="3"/>

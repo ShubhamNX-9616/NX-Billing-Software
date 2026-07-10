@@ -71,8 +71,7 @@ const PERIOD_TITLES = {
 };
 
 function todayISO() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return istToday();  // IST calendar day, independent of operator timezone
 }
 
 function shiftDays(dateStr, delta) {

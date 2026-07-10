@@ -24,7 +24,7 @@ document.addEventListener('DOMContentLoaded', async function () {
   if (window.INST_BILL_ID) {
     await loadInstBillForEdit(window.INST_BILL_ID);
   } else {
-    document.getElementById('inst-bill-date').value = new Date().toISOString().slice(0, 10);
+    document.getElementById('inst-bill-date').value = istToday();
     addInstItem();
     updateInstSummary();
   }
@@ -535,7 +535,10 @@ function onInstSaveSuccess(bill) {
 
 function formatPrintDate(dateStr) {
   if (!dateStr) return '';
-  const d = new Date(dateStr);
+  // Parse as local midnight (append T00:00:00) so a YYYY-MM-DD bill date is not
+  // pulled back a day for operators west of UTC (e.g. the USA), where a bare
+  // new Date('YYYY-MM-DD') would be treated as UTC midnight.
+  const d = new Date(dateStr + 'T00:00:00');
   return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
@@ -547,7 +550,7 @@ function resetInstForm() {
   });
   const salSel = document.getElementById('inst-salesperson');
   salSel.value = instSalespersons.some(s => s.name === 'Self') ? 'Self' : '';
-  document.getElementById('inst-bill-date').value = new Date().toISOString().slice(0, 10);
+  document.getElementById('inst-bill-date').value = istToday();
   document.getElementById('inst-advance-paid').value = '';
   document.getElementById('inst-payment-amount').value = '';
 

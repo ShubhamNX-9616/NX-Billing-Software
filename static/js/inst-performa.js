@@ -2,7 +2,9 @@
 
 function _fmtPerformaDate(dateStr) {
   if (!dateStr) return '';
-  const d = new Date(dateStr);
+  // Local-midnight parse so a YYYY-MM-DD bill date isn't shown a day early for
+  // operators west of UTC (bare new Date('YYYY-MM-DD') parses as UTC midnight).
+  const d = new Date(dateStr + 'T00:00:00');
   const dd = String(d.getDate()).padStart(2, '0');
   const mm = String(d.getMonth() + 1).padStart(2, '0');
   const yyyy = d.getFullYear();
