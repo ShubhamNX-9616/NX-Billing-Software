@@ -57,6 +57,24 @@ def _derived_stage(item_stages):
     return min(item_stages, key=lambda s: STAGES.index(s) if s in STAGES else 0)
 
 
+def _split_off_unit(db, item, qty, stage):
+    """Peel `qty` units off `item` into a new row with the given stage.
+    Returns the new row's id. Caller commits."""
+    remaining_qty = item["qty"] - qty
+    remaining_amount = round(remaining_qty * item["rate"], 2)
+    split_amount = round(qty * item["rate"], 2)
+    db.execute("UPDATE tailoring_items SET qty = ?, amount = ? WHERE id = ?",
+               (remaining_qty, remaining_amount, item["id"]))
+    cur = db.execute(
+        """INSERT INTO tailoring_items
+           (order_id, garment_type, qty, rate, amount, stage, notes)
+           VALUES (?, ?, ?, ?, ?, ?, ?)""",
+        (item["order_id"], item["garment_type"], qty, item["rate"],
+         split_amount, stage, item["notes"]),
+    )
+    return cur.lastrowid
+
+
 def _order_payload(db, order_row):
     order = dict(order_row)
     items = [dict(r) for r in db.execute(
@@ -615,6 +633,34 @@ def update_item_stage(item_id):
 
 
 # ---------------------------------------------------------------------------
+# POST /api/tailoring/items/<id>/split — peel N units off into their own row
+# so a subset of a multi-qty item (e.g. 1 of 3 shirts) can advance stage
+# independently of the rest.
+# ---------------------------------------------------------------------------
+@tailoring_api_bp.route("/tailoring/items/<int:item_id>/split", methods=["POST"])
+@api_login_required
+def split_item(item_id):
+    body = request.get_json(force=True, silent=True) or {}
+    try:
+        split_qty = int(body.get("qty") or 0)
+    except (TypeError, ValueError):
+        return jsonify({"error": "qty must be a whole number"}), 400
+    db = get_tailoring_db()
+    item = db.execute("SELECT * FROM tailoring_items WHERE id = ?", (item_id,)).fetchone()
+    if not item:
+        return jsonify({"error": "Item not found"}), 404
+    if split_qty <= 0 or split_qty >= item["qty"]:
+        return jsonify({"error": f"qty to split off must be between 1 and {item['qty'] - 1}"}), 400
+
+    _split_off_unit(db, item, split_qty, item["stage"])
+    db.execute(f"UPDATE tailoring_orders SET updated_at = {IST_NOW} WHERE id = ?",
+               (item["order_id"],))
+    db.commit()
+    row = db.execute("SELECT * FROM tailoring_orders WHERE id = ?", (item["order_id"],)).fetchone()
+    return jsonify(_order_payload(db, row))
+
+
+# ---------------------------------------------------------------------------
 # PATCH /api/tailoring/orders/<id>/stage  — set every item at once
 # ---------------------------------------------------------------------------
 @tailoring_api_bp.route("/tailoring/orders/<int:order_id>/stage", methods=["PATCH"])
@@ -842,6 +888,79 @@ def delete_photo(photo_id):
     if r2_storage.is_configured():
         r2_storage.delete_object(photo["filename"])
     return jsonify({"success": True})
+
+
+# ---------------------------------------------------------------------------
+# PATCH /api/tailoring/photos/<id>/item — reassign a photo to a different
+# item line of the same order (or to "General" with item_id: null). Needed
+# because a photo's item link is only ever set at upload time — e.g. after
+# splitting "Shirt x3" into separate rows, a photo of one specific shirt has
+# to be moved onto its split-off row by hand.
+# ---------------------------------------------------------------------------
+@tailoring_api_bp.route("/tailoring/photos/<int:photo_id>/item", methods=["PATCH"])
+@api_login_required
+def move_photo(photo_id):
+    body = request.get_json(force=True, silent=True) or {}
+    raw_item_id = body.get("item_id")
+    db = get_tailoring_db()
+    photo = db.execute("SELECT * FROM tailoring_photos WHERE id = ?", (photo_id,)).fetchone()
+    if not photo:
+        return jsonify({"error": "Photo not found"}), 404
+
+    item_id = None
+    if raw_item_id not in (None, "", "null"):
+        try:
+            item_id = int(raw_item_id)
+        except (TypeError, ValueError):
+            return jsonify({"error": "item_id must be a number or null"}), 400
+        item = db.execute(
+            "SELECT 1 FROM tailoring_items WHERE id = ? AND order_id = ?",
+            (item_id, photo["order_id"]),
+        ).fetchone()
+        if not item:
+            return jsonify({"error": "That item does not belong to this order"}), 400
+
+    db.execute("UPDATE tailoring_photos SET item_id = ? WHERE id = ?", (item_id, photo_id))
+    db.commit()
+    order = db.execute("SELECT * FROM tailoring_orders WHERE id = ?", (photo["order_id"],)).fetchone()
+    return jsonify(_order_payload(db, order))
+
+
+# ---------------------------------------------------------------------------
+# PATCH /api/tailoring/photos/<id>/stage — advance the one garment this photo
+# shows to a new stage, in a single action. If it shares a row with other
+# not-yet-photographed units (qty > 1), that unit is split off first and this
+# photo follows it — so the user never has to think about splitting or
+# reassigning photos by hand, just "this one is ready".
+# ---------------------------------------------------------------------------
+@tailoring_api_bp.route("/tailoring/photos/<int:photo_id>/stage", methods=["PATCH"])
+@api_login_required
+def set_photo_stage(photo_id):
+    body = request.get_json(force=True, silent=True) or {}
+    stage = (body.get("stage") or "").strip()
+    if stage not in STAGES:
+        return jsonify({"error": f"stage must be one of: {', '.join(STAGES)}"}), 400
+    db = get_tailoring_db()
+    photo = db.execute("SELECT * FROM tailoring_photos WHERE id = ?", (photo_id,)).fetchone()
+    if not photo:
+        return jsonify({"error": "Photo not found"}), 404
+    if not photo["item_id"]:
+        return jsonify({"error": "Assign this photo to a garment before setting its stage"}), 400
+    item = db.execute("SELECT * FROM tailoring_items WHERE id = ?", (photo["item_id"],)).fetchone()
+
+    if stage != item["stage"]:
+        if item["qty"] > 1:
+            new_item_id = _split_off_unit(db, item, 1, stage)
+            db.execute("UPDATE tailoring_photos SET item_id = ? WHERE id = ?",
+                       (new_item_id, photo_id))
+        else:
+            db.execute("UPDATE tailoring_items SET stage = ? WHERE id = ?", (stage, item["id"]))
+        db.execute(f"UPDATE tailoring_orders SET updated_at = {IST_NOW} WHERE id = ?",
+                   (item["order_id"],))
+        db.commit()
+
+    order = db.execute("SELECT * FROM tailoring_orders WHERE id = ?", (item["order_id"],)).fetchone()
+    return jsonify(_order_payload(db, order))
 
 
 # ---------------------------------------------------------------------------

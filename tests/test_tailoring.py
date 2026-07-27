@@ -138,6 +138,48 @@ def test_item_stage_updates_and_derived_stage(client):
     assert all(i["stage"] == "Delivered" for i in res.get_json()["items"])
 
 
+def test_split_item_allows_independent_stage_on_subset(client):
+    o = make_order(client).get_json()
+    shirt, blazer = o["items"]  # shirt: qty 2 @ 400
+    assert shirt["garment_type"] == "Shirt" and shirt["qty"] == 2
+
+    # Split 1 of the 2 shirts off into its own row
+    res = client.post(f"/api/tailoring/items/{shirt['id']}/split", json={"qty": 1})
+    assert res.status_code == 200
+    order = res.get_json()
+    shirts = [i for i in order["items"] if i["garment_type"] == "Shirt"]
+    assert len(shirts) == 2
+    assert {s["qty"] for s in shirts} == {1, 1}
+    assert {s["amount"] for s in shirts} == {400.0}
+    # Total is unchanged by the split
+    assert order["total"] == 3300.0
+
+    # Now the split-off unit can move stage independently of the other
+    remaining, split_off = shirts
+    res = client.patch(f"/api/tailoring/items/{split_off['id']}/stage",
+                       json={"stage": "Trial Ready"})
+    assert res.status_code == 200
+    updated_shirts = [i for i in res.get_json()["items"] if i["garment_type"] == "Shirt"]
+    stages = {i["id"]: i["stage"] for i in updated_shirts}
+    assert stages[split_off["id"]] == "Trial Ready"
+    assert stages[remaining["id"]] == "In Stitching"
+    # Order stage still reflects the least-advanced item
+    assert res.get_json()["stage"] == "In Stitching"
+
+
+def test_split_item_validation(client):
+    o = make_order(client).get_json()
+    shirt, blazer = o["items"]  # shirt qty 2, blazer qty 1
+
+    # Can't split more than (qty - 1) off, or 0, or negative
+    assert client.post(f"/api/tailoring/items/{shirt['id']}/split", json={"qty": 2}).status_code == 400
+    assert client.post(f"/api/tailoring/items/{shirt['id']}/split", json={"qty": 0}).status_code == 400
+    assert client.post(f"/api/tailoring/items/{shirt['id']}/split", json={"qty": -1}).status_code == 400
+    # A qty-1 item has nothing to split
+    assert client.post(f"/api/tailoring/items/{blazer['id']}/split", json={"qty": 1}).status_code == 400
+    assert client.post("/api/tailoring/items/999999/split", json={"qty": 1}).status_code == 404
+
+
 def test_list_filters_and_counts(client):
     a = make_order(client).get_json()
     make_order(client, customer_name="Patil", mobile="9000000001")
@@ -303,6 +345,122 @@ def test_per_item_photos_and_multiple(client):
     u = res.get_json()
     assert len(u["photos"]) == 3
     assert len(u["general_photos"]) == 3
+
+
+def test_set_photo_stage_splits_automatically(client):
+    """The one-click path: setting a stage on a photo that shares a qty>1 row
+    with other units should split that one unit off and move the photo along
+    with it, without a separate split step."""
+    try:
+        from PIL import Image
+    except ImportError:
+        pytest.skip("Pillow not installed")
+
+    o = make_order(client).get_json()
+    shirt, blazer = o["items"]  # shirt: qty 2 @ 400
+
+    def png():
+        buf = io.BytesIO()
+        Image.new("RGB", (100, 100), (10, 90, 200)).save(buf, "JPEG")
+        buf.seek(0)
+        return buf
+
+    res = client.post(f"/api/tailoring/orders/{o['id']}/photos",
+                      data={"photo": (png(), "cloth.jpg"), "item_id": str(shirt["id"])},
+                      content_type="multipart/form-data")
+    photo = res.get_json()["photos"][0]
+
+    # One call: advance just this photographed shirt to Trial Ready
+    res = client.patch(f"/api/tailoring/photos/{photo['id']}/stage",
+                       json={"stage": "Trial Ready"})
+    assert res.status_code == 200
+    order = res.get_json()
+    shirts = [i for i in order["items"] if i["garment_type"] == "Shirt"]
+    assert len(shirts) == 2
+    assert {s["qty"] for s in shirts} == {1, 1}
+    stage_by_id = {s["id"]: s["stage"] for s in shirts}
+    moved = [p for p in order["photos"] if p["id"] == photo["id"]][0]
+    assert stage_by_id[moved["item_id"]] == "Trial Ready"
+    other_id = [s["id"] for s in shirts if s["id"] != moved["item_id"]][0]
+    assert stage_by_id[other_id] == "In Stitching"
+    # Order total unaffected
+    assert order["total"] == 3300.0
+
+    # A second photo on the still-qty-1 remaining row just changes stage
+    # directly, no further split needed
+    res = client.post(f"/api/tailoring/orders/{o['id']}/photos",
+                      data={"photo": (png(), "cloth2.jpg"), "item_id": str(other_id)},
+                      content_type="multipart/form-data")
+    photo2 = [p for p in res.get_json()["photos"] if p["item_id"] == other_id][0]
+    res = client.patch(f"/api/tailoring/photos/{photo2['id']}/stage",
+                       json={"stage": "Full Stitched"})
+    order = res.get_json()
+    shirts = [i for i in order["items"] if i["garment_type"] == "Shirt"]
+    assert len(shirts) == 2  # no extra split — it was already its own row
+    assert {s["stage"] for s in shirts} == {"Trial Ready", "Full Stitched"}
+
+    # Validation
+    assert client.patch(f"/api/tailoring/photos/{photo['id']}/stage",
+                        json={"stage": "Bogus"}).status_code == 400
+    assert client.patch("/api/tailoring/photos/999999/stage",
+                        json={"stage": "Trial Ready"}).status_code == 404
+
+    # A general (unlinked) photo has no garment to advance
+    res = client.post(f"/api/tailoring/orders/{o['id']}/photos",
+                      data={"photo": (png(), "measure.jpg")},
+                      content_type="multipart/form-data")
+    general = [p for p in res.get_json()["photos"] if not p["item_id"]][0]
+    res = client.patch(f"/api/tailoring/photos/{general['id']}/stage",
+                       json={"stage": "Trial Ready"})
+    assert res.status_code == 400
+
+
+def test_move_photo_between_items(client):
+    try:
+        from PIL import Image
+    except ImportError:
+        pytest.skip("Pillow not installed")
+
+    o = make_order(client).get_json()
+    shirt, blazer = o["items"]
+
+    def png():
+        buf = io.BytesIO()
+        Image.new("RGB", (100, 100), (10, 90, 200)).save(buf, "JPEG")
+        buf.seek(0)
+        return buf
+
+    res = client.post(f"/api/tailoring/orders/{o['id']}/photos",
+                      data={"photo": (png(), "cloth.jpg"), "item_id": str(shirt["id"])},
+                      content_type="multipart/form-data")
+    photo = res.get_json()["photos"][0]
+
+    # Split the shirt line, then move the photo onto the new split-off row
+    res = client.post(f"/api/tailoring/items/{shirt['id']}/split", json={"qty": 1})
+    order = res.get_json()
+    split_shirt = [i for i in order["items"]
+                   if i["garment_type"] == "Shirt" and i["id"] != shirt["id"]][0]
+
+    res = client.patch(f"/api/tailoring/photos/{photo['id']}/item",
+                       json={"item_id": split_shirt["id"]})
+    assert res.status_code == 200
+    order = res.get_json()
+    moved = [p for p in order["photos"] if p["id"] == photo["id"]][0]
+    assert moved["item_id"] == split_shirt["id"]
+
+    # Move to General (item_id: null)
+    res = client.patch(f"/api/tailoring/photos/{photo['id']}/item", json={"item_id": None})
+    assert res.status_code == 200
+    order = res.get_json()
+    assert len(order["general_photos"]) == 1
+
+    # item_id must belong to the same order
+    other = make_order(client, customer_name="Other").get_json()
+    res = client.patch(f"/api/tailoring/photos/{photo['id']}/item",
+                       json={"item_id": other["items"][0]["id"]})
+    assert res.status_code == 400
+
+    assert client.patch("/api/tailoring/photos/999999/item", json={"item_id": None}).status_code == 404
 
 
 def test_photo_item_id_migration(tmp_path, monkeypatch):

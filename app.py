@@ -36,6 +36,7 @@ try:
         ["git", "rev-parse", "--short", "HEAD"],
         cwd=os.path.dirname(__file__),
         stderr=subprocess.DEVNULL,
+        timeout=5,
     ).decode().strip()
 except Exception:
     _ver = "1"
@@ -68,7 +69,7 @@ app.config['SESSION_PERMANENT'] = False         # session cookie expires when br
 app.config['SESSION_COOKIE_HTTPONLY'] = True    # JS cannot read the cookie
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # Protects against CSRF
 app.config['SESSION_COOKIE_SECURE'] = os.environ.get('SESSION_COOKIE_SECURE', 'false').lower() == 'true'
-app.config['TEMPLATES_AUTO_RELOAD'] = True
+app.config['TEMPLATES_AUTO_RELOAD'] = False
 # Static files are cache-busted with ?v=<git hash> (see STATIC_VERSION above),
 # so browsers may cache them freely — Flask's default max age applies.
 

@@ -686,13 +686,37 @@ function renderDetail(o) {
   const stageOpts = s => TL_STAGES.map(st =>
     `<option value="${tlEsc(st)}" ${st === s ? 'selected' : ''}>${tlEsc(st)}</option>`).join('');
 
-  const photoThumb = p => `
+  const photoItemOptions = currentItemId => {
+    const opts = [`<option value="" ${!currentItemId ? 'selected' : ''}>General</option>`].concat(
+      o.items.map(i => `<option value="${i.id}" ${i.id === currentItemId ? 'selected' : ''}>` +
+        `${tlEsc(i.garment_type)} × ${i.qty}</option>`));
+    return opts.join('');
+  };
+
+  const itemById = {};
+  o.items.forEach(i => { itemById[i.id] = i; });
+
+  // Photos already linked to a garment get a stage selector: picking a new
+  // stage advances just that one garment (splitting it off its line if it's
+  // still sharing a qty>1 row with others) in a single click. Unlinked
+  // ("General") photos get an assign-to-garment selector instead, since they
+  // need a garment before they can have a stage of their own.
+  const photoThumb = p => {
+    const linkedItem = p.item_id ? itemById[p.item_id] : null;
+    const control = linkedItem
+      ? `<select class="input tl-photo-move" title="Advance the garment this photo shows"
+                 onchange="setPhotoStage(${p.id}, this.value)">${stageOpts(linkedItem.stage)}</select>`
+      : `<select class="input tl-photo-move" title="Assign this photo to a garment"
+                 onchange="movePhoto(${p.id}, this.value)">${photoItemOptions(p.item_id)}</select>`;
+    return `
     <div class="tl-photo-thumb">
       <img src="/tailoring/photos/${tlEsc(p.filename)}" loading="lazy"
            onclick="openLightbox('/tailoring/photos/${tlEsc(p.filename)}')" />
       <button type="button" class="tl-photo-del" title="Delete photo"
               onclick="deletePhoto(${p.id})">&#215;</button>
+      ${control}
     </div>`;
+  };
 
   const photoButtons = itemId => `
     <div class="tl-photo-btns">
@@ -701,6 +725,14 @@ function renderDetail(o) {
       <button type="button" class="btn btn-secondary btn-sm"
               onclick="addPhotoFor(${itemId}, 'gallery')">&#128444; Gallery</button>
     </div>`;
+
+  const splitControl = i => i.qty > 1 ? `
+        <span style="display:flex;gap:4px;align-items:center;">
+          <input type="number" class="input" id="tl-split-qty-${i.id}"
+                 min="1" max="${i.qty - 1}" value="1" style="width:56px;padding:4px;" />
+          <button type="button" class="btn btn-secondary btn-sm"
+                  onclick="splitItem(${i.id}, ${i.qty})" title="Move that many units to their own row so they can change stage independently">Split off</button>
+        </span>` : '';
 
   const itemsHtml = o.items.map(i => `
     <div class="tl-item-line" style="display:block;">
@@ -712,6 +744,7 @@ function renderDetail(o) {
         ${stageBadge(i.stage)}
         <select class="input" style="max-width:150px;"
                 onchange="changeItemStage(${i.id}, this.value)">${stageOpts(i.stage)}</select>
+        ${splitControl(i)}
       </div>
       <div class="tl-photos small">${i.photos.map(photoThumb).join('')}</div>
       ${photoButtons(i.id)}
@@ -788,6 +821,22 @@ async function changeItemStage(itemId, stage) {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ stage }),
+  });
+  renderDetail(o);
+  loadOrders();
+}
+
+async function splitItem(itemId, currentQty) {
+  const input = document.getElementById(`tl-split-qty-${itemId}`);
+  const qty = parseInt(input.value, 10);
+  if (!qty || qty < 1 || qty >= currentQty) {
+    alert(`Enter a number between 1 and ${currentQty - 1}`);
+    return;
+  }
+  const o = await tlFetch(`/api/tailoring/items/${itemId}/split`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ qty }),
   });
   renderDetail(o);
   loadOrders();
@@ -1006,6 +1055,34 @@ async function deletePhoto(photoId) {
   try {
     await tlFetch(`/api/tailoring/photos/${photoId}`, { method: 'DELETE' });
     if (tlDetailOrderId) openDetailModal(tlDetailOrderId);
+    loadOrders();
+  } catch (e) {
+    alert(e.message);
+  }
+}
+
+async function movePhoto(photoId, itemId) {
+  try {
+    const o = await tlFetch(`/api/tailoring/photos/${photoId}/item`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ item_id: itemId || null }),
+    });
+    renderDetail(o);
+    loadOrders();
+  } catch (e) {
+    alert(e.message);
+  }
+}
+
+async function setPhotoStage(photoId, stage) {
+  try {
+    const o = await tlFetch(`/api/tailoring/photos/${photoId}/stage`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ stage }),
+    });
+    renderDetail(o);
     loadOrders();
   } catch (e) {
     alert(e.message);

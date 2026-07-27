@@ -584,7 +584,7 @@ def scan_invoice_image():
         img_data   = base64.standard_b64encode(file.read()).decode("utf-8")
         media_type = file.content_type or "image/jpeg"
 
-        client = _anthropic.Anthropic(api_key=api_key)
+        client = _anthropic.Anthropic(api_key=api_key, timeout=25.0)
         msg = client.messages.create(
             model="claude-haiku-4-5",
             max_tokens=2048,
