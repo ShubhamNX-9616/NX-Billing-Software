@@ -200,7 +200,6 @@ function buildPerformaWindow(bill, items, payments, type, winRef) {
   ${isProforma ? '<div class="footer-note">70% Advance along with PO.</div>' : ''}
   ${isProforma ? `<div class="footer-note" style="margin-top:20px;">Looking forward for your kind and continued support.</div>` : ''}
 
-  ${!isProforma ? `
   <div class="bank-block">
     <div class="bank-title">Bank Details</div>
     <dl class="bank-grid">
@@ -210,7 +209,7 @@ function buildPerformaWindow(bill, items, payments, type, winRef) {
       <dt>IFSC Code</dt><dd>HDFC0000900</dd>
       <dt>Branch</dt><dd>Sangavi</dd>
     </dl>
-  </div>` : ''}
+  </div>
 
   <div class="sign-block">
     ${isProforma ? `Yours faithfully<br/><br/><br/>Shubham NX` : `<div style="margin-top:60px;">Shubham NX</div>`}
