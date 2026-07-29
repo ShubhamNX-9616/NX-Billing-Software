@@ -97,6 +97,13 @@ function buildPerformaWindow(bill, items, payments, type, winRef) {
     }
 
     .footer-note { font-size: 13px; margin-bottom: 6px; }
+
+    .bank-block { margin-top: 16px; padding: 10px 14px; border: 1px solid #333; max-width: 340px; }
+    .bank-title { font-weight: 700; font-size: 13px; margin-bottom: 6px; }
+    .bank-grid  { display: grid; grid-template-columns: auto 1fr; column-gap: 12px; row-gap: 3px; font-size: 12.5px; }
+    .bank-grid dt { color: #444; }
+    .bank-grid dd { margin: 0; font-weight: 600; }
+
     .sign-block  { margin-top: 28px; font-size: 13px; line-height: 2; }
   </style>
 </head>
@@ -192,6 +199,18 @@ function buildPerformaWindow(bill, items, payments, type, winRef) {
   <div class="footer-note">Cost of Embroidery would be extra at Actual.</div>
   ${isProforma ? '<div class="footer-note">70% Advance along with PO.</div>' : ''}
   ${isProforma ? `<div class="footer-note" style="margin-top:20px;">Looking forward for your kind and continued support.</div>` : ''}
+
+  ${!isProforma ? `
+  <div class="bank-block">
+    <div class="bank-title">Bank Details</div>
+    <dl class="bank-grid">
+      <dt>Account Name</dt><dd>Shubham NX</dd>
+      <dt>Bank Name</dt><dd>HDFC Bank Ltd</dd>
+      <dt>Account No.</dt><dd>50200018656892</dd>
+      <dt>IFSC Code</dt><dd>HDFC0000900</dd>
+      <dt>Branch</dt><dd>Sangavi</dd>
+    </dl>
+  </div>` : ''}
 
   <div class="sign-block">
     ${isProforma ? `Yours faithfully<br/><br/><br/>Shubham NX` : `<div style="margin-top:60px;">Shubham NX</div>`}
