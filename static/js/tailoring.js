@@ -418,6 +418,21 @@ function readItemRows() {
   });
 }
 
+// The advance split (Cash + UPI boxes instead of one Advance field) is only
+// offered while creating a brand-new order — an existing order's advance is
+// a single stored number with no per-leg breakdown to edit against, so
+// editing always falls back to the plain single field regardless of mode.
+function formComboActive() {
+  return document.getElementById('tlf-payment-mode').value === 'Combination' && !tlEditingOrderId;
+}
+
+function onFormPayModeChange() {
+  const combo = formComboActive();
+  document.getElementById('tlf-advance-single').style.display = combo ? 'none' : 'inline-flex';
+  document.getElementById('tlf-advance-combo').style.display = combo ? 'inline-flex' : 'none';
+  recalcTotals();
+}
+
 function recalcTotals() {
   let total = 0;
   document.querySelectorAll('#tlf-items .tlf-item-row').forEach(r => {
@@ -427,14 +442,26 @@ function recalcTotals() {
     r.querySelector('.tlf-amount').textContent = amt.toFixed(2);
     total += amt;
   });
-  const advance = parseFloat(document.getElementById('tlf-advance').value) || 0;
+
+  const combo = formComboActive();
+  let advance;
+  if (combo) {
+    const cash = parseFloat(document.getElementById('tlf-advance-cash').value) || 0;
+    const upi = parseFloat(document.getElementById('tlf-advance-upi').value) || 0;
+    advance = cash + upi;
+    document.getElementById('tlf-advance').value = advance;
+  } else {
+    advance = parseFloat(document.getElementById('tlf-advance').value) || 0;
+  }
   document.getElementById('tlf-total').value = total.toFixed(2);
   document.getElementById('tlf-balance').value = Math.max(0, total - advance).toFixed(2);
 
-  // Nothing was paid yet — a payment mode has nothing to describe.
+  // Nothing was paid yet — a payment mode has nothing to describe. Leave the
+  // mode alone while combo is active, since 0 is just its starting point
+  // before the user has typed either amount.
   const modeSel = document.getElementById('tlf-payment-mode');
-  modeSel.disabled = advance <= 0;
-  if (advance <= 0) modeSel.value = '';
+  modeSel.disabled = advance <= 0 && !combo;
+  if (advance <= 0 && !combo) modeSel.value = '';
 }
 
 /* ---------- customer lookup (mobile + name) ---------- */
@@ -602,12 +629,14 @@ function openOrderModal(order) {
   document.getElementById('tlf-trial-date').value = order ? (order.trial_date || '') : '';
   document.getElementById('tlf-delivery-date').value = order ? (order.delivery_date || '') : '';
   document.getElementById('tlf-advance').value = order ? order.advance : 0;
+  document.getElementById('tlf-advance-cash').value = '';
+  document.getElementById('tlf-advance-upi').value = '';
   document.getElementById('tlf-payment-mode').value = order ? (order.payment_mode || '') : '';
   document.getElementById('tlf-notes').value = order ? (order.notes || '') : '';
   document.getElementById('tlf-items').innerHTML = '';
   if (order) order.items.forEach(i => addItemRow(i));
   else addItemRow();
-  recalcTotals();
+  onFormPayModeChange();
   document.getElementById('tl-order-modal').classList.remove('hidden');
 }
 
@@ -620,6 +649,13 @@ async function saveOrder() {
   const btn = document.getElementById('tlf-save-btn');
   err.style.display = 'none';
 
+  // A new order's advance can be split Cash + UPI; if so, the order itself
+  // is created with no advance and the two legs are recorded as separate
+  // payments right after, same as the Combination flow in the detail modal.
+  const isNewCombo = formComboActive();
+  const cashAdv = isNewCombo ? (parseFloat(document.getElementById('tlf-advance-cash').value) || 0) : 0;
+  const upiAdv = isNewCombo ? (parseFloat(document.getElementById('tlf-advance-upi').value) || 0) : 0;
+
   const body = {
     order_number: document.getElementById('tlf-order-no').value.trim(),
     customer_name: document.getElementById('tlf-name').value.trim(),
@@ -628,8 +664,8 @@ async function saveOrder() {
     order_date: document.getElementById('tlf-order-date').value,
     trial_date: document.getElementById('tlf-trial-date').value,
     delivery_date: document.getElementById('tlf-delivery-date').value,
-    advance: parseFloat(document.getElementById('tlf-advance').value) || 0,
-    payment_mode: document.getElementById('tlf-payment-mode').value,
+    advance: isNewCombo ? 0 : (parseFloat(document.getElementById('tlf-advance').value) || 0),
+    payment_mode: isNewCombo ? '' : document.getElementById('tlf-payment-mode').value,
     notes: document.getElementById('tlf-notes').value.trim(),
     items: readItemRows(),
   };
@@ -644,17 +680,45 @@ async function saveOrder() {
   if (body.items.some(i => i.qty <= 0)) {
     err.textContent = 'Every item needs quantity of at least 1.'; err.style.display = 'block'; return;
   }
+  if (isNewCombo && !(cashAdv > 0) && !(upiAdv > 0)) {
+    err.textContent = 'Enter the cash and/or UPI advance amount.'; err.style.display = 'block'; return;
+  }
 
   btn.disabled = true; btn.textContent = 'Saving...';
   try {
     const url = tlEditingOrderId
       ? `/api/tailoring/orders/${tlEditingOrderId}` : '/api/tailoring/orders';
     const method = tlEditingOrderId ? 'PUT' : 'POST';
-    const saved = await tlFetch(url, {
+    let saved = await tlFetch(url, {
       method,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
+
+    if (isNewCombo) {
+      if (cashAdv > 0) {
+        saved = await tlFetch(`/api/tailoring/orders/${saved.id}/payments`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ amount: cashAdv, mode: 'Cash' }),
+        });
+      }
+      if (upiAdv > 0) {
+        saved = await tlFetch(`/api/tailoring/orders/${saved.id}/payments`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ amount: upiAdv, mode: 'Phone Pay' }),
+        });
+      }
+      if (cashAdv > 0 && upiAdv > 0) {
+        saved = await tlFetch(`/api/tailoring/orders/${saved.id}/payment`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ advance: saved.advance, payment_mode: 'Combination' }),
+        });
+      }
+    }
+
     closeOrderModal();
     await loadOrders();
     openDetailModal(saved.id);   // show detail so photos can be added right away
@@ -794,14 +858,20 @@ function renderDetail(o) {
       ${paymentHistoryHtml(o)}
       ${o.balance > 0 ? `
       <div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap;">
-        <input type="number" class="input" id="tl-pay-amount" placeholder="Amount received now"
-               style="max-width:180px;" min="0" />
-        <select class="input" id="tl-pay-mode" style="max-width:140px;">
+        <select class="input" id="tl-pay-mode" style="max-width:140px;" onchange="onPayModeChange()">
           <option value="" ${!o.payment_mode ? 'selected' : ''}>— mode —</option>
           <option value="Phone Pay" ${o.payment_mode === 'Phone Pay' ? 'selected' : ''}>Phone Pay</option>
           <option value="Cash" ${o.payment_mode === 'Cash' ? 'selected' : ''}>Cash</option>
           <option value="Combination" ${o.payment_mode === 'Combination' ? 'selected' : ''}>Combination</option>
         </select>
+        <span id="tl-pay-single" style="display:${o.payment_mode === 'Combination' ? 'none' : 'inline-flex'};">
+          <input type="number" class="input" id="tl-pay-amount" placeholder="Amount received now"
+                 style="max-width:180px;" min="0" />
+        </span>
+        <span id="tl-pay-combo" style="display:${o.payment_mode === 'Combination' ? 'inline-flex' : 'none'};gap:8px;flex-wrap:wrap;">
+          <input type="number" class="input" id="tl-pay-cash" placeholder="Cash amount" style="max-width:130px;" min="0" />
+          <input type="number" class="input" id="tl-pay-upi" placeholder="UPI (Phone Pay) amount" style="max-width:160px;" min="0" />
+        </span>
         <button type="button" class="btn btn-secondary btn-sm" onclick="recordPayment()">Record Payment</button>
       </div>` : ''}
     </div>
@@ -886,15 +956,63 @@ function paymentHistoryHtml(o) {
   return legacy || rows ? `<div style="margin-top:6px;">${legacy}${rows}</div>` : '';
 }
 
+function onPayModeChange() {
+  const combo = document.getElementById('tl-pay-mode').value === 'Combination';
+  document.getElementById('tl-pay-single').style.display = combo ? 'none' : 'inline-flex';
+  document.getElementById('tl-pay-combo').style.display = combo ? 'inline-flex' : 'none';
+}
+
 async function recordPayment() {
   if (!tlDetailOrderId) return;
+  const mode = document.getElementById('tl-pay-mode').value;
+
+  if (mode === 'Combination') {
+    const cash = parseFloat(document.getElementById('tl-pay-cash').value) || 0;
+    const upi = parseFloat(document.getElementById('tl-pay-upi').value) || 0;
+    if (!(cash > 0) && !(upi > 0)) {
+      alert('Enter the cash and/or UPI amount received.');
+      return;
+    }
+    let o = null;
+    try {
+      if (cash > 0) {
+        o = await tlFetch(`/api/tailoring/orders/${tlDetailOrderId}/payments`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ amount: cash, mode: 'Cash' }),
+        });
+      }
+      if (upi > 0) {
+        o = await tlFetch(`/api/tailoring/orders/${tlDetailOrderId}/payments`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ amount: upi, mode: 'Phone Pay' }),
+        });
+      }
+      // Both legs recorded under their real mode (for an accurate history);
+      // relabel the order's overall mode back to "Combination" so it doesn't
+      // just show whichever leg happened to be posted last.
+      if (cash > 0 && upi > 0) {
+        o = await tlFetch(`/api/tailoring/orders/${tlDetailOrderId}/payment`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ advance: o.advance, payment_mode: 'Combination' }),
+        });
+      }
+    } catch (e) {
+      alert(e.message);
+    }
+    if (o) { renderDetail(o); loadOrders(); }
+    return;
+  }
+
   const amount = parseFloat(document.getElementById('tl-pay-amount').value);
   if (!(amount > 0)) { alert('Enter the amount received now.'); return; }
   try {
     const o = await tlFetch(`/api/tailoring/orders/${tlDetailOrderId}/payments`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ amount, mode: document.getElementById('tl-pay-mode').value }),
+      body: JSON.stringify({ amount, mode }),
     });
     renderDetail(o);
     loadOrders();
