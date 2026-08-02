@@ -145,7 +145,9 @@ function renderList() {
     const delCls   = notDone && o.delivery_date === today ? 'due-today'
                    : stitchingPending && o.delivery_date && o.delivery_date < today ? 'overdue' : '';
     const balCls = o.balance > 0 ? 'pending' : 'paid';
-    const balText = o.balance > 0 ? `Balance ${tlFmt(o.balance)}` : 'Fully paid';
+    const balText = o.balance > 0
+      ? `Balance ${tlFmt(o.balance)}${o.cloth_balance > 0 ? ` (incl. cloth ${tlFmt(o.cloth_balance)})` : ''}`
+      : 'Fully paid';
 
     row.innerHTML = `
       <div class="tl-order-main">
@@ -256,7 +258,8 @@ function dashRowHtml(b) {
   const waiting = b.days_waiting
     ? ` · <span class="tl-late">waiting ${b.days_waiting} day${b.days_waiting > 1 ? 's' : ''}</span>` : '';
   const bal = b.balance > 0
-    ? `<div class="tl-balance pending">Balance ${tlFmt(b.balance)}</div>` : '';
+    ? `<div class="tl-balance pending">Balance ${tlFmt(b.balance)}${b.cloth_balance > 0 ? ` (incl. cloth ${tlFmt(b.cloth_balance)})` : ''}</div>`
+    : '';
   return `
     <div class="tl-dash-row" onclick="openDetailModal(${b.id})">
       <div class="tl-dash-main">
@@ -453,8 +456,11 @@ function recalcTotals() {
   } else {
     advance = parseFloat(document.getElementById('tlf-advance').value) || 0;
   }
+  const clothBalance = parseFloat(document.getElementById('tlf-cloth-balance').value) || 0;
+  const finalTotal = total + clothBalance;
   document.getElementById('tlf-total').value = total.toFixed(2);
-  document.getElementById('tlf-balance').value = Math.max(0, total - advance).toFixed(2);
+  document.getElementById('tlf-final-total').value = finalTotal.toFixed(2);
+  document.getElementById('tlf-balance').value = Math.max(0, finalTotal - advance).toFixed(2);
 
   // Nothing was paid yet — a payment mode has nothing to describe. Leave the
   // mode alone while combo is active, since 0 is just its starting point
@@ -632,6 +638,7 @@ function openOrderModal(order) {
   document.getElementById('tlf-advance-cash').value = '';
   document.getElementById('tlf-advance-upi').value = '';
   document.getElementById('tlf-payment-mode').value = order ? (order.payment_mode || '') : '';
+  document.getElementById('tlf-cloth-balance').value = order ? (order.cloth_balance || 0) : 0;
   document.getElementById('tlf-notes').value = order ? (order.notes || '') : '';
   document.getElementById('tlf-items').innerHTML = '';
   if (order) order.items.forEach(i => addItemRow(i));
@@ -666,6 +673,7 @@ async function saveOrder() {
     delivery_date: document.getElementById('tlf-delivery-date').value,
     advance: isNewCombo ? 0 : (parseFloat(document.getElementById('tlf-advance').value) || 0),
     payment_mode: isNewCombo ? '' : document.getElementById('tlf-payment-mode').value,
+    cloth_balance: parseFloat(document.getElementById('tlf-cloth-balance').value) || 0,
     notes: document.getElementById('tlf-notes').value.trim(),
     items: readItemRows(),
   };
@@ -831,6 +839,12 @@ function renderDetail(o) {
       <div>${stageBadge(o.stage)}</div>
     </div>
 
+    ${o.cloth_balance > 0 ? `
+    <div style="margin-top:10px;padding:8px 12px;border:1px solid #dc2626;background:#fef2f2;
+                border-radius:6px;color:#991b1b;font-size:13px;font-weight:600;">
+      &#9888; Includes ${tlFmt(o.cloth_balance)} cloth balance — collect the full balance below at delivery
+    </div>` : ''}
+
     <div style="margin-top:14px;">
       <div style="font-weight:600;margin-bottom:4px;">Items &amp; Stages</div>
       ${itemsHtml}
@@ -851,9 +865,17 @@ function renderDetail(o) {
     <div style="margin-top:14px;">
       <div style="font-weight:600;margin-bottom:4px;">Payment</div>
       <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:14px;">
-        <span>Total: <strong>${tlFmt(o.total)}</strong></span>
+        <span>Total (stitching): <strong>${tlFmt(o.total)}</strong></span>
+        <span>Final Total: <strong>${tlFmt(o.final_total)}</strong></span>
         <span>Paid: <strong>${tlFmt(o.advance)}</strong></span>
         <span>Balance: <strong style="color:${o.balance > 0 ? '#dc2626' : '#057a55'};">${tlFmt(o.balance)}</strong></span>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap;">
+        <span style="font-size:14px;">Cloth Balance:</span>
+        <input type="number" class="input" id="tl-cloth-balance" min="0" style="max-width:120px;"
+               value="${o.cloth_balance || 0}" />
+        <button type="button" class="btn btn-secondary btn-sm" onclick="updateClothBalance()">Update</button>
+        <span style="font-size:12px;color:var(--text-muted);">included in Final Total &amp; Balance above</span>
       </div>
       ${paymentHistoryHtml(o)}
       ${o.balance > 0 ? `
@@ -1013,6 +1035,22 @@ async function recordPayment() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ amount, mode }),
+    });
+    renderDetail(o);
+    loadOrders();
+  } catch (e) {
+    alert(e.message);
+  }
+}
+
+async function updateClothBalance() {
+  if (!tlDetailOrderId) return;
+  const cloth_balance = parseFloat(document.getElementById('tl-cloth-balance').value) || 0;
+  try {
+    const o = await tlFetch(`/api/tailoring/orders/${tlDetailOrderId}/cloth-balance`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cloth_balance }),
     });
     renderDetail(o);
     loadOrders();

@@ -279,8 +279,17 @@
 
       <div class="tlf-grid" style="margin-top:16px;">
         <div>
-          <label>Total</label>
+          <label>Total <span style="font-weight:400;color:var(--text-muted);">(stitching)</span></label>
           <input type="text" id="tlf-total" class="input" readonly value="0.00" />
+        </div>
+        <div>
+          <label>Cloth Balance <span style="font-weight:400;color:var(--text-muted);">(pending, if any)</span></label>
+          <input type="number" id="tlf-cloth-balance" class="input" min="0" value="0" placeholder="0.00"
+                 oninput="recalcTotals()" />
+        </div>
+        <div>
+          <label>Final Total <span style="font-weight:400;color:var(--text-muted);">(stitching + cloth)</span></label>
+          <input type="text" id="tlf-final-total" class="input" readonly value="0.00" />
         </div>
         <div>
           <label>Advance</label>
@@ -296,7 +305,7 @@
           </span>
         </div>
         <div>
-          <label>Balance</label>
+          <label>Balance <span style="font-weight:400;color:var(--text-muted);">(of final total)</span></label>
           <input type="text" id="tlf-balance" class="input" readonly value="0.00" />
         </div>
         <div>

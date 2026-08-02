@@ -61,6 +61,7 @@ SCHEMA = f"""
         advance       REAL NOT NULL DEFAULT 0,
         balance       REAL NOT NULL DEFAULT 0,
         payment_mode  TEXT,
+        cloth_balance REAL NOT NULL DEFAULT 0,
         notes         TEXT,
         created_at    TEXT DEFAULT ({IST_NOW}),
         updated_at    TEXT DEFAULT ({IST_NOW})
@@ -113,6 +114,13 @@ def init_tailoring_db(conn=None):
         conn.execute(
             "ALTER TABLE tailoring_photos ADD COLUMN item_id INTEGER "
             "REFERENCES tailoring_items(id) ON DELETE SET NULL"
+        )
+    # Migration: orders gained a separate balance for unpaid cloth cost,
+    # distinct from the stitching total/advance/balance above
+    order_cols = {r[1] for r in conn.execute("PRAGMA table_info(tailoring_orders)").fetchall()}
+    if "cloth_balance" not in order_cols:
+        conn.execute(
+            "ALTER TABLE tailoring_orders ADD COLUMN cloth_balance REAL NOT NULL DEFAULT 0"
         )
     conn.commit()
     if own:

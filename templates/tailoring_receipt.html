@@ -126,7 +126,13 @@
       </table>
 
       <div class="r-summary">
+        <div class="r-sumrow"><span>Total (Stitching)</span><b>&#8377;{{ '%.2f' | format(order.total) }}</b></div>
+        {% if order.cloth_balance %}
+        <div class="r-sumrow"><span>Cloth Balance</span><b>&#8377;{{ '%.2f' | format(order.cloth_balance) }}</b></div>
+        <div class="r-sumrow total"><span>Final Total</span><b>&#8377;{{ '%.2f' | format(order.final_total) }}</b></div>
+        {% else %}
         <div class="r-sumrow total"><span>Total</span><b>&#8377;{{ '%.2f' | format(order.total) }}</b></div>
+        {% endif %}
         <div class="r-sumrow"><span>Advance{% if order.payment_mode %} ({{ order.payment_mode }}){% endif %}</span>
           <b>&#8377;{{ '%.2f' | format(order.advance) }}</b></div>
         <div class="r-sumrow balance"><span>Balance</span><b>&#8377;{{ '%.2f' | format(order.balance) }}</b></div>

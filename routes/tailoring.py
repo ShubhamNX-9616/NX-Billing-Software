@@ -57,6 +57,12 @@ def _derived_stage(item_stages):
     return min(item_stages, key=lambda s: STAGES.index(s) if s in STAGES else 0)
 
 
+def _final_total(total, cloth_balance):
+    """Stitching total plus any pending cloth money — advance/balance are
+    tracked against this combined figure, not the stitching total alone."""
+    return round((total or 0) + (cloth_balance or 0), 2)
+
+
 def _split_off_unit(db, item, qty, stage):
     """Peel `qty` units off `item` into a new row with the given stage.
     Returns the new row's id. Caller commits."""
@@ -89,6 +95,7 @@ def _order_payload(db, order_row):
     order["photos"] = photos          # all photos (incl. per-item ones)
     order["general_photos"] = [p for p in photos if not p["item_id"]]
     order["stage"] = _derived_stage([i["stage"] for i in items])
+    order["final_total"] = _final_total(order["total"], order["cloth_balance"])
     payments = [dict(r) for r in db.execute(
         "SELECT * FROM tailoring_payments WHERE order_id = ? ORDER BY id", (order["id"],)
     ).fetchall()]
@@ -179,11 +186,15 @@ def create_order():
         advance       = float(body.get("advance") or 0)
         if advance < 0:
             return jsonify({"error": "Advance cannot be negative"}), 400
+        cloth_balance = float(body.get("cloth_balance") or 0)
+        if cloth_balance < 0:
+            return jsonify({"error": "Cloth balance cannot be negative"}), 400
 
         total = round(sum(i["amount"] for i in items), 2)
-        if advance > total:
+        final_total = _final_total(total, cloth_balance)
+        if advance > final_total:
             return jsonify({"error": "Advance cannot exceed the total"}), 400
-        balance = round(total - advance, 2)
+        balance = round(final_total - advance, 2)
 
         db = get_tailoring_db()
         if db.execute("SELECT 1 FROM tailoring_orders WHERE order_number = ?",
@@ -194,11 +205,11 @@ def create_order():
                 """INSERT INTO tailoring_orders
                    (order_number, order_date, customer_name, mobile, address,
                     trial_date, delivery_date, total, advance, balance,
-                    payment_mode, notes)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    payment_mode, cloth_balance, notes)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (order_number, order_date, customer_name, mobile, address,
                  trial_date, delivery_date, total, advance, balance,
-                 payment_mode, notes),
+                 payment_mode, cloth_balance, notes),
             )
         except sqlite3.IntegrityError:
             # Two devices saved the same number in the same instant — the
@@ -303,6 +314,7 @@ def _order_brief(order):
         "delivery_date": order["delivery_date"],
         "stage": order["stage"],
         "balance": order["balance"],
+        "cloth_balance": order["cloth_balance"],
         "items": [{"garment_type": i["garment_type"], "qty": i["qty"], "stage": i["stage"]}
                   for i in order["items"]],
         "ready_items": sum(1 for i in order["items"]
@@ -554,11 +566,15 @@ def update_order(order_id):
         advance       = float(body.get("advance") or 0)
         if advance < 0:
             return jsonify({"error": "Advance cannot be negative"}), 400
+        cloth_balance = float(body.get("cloth_balance") or 0)
+        if cloth_balance < 0:
+            return jsonify({"error": "Cloth balance cannot be negative"}), 400
 
         total = round(sum(i["amount"] for i in items), 2)
-        if advance > total:
+        final_total = _final_total(total, cloth_balance)
+        if advance > final_total:
             return jsonify({"error": "Advance cannot exceed the total"}), 400
-        balance = round(total - advance, 2)
+        balance = round(final_total - advance, 2)
 
         # Reconcile items: update rows whose id is sent, insert new ones,
         # delete the ones no longer present. Stages of kept items survive.
@@ -593,11 +609,12 @@ def update_order(order_id):
                 f"""UPDATE tailoring_orders
                    SET order_number = ?, customer_name = ?, mobile = ?, address = ?,
                        order_date = ?, trial_date = ?, delivery_date = ?, total = ?,
-                       advance = ?, balance = ?, payment_mode = ?, notes = ?,
+                       advance = ?, balance = ?, payment_mode = ?, cloth_balance = ?, notes = ?,
                        updated_at = {IST_NOW}
                    WHERE id = ?""",
                 (order_number, customer_name, mobile, address, order_date, trial_date,
-                 delivery_date, total, advance, balance, payment_mode, notes, order_id),
+                 delivery_date, total, advance, balance, payment_mode, cloth_balance,
+                 notes, order_id),
             )
         except sqlite3.IntegrityError:
             # Another save took this number in the instant between our check and write.
@@ -697,15 +714,53 @@ def update_payment(order_id):
         payment_mode = (body.get("payment_mode") or row["payment_mode"] or "").strip() or None
         if advance < 0:
             return jsonify({"error": "Advance cannot be negative"}), 400
-        if advance > row["total"]:
+        final_total = _final_total(row["total"], row["cloth_balance"])
+        if advance > final_total:
             return jsonify({"error": "Paid amount cannot exceed the total"}), 400
-        balance = round(row["total"] - advance, 2)
+        balance = round(final_total - advance, 2)
 
         db.execute(
             f"""UPDATE tailoring_orders
                SET advance = ?, balance = ?, payment_mode = ?, updated_at = {IST_NOW}
                WHERE id = ?""",
             (advance, balance, payment_mode, order_id),
+        )
+        db.commit()
+        row = db.execute("SELECT * FROM tailoring_orders WHERE id = ?", (order_id,)).fetchone()
+        return jsonify(_order_payload(db, row))
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# ---------------------------------------------------------------------------
+# PATCH /api/tailoring/orders/<id>/cloth-balance — pending payment for the
+# cloth itself, separate from the stitching total/advance/balance above, so
+# staff can see it before handing over the finished garment.
+# ---------------------------------------------------------------------------
+@tailoring_api_bp.route("/tailoring/orders/<int:order_id>/cloth-balance", methods=["PATCH"])
+@api_login_required
+def update_cloth_balance(order_id):
+    try:
+        body = request.get_json(force=True, silent=True) or {}
+        db = get_tailoring_db()
+        row = db.execute("SELECT * FROM tailoring_orders WHERE id = ?", (order_id,)).fetchone()
+        if not row:
+            return jsonify({"error": "Order not found"}), 404
+
+        cloth_balance = float(body.get("cloth_balance") or 0)
+        if cloth_balance < 0:
+            return jsonify({"error": "Cloth balance cannot be negative"}), 400
+        final_total = _final_total(row["total"], cloth_balance)
+        if row["advance"] > final_total:
+            return jsonify({"error":
+                f"Already recorded ₹{row['advance']:.2f} paid, which is more than "
+                f"the new total of ₹{final_total:.2f} — lower the advance first"}), 400
+        balance = round(final_total - row["advance"], 2)
+
+        db.execute(
+            f"""UPDATE tailoring_orders SET cloth_balance = ?, balance = ?, updated_at = {IST_NOW}
+               WHERE id = ?""",
+            (cloth_balance, balance, order_id),
         )
         db.commit()
         row = db.execute("SELECT * FROM tailoring_orders WHERE id = ?", (order_id,)).fetchone()
@@ -735,11 +790,12 @@ def record_payment(order_id):
             return jsonify({"error": "Amount must be greater than zero"}), 400
         mode = (body.get("mode") or "").strip() or None
 
+        final_total = _final_total(row["total"], row["cloth_balance"])
         new_advance = round(row["advance"] + amount, 2)
-        if new_advance > row["total"]:
+        if new_advance > final_total:
             return jsonify({"error":
                 f"This would make total paid ₹{new_advance:.2f}, "
-                f"more than the order total ₹{row['total']:.2f}"}), 400
+                f"more than the order total ₹{final_total:.2f}"}), 400
 
         db.execute(
             "INSERT INTO tailoring_payments (order_id, amount, mode) VALUES (?, ?, ?)",
@@ -749,7 +805,7 @@ def record_payment(order_id):
             f"""UPDATE tailoring_orders
                SET advance = ?, balance = ?, payment_mode = ?, updated_at = {IST_NOW}
                WHERE id = ?""",
-            (new_advance, round(row["total"] - new_advance, 2),
+            (new_advance, round(final_total - new_advance, 2),
              mode or row["payment_mode"], order_id),
         )
         db.commit()
@@ -774,12 +830,13 @@ def delete_payment(payment_id):
                            (p["order_id"],)).fetchone()
 
         db.execute("DELETE FROM tailoring_payments WHERE id = ?", (payment_id,))
+        final_total = _final_total(order["total"], order["cloth_balance"])
         new_advance = max(0.0, round(order["advance"] - p["amount"], 2))
         db.execute(
             f"""UPDATE tailoring_orders
                SET advance = ?, balance = ?, updated_at = {IST_NOW}
                WHERE id = ?""",
-            (new_advance, round(order["total"] - new_advance, 2), order["id"]),
+            (new_advance, round(final_total - new_advance, 2), order["id"]),
         )
         db.commit()
         row = db.execute("SELECT * FROM tailoring_orders WHERE id = ?", (order["id"],)).fetchone()
@@ -1015,6 +1072,7 @@ def _build_report_data():
             "notes": o["notes"],
             "items": items,
             "measurement_photos": [p["filename"] for p in o["general_photos"]],
+            "cloth_balance": o["cloth_balance"],
         }
         if mode == "overdue":
             e["days_late"] = (today - date.fromisoformat(o["delivery_date"])).days
