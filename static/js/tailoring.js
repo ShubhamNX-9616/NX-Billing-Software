@@ -728,6 +728,7 @@ function renderDetail(o) {
 
   const splitControl = i => i.qty > 1 ? `
         <span style="display:flex;gap:4px;align-items:center;">
+          <span style="color:var(--text-muted);font-size:12px;">Split off:</span>
           <input type="number" class="input" id="tl-split-qty-${i.id}"
                  min="1" max="${i.qty - 1}" value="1" style="width:56px;padding:4px;" />
           <button type="button" class="btn btn-secondary btn-sm"
@@ -799,6 +800,7 @@ function renderDetail(o) {
           <option value="" ${!o.payment_mode ? 'selected' : ''}>— mode —</option>
           <option value="Phone Pay" ${o.payment_mode === 'Phone Pay' ? 'selected' : ''}>Phone Pay</option>
           <option value="Cash" ${o.payment_mode === 'Cash' ? 'selected' : ''}>Cash</option>
+          <option value="Combination" ${o.payment_mode === 'Combination' ? 'selected' : ''}>Combination</option>
         </select>
         <button type="button" class="btn btn-secondary btn-sm" onclick="recordPayment()">Record Payment</button>
       </div>` : ''}
