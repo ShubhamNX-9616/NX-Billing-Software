@@ -483,6 +483,11 @@ def update_bill(bill_id):
             "id":                       bill_id,
             "bill_number":              existing_bill["bill_number"],
             "customer_id":              customer_id,
+            # Same shape as the create response: the new-bill screen rebuilds
+            # its WhatsApp / share-link actions from whichever one it got.
+            "customer_name":            customer_name,
+            "customer_mobile":          norm_mobile,
+            "share_link":               f"/bill/share/{existing_bill['bill_number']}",
             "customer_name_snapshot":   customer_name,
             "customer_mobile_snapshot": norm_mobile,
             "bill_date":                bill_date,

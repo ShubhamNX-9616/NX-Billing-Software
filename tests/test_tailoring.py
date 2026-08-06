@@ -199,6 +199,34 @@ def test_list_filters_and_counts(client):
     assert data["orders"][0]["customer_name"] == "Patil"
 
 
+def test_list_sorting(client):
+    a = make_order(client, customer_name="Zaveri", delivery_date="2026-08-20",
+                   advance=0).get_json()
+    b = make_order(client, customer_name="Ahuja", delivery_date="2026-08-05",
+                   advance=3300).get_json()
+    c = make_order(client, customer_name="Mehta", delivery_date=None,
+                   advance=100).get_json()
+
+    def ids(query=""):
+        return [o["id"] for o in
+                client.get("/api/tailoring/orders" + query).get_json()["orders"]]
+
+    # Default (and any bogus sort value) = order number, newest first
+    assert ids() == [c["id"], b["id"], a["id"]]
+    assert ids("?sort=nonsense") == [c["id"], b["id"], a["id"]]
+    assert ids("?sort=order-asc") == [a["id"], b["id"], c["id"]]
+
+    # Missing delivery dates sort last in both directions
+    assert ids("?sort=delivery-asc") == [b["id"], a["id"], c["id"]]
+    assert ids("?sort=delivery-desc") == [a["id"], b["id"], c["id"]]
+
+    assert ids("?sort=balance-desc") == [a["id"], c["id"], b["id"]]
+    assert ids("?sort=name-asc") == [b["id"], c["id"], a["id"]]
+
+    # Sorting composes with filtering
+    assert ids("?q=Ahuja&sort=delivery-asc") == [b["id"]]
+
+
 def test_overdue_counting(client):
     o = make_order(client, delivery_date="2020-01-01").get_json()   # long past
     data = client.get("/api/tailoring/orders?due=overdue").get_json()

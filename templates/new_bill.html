@@ -9,6 +9,7 @@
 
 {% block extra_js %}
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script>window.CAN_UPDATE_BILLS = {{ current_user.is_admin | tojson }};</script>
 <script src="{{ url_for('static', filename='js/bill-state.js') }}?v={{ sv }}"></script>
 <script src="{{ url_for('static', filename='js/bill-items.js') }}?v={{ sv }}"></script>
 <script src="{{ url_for('static', filename='js/bill-payments.js') }}?v={{ sv }}"></script>

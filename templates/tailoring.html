@@ -196,6 +196,18 @@
         <option value="delivery-today">Delivery due today</option>
         <option value="overdue">Overdue delivery</option>
       </select>
+      <select id="tl-sort" class="input" style="max-width:210px;" onchange="loadOrders()"
+              aria-label="Sort orders">
+        <option value="order-desc">Sort: Order no. (newest)</option>
+        <option value="order-asc">Sort: Order no. (oldest)</option>
+        <option value="delivery-asc">Sort: Delivery date (earliest)</option>
+        <option value="delivery-desc">Sort: Delivery date (latest)</option>
+        <option value="trial-asc">Sort: Trial date (earliest)</option>
+        <option value="date-desc">Sort: Order date (newest)</option>
+        <option value="date-asc">Sort: Order date (oldest)</option>
+        <option value="balance-desc">Sort: Balance (highest)</option>
+        <option value="name-asc">Sort: Customer name (A–Z)</option>
+      </select>
     </div>
     <div id="tl-orders-list"></div>
     <div id="tl-empty" style="display:none;padding:32px;text-align:center;color:var(--text-muted);">

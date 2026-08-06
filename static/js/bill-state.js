@@ -22,8 +22,19 @@ let lastIsMobile     = window.innerWidth <= 768;
 let advancePaidUserModified = false;
 let billSaved = false;  // set true on successful save to suppress beforeunload
 
+// The new-bill form stays editable after a save, so anything typed afterwards
+// is a pending change that still has to be pushed with a PUT. Until it is,
+// the page is dirty again — see markPostSaveDirty() in bill-form.js.
+let postSaveDirty = false;
+
+// Staff may create bills but not update them (PUT /api/bills/<id> is
+// admin-only), so the post-save re-edit flow is only offered to admins.
+// Set by the page template; defaults to allowed for the admin-only edit page.
+const CAN_UPDATE_BILLS = window.CAN_UPDATE_BILLS !== false;
+
 // ---- Unsaved-changes guard ----
 function isBillDirty() {
+  if (postSaveDirty) return true;   // edited after saving, never sent
   if (billSaved) return false;
   const mobile = (document.getElementById('customer-mobile')?.value || '').trim();
   const name   = (document.getElementById('customer-name')?.value   || '').trim();

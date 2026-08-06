@@ -239,8 +239,24 @@ def create_order():
         return jsonify({"error": str(e)}), 500
 
 
+# Sort options for the orders list. Dates can be NULL, so every date key puts
+# the blanks last regardless of direction (hence the separate has-value flag).
+SORTS = {
+    "order-desc":    (lambda o: o["order_number"], True),
+    "order-asc":     (lambda o: o["order_number"], False),
+    "delivery-asc":  (lambda o: (not o["delivery_date"], o["delivery_date"] or ""), False),
+    "delivery-desc": (lambda o: (o["delivery_date"] or "",), True),
+    "trial-asc":     (lambda o: (not o["trial_date"], o["trial_date"] or ""), False),
+    "date-desc":     (lambda o: o["order_date"] or "", True),
+    "date-asc":      (lambda o: o["order_date"] or "", False),
+    "balance-desc":  (lambda o: o["balance"], True),
+    "name-asc":      (lambda o: (o["customer_name"] or "").lower(), False),
+}
+DEFAULT_SORT = "order-desc"
+
+
 # ---------------------------------------------------------------------------
-# GET /api/tailoring/orders?q=&stage=&due=
+# GET /api/tailoring/orders?q=&stage=&due=&sort=
 # ---------------------------------------------------------------------------
 @tailoring_api_bp.route("/tailoring/orders", methods=["GET"])
 @api_login_required
@@ -249,6 +265,9 @@ def list_orders():
     q     = (request.args.get("q") or "").strip()
     stage = (request.args.get("stage") or "").strip()
     due   = (request.args.get("due") or "").strip()
+    sort  = (request.args.get("sort") or "").strip()
+    if sort not in SORTS:
+        sort = DEFAULT_SORT
 
     sql = "SELECT * FROM tailoring_orders"
     where, params = [], []
@@ -272,6 +291,9 @@ def list_orders():
         orders = [o for o in orders if o["delivery_date"] == today and o["stage"] != "Delivered"]
     elif due == "overdue":
         orders = [o for o in orders if _is_overdue(o, today)]
+
+    key, reverse = SORTS[sort]
+    orders.sort(key=key, reverse=reverse)
 
     # Dashboard counts (computed over all orders, ignoring the filters)
     all_orders = [_order_payload(db, r) for r in

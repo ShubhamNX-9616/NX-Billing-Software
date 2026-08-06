@@ -76,10 +76,12 @@ async function loadOrders() {
   const q     = document.getElementById('tl-search').value.trim();
   const stage = document.getElementById('tl-stage-filter').value;
   const due   = document.getElementById('tl-due-filter').value;
+  const sort  = document.getElementById('tl-sort').value;
   const params = new URLSearchParams();
   if (q) params.set('q', q);
   if (stage) params.set('stage', stage);
   if (due) params.set('due', due);
+  if (sort) params.set('sort', sort);
 
   const data = await tlFetch('/api/tailoring/orders?' + params.toString());
   tlOrders = data.orders;

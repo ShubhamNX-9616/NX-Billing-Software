@@ -61,6 +61,10 @@ function updateSummary() {
   } else {
     syncComboAutoFill();
   }
+
+  // Catches money changes that fire no input event on a form field — removing
+  // an item row, say. No-op until the bill has been saved once.
+  markPostSaveDirty();
 }
 
 function onPaymentAmountInput() {

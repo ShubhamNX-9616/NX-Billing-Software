@@ -412,19 +412,52 @@ function setPaymentMode(mode, payments) {
 }
 
 // ---- Save bill ----
+// The bill this save should write to: the one being edited, or — on the
+// new-bill page after a first save — the bill that save created. Null only
+// until the very first save, which is the one POST that creates a bill.
+function saveTargetId() {
+  return EDIT_MODE ? BILL_ID : savedBillId;
+}
+
+function saveButtonLabel() {
+  return saveTargetId() ? '✓ Update Bill' : '✓ Save Bill';
+}
+
+// Error slots in top-to-bottom page order, so a blocked save can point at the
+// first thing that needs fixing.
+const ERROR_FIELD_IDS = ['salesperson-error', 'mobile-error', 'name-error',
+                         'items-error', 'payment-error', 'roundoff-error', 'advance-error'];
+
+// A failed validation used to just return: the button never moved and the
+// reason sat in a small line elsewhere on the page, so the click looked like
+// it did nothing. Say so next to the button and scroll to the cause.
+function reportBlockedSave() {
+  const firstEl = ERROR_FIELD_IDS
+    .map(id => document.getElementById(id))
+    .find(el => el && el.textContent.trim());
+  if (!firstEl) return;
+  const saveErr = document.getElementById('save-error');
+  if (saveErr && !saveErr.textContent.trim()) {
+    saveErr.textContent = 'Not saved — ' + firstEl.textContent.trim();
+  }
+  firstEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
 async function saveBill() {
   const data = collectBillData();
-  if (!validateBillData(data)) return;
+  if (!validateBillData(data)) { reportBlockedSave(); return; }
 
-  const saveBtn = document.getElementById('btn-save');
+  const targetId = saveTargetId();
+  const saveBtn  = document.getElementById('btn-save');
   saveBtn.disabled    = true;
-  saveBtn.textContent = 'Saving…';
+  saveBtn.textContent = targetId ? 'Updating…' : 'Saving…';
   document.getElementById('save-error').textContent      = '';
   document.getElementById('save-success').style.display = 'none';
+  hidePostSaveWarning();
 
   try {
-    const url    = EDIT_MODE ? `/api/bills/${BILL_ID}` : '/api/bills';
-    const method = EDIT_MODE ? 'PUT' : 'POST';
+    const url    = targetId ? `/api/bills/${targetId}` : '/api/bills';
+    const method = targetId ? 'PUT' : 'POST';
 
     const res    = await fetch(url, {
       method,
@@ -436,11 +469,12 @@ async function saveBill() {
     if (!res.ok) {
       document.getElementById('save-error').textContent = result.error || 'Failed to save bill.';
       saveBtn.disabled    = false;
-      saveBtn.textContent = EDIT_MODE ? '✓ Update Bill' : '✓ Save Bill';
+      saveBtn.textContent = saveButtonLabel();
       return;
     }
 
-    billSaved = true;  // disable beforeunload guard
+    billSaved     = true;   // disable beforeunload guard
+    postSaveDirty = false;  // everything on screen is now on the server
 
     const loyaltyUnlocked = !!(result.loyalty_unlocked && result.loyalty_unlocked.length);
 
@@ -452,13 +486,19 @@ async function saveBill() {
       // Give the admin time to read the loyalty banner before redirecting
       setTimeout(() => { window.location.href = `/bills/${BILL_ID}`; }, loyaltyUnlocked ? 4000 : 1500);
     } else {
-      savedBillId = result.id;
+      const wasUpdate         = !!savedBillId;
+      savedBillId             = result.id;
       const successEl         = document.getElementById('save-success');
       successEl.style.display = 'inline';
-      successEl.textContent   = `Bill ${result.bill_number} saved successfully!`;
+      successEl.textContent   = wasUpdate
+        ? `Bill ${result.bill_number} updated successfully!`
+        : `Bill ${result.bill_number} saved successfully!`;
       document.getElementById('btn-print').disabled = false;
-      saveBtn.textContent = '✓ Saved';
+      saveBtn.textContent = wasUpdate ? '✓ Updated' : '✓ Saved';
+      // Rebuild share/WhatsApp/payment actions from the values just stored,
+      // so they never carry the amounts of a superseded version.
       showPostSaveActions(result);
+      armPostSaveEditing();
     }
 
     if (loyaltyUnlocked) showLoyaltyAlert(result.loyalty_unlocked);
@@ -466,8 +506,68 @@ async function saveBill() {
   } catch (err) {
     document.getElementById('save-error').textContent = 'Network error: ' + err.message;
     saveBtn.disabled    = false;
-    saveBtn.textContent = EDIT_MODE ? '✓ Update Bill' : '✓ Save Bill';
+    saveBtn.textContent = saveButtonLabel();
   }
+}
+
+// ---- Editing after a save (new-bill page) ----
+// The form stays live once the bill is saved, so a later change used to sit
+// on screen looking applied while the Save button was disabled — the edit was
+// silently dropped on navigation. Now any such change re-arms the button as
+// "Update Bill", and the leave-page guard comes back with it.
+let postSaveWatchArmed = false;
+
+function armPostSaveEditing() {
+  if (EDIT_MODE || !savedBillId) return;
+  if (!CAN_UPDATE_BILLS) { lockFormAfterSave(); return; }
+  if (postSaveWatchArmed) return;
+  postSaveWatchArmed = true;
+
+  ['input', 'change'].forEach(evt => {
+    document.addEventListener(evt, e => {
+      // Modals (payment update, add company/cloth type) and the action bar
+      // manage their own saving — typing there is not a bill edit.
+      if (!e.target || !e.target.closest) return;
+      if (e.target.closest('.modal-overlay, .bill-submit-bar')) return;
+      markPostSaveDirty();
+    }, true);
+  });
+}
+
+function markPostSaveDirty() {
+  if (EDIT_MODE || !savedBillId || postSaveDirty || !CAN_UPDATE_BILLS) return;
+  postSaveDirty = true;
+
+  const saveBtn = document.getElementById('btn-save');
+  if (saveBtn) {
+    saveBtn.disabled    = false;
+    saveBtn.textContent = '✓ Update Bill';
+  }
+  const successEl = document.getElementById('save-success');
+  if (successEl) successEl.style.display = 'none';
+  showPostSaveWarning('Unsaved changes — press "Update Bill" to apply them to this bill.');
+}
+
+// Staff can create a bill but not update it, so leaving the form editable
+// would only invite changes the server will reject. Freeze it instead.
+function lockFormAfterSave() {
+  document.querySelectorAll('.card, .bill-summary-box').forEach(section => {
+    if (section.closest('.modal-overlay') || section.closest('.bill-submit-bar')) return;
+    section.querySelectorAll('input, select, textarea, button').forEach(el => { el.disabled = true; });
+  });
+  showPostSaveWarning('Bill saved. Ask an admin to open Edit Bill if it needs changes.');
+}
+
+function showPostSaveWarning(text) {
+  const el = document.getElementById('post-save-warning');
+  if (!el) return;
+  el.textContent   = text;
+  el.style.display = '';
+}
+
+function hidePostSaveWarning() {
+  const el = document.getElementById('post-save-warning');
+  if (el) el.style.display = 'none';
 }
 
 // ---- Loyalty milestone alert ----
