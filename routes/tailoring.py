@@ -81,6 +81,25 @@ def _split_off_unit(db, item, qty, stage):
     return cur.lastrowid
 
 
+def _sync_delivered_at(db, order_id):
+    """Keep the order's delivered_at in step with its item stages.
+
+    Stamped the first time every garment reads Delivered, cleared if any item
+    is rolled back — the weekly report needs the date an order was handed
+    over, and item stages on their own only record that it happened.
+    Caller commits."""
+    stages = [r["stage"] for r in db.execute(
+        "SELECT stage FROM tailoring_items WHERE order_id = ?", (order_id,)).fetchall()]
+    if stages and all(s == "Delivered" for s in stages):
+        db.execute(
+            f"""UPDATE tailoring_orders
+               SET delivered_at = COALESCE(delivered_at, {IST_NOW}) WHERE id = ?""",
+            (order_id,))
+    else:
+        db.execute("UPDATE tailoring_orders SET delivered_at = NULL WHERE id = ?",
+                   (order_id,))
+
+
 def _order_payload(db, order_row):
     order = dict(order_row)
     items = [dict(r) for r in db.execute(
@@ -230,6 +249,7 @@ def create_order():
                 "VALUES (?, ?, ?, 'Advance')",
                 (order_id, advance, payment_mode),
             )
+        _sync_delivered_at(db, order_id)   # items may be created already Delivered
         db.commit()
 
         order = db.execute("SELECT * FROM tailoring_orders WHERE id = ?", (order_id,)).fetchone()
@@ -641,6 +661,9 @@ def update_order(order_id):
         except sqlite3.IntegrityError:
             # Another save took this number in the instant between our check and write.
             return jsonify({"error": f"Order number {order_number} already exists"}), 400
+        # Item rows were reconciled above — deleting the last pending garment
+        # can make the order fully delivered (or a new one can un-deliver it).
+        _sync_delivered_at(db, order_id)
         db.commit()
         row = db.execute("SELECT * FROM tailoring_orders WHERE id = ?", (order_id,)).fetchone()
         return jsonify(_order_payload(db, row))
@@ -666,6 +689,7 @@ def update_item_stage(item_id):
     db.execute("UPDATE tailoring_items SET stage = ? WHERE id = ?", (stage, item_id))
     db.execute(f"UPDATE tailoring_orders SET updated_at = {IST_NOW} WHERE id = ?",
                (item["order_id"],))
+    _sync_delivered_at(db, item["order_id"])
     db.commit()
     row = db.execute("SELECT * FROM tailoring_orders WHERE id = ?", (item["order_id"],)).fetchone()
     return jsonify(_order_payload(db, row))
@@ -715,7 +739,9 @@ def update_order_stage(order_id):
         return jsonify({"error": "Order not found"}), 404
     db.execute("UPDATE tailoring_items SET stage = ? WHERE order_id = ?", (stage, order_id))
     db.execute(f"UPDATE tailoring_orders SET updated_at = {IST_NOW} WHERE id = ?", (order_id,))
+    _sync_delivered_at(db, order_id)
     db.commit()
+    row = db.execute("SELECT * FROM tailoring_orders WHERE id = ?", (order_id,)).fetchone()
     return jsonify(_order_payload(db, row))
 
 
@@ -1036,6 +1062,7 @@ def set_photo_stage(photo_id):
             db.execute("UPDATE tailoring_items SET stage = ? WHERE id = ?", (stage, item["id"]))
         db.execute(f"UPDATE tailoring_orders SET updated_at = {IST_NOW} WHERE id = ?",
                    (item["order_id"],))
+        _sync_delivered_at(db, item["order_id"])
         db.commit()
 
     order = db.execute("SELECT * FROM tailoring_orders WHERE id = ?", (item["order_id"],)).fetchone()
@@ -1136,6 +1163,208 @@ def tailoring_report_shared(token):
                 "</h3>"), 404
     data = _build_report_data()
     return render_template("tailoring_report.html", shared=True,
+                           share_path=None, **data)
+
+
+# ---------------------------------------------------------------------------
+# Weekly report — a look back over one Monday-to-Sunday week: what came in,
+# what went out, what is still on the table. Work only, no money, because it
+# goes to the same tailor as the daily report.
+# ---------------------------------------------------------------------------
+WEEKLY_SHARE_MAX_AGE_DAYS = 27      # ~3 weeks of shared links stay openable
+
+
+def _week_bounds(ref):
+    """Monday and Sunday of the week containing `ref`."""
+    start = ref - timedelta(days=ref.weekday())
+    return start, start + timedelta(days=6)
+
+
+def _default_week_start(today):
+    """Week to open by default. On a Monday the new week is still empty, so
+    show the one that just ended — that is when the shop looks back at it."""
+    start, _ = _week_bounds(today)
+    return start - timedelta(days=7) if today.weekday() == 0 else start
+
+
+def _parse_week_arg(raw, today):
+    """Monday of the week asked for in ?week=YYYY-MM-DD; any date inside the
+    week works. Falls back to the default week if missing or unparseable."""
+    try:
+        return _week_bounds(date.fromisoformat(str(raw)[:10]))[0]
+    except (TypeError, ValueError):
+        return _default_week_start(today)
+
+
+def _weekly_report_token(week_start_s):
+    """Unguessable token for the public weekly link, tied to the week it shows."""
+    secret = str(current_app.secret_key or "tailoring-report")
+    return hmac.new(secret.encode(), f"tailor-week:{week_start_s}".encode(),
+                    hashlib.sha256).hexdigest()[:20]
+
+
+def _merge_garments(items):
+    """One line per garment type. Advancing part of a multi-qty item splits it
+    into its own row (see _split_off_unit), which would otherwise print the
+    same garment twice — the weekly report only cares about the count."""
+    merged = {}
+    for i in items:
+        merged[i["garment_type"]] = merged.get(i["garment_type"], 0) + i["qty"]
+    return [{"garment_type": g, "qty": q} for g, q in merged.items()]
+
+
+def _build_weekly_report_data(week_start):
+    """Everything that happened in one week, plus where the shop stands today."""
+    db = get_tailoring_db()
+    today = _ist_date()
+    today_s = today.isoformat()
+    week_end = week_start + timedelta(days=6)
+    start_s, end_s = week_start.isoformat(), week_end.isoformat()
+
+    def in_week(value):
+        """True for a date or timestamp string landing inside the week."""
+        return bool(value) and start_s <= str(value)[:10] <= end_s
+
+    orders = [_order_payload(db, r) for r in
+              db.execute("SELECT * FROM tailoring_orders").fetchall()]
+
+    def brief(o, **extra):
+        e = {
+            "order_number": o["order_number"],
+            "customer_name": o["customer_name"],
+            "order_date": o["order_date"],
+            "trial_date": o["trial_date"],
+            "delivery_date": o["delivery_date"],
+            "delivered_on": str(o["delivered_at"])[:10] if o["delivered_at"] else None,
+            "stage": o["stage"],
+            "notes": o["notes"],
+            "items": _merge_garments(o["items"]),
+            "qty": sum(i["qty"] for i in o["items"]),
+        }
+        e.update(extra)
+        return e
+
+    # Orders booked during the week
+    taken = sorted((brief(o) for o in orders if in_week(o["order_date"])),
+                   key=lambda e: (e["order_date"], e["order_number"]))
+
+    # Orders handed over during the week (order-level: every garment Delivered)
+    delivered = sorted((brief(o) for o in orders if in_week(o["delivered_at"])),
+                       key=lambda e: (e["delivered_on"], e["order_number"]))
+
+    # Trials that fell in the week, and whether the garments got that far
+    trials = sorted(
+        (brief(o, done=o["stage"] in ("Trial Ready", "Full Stitched", "Delivered"))
+         for o in orders if in_week(o["trial_date"])),
+        key=lambda e: (e["trial_date"], e["order_number"]))
+
+    # Deliveries promised for the week — kept, ready but uncollected, or missed
+    def promised_status(o):
+        if o["delivered_at"]:
+            return "Delivered"
+        return "Ready to collect" if o["stage"] == "Full Stitched" else "Still pending"
+
+    due = sorted((brief(o, status=promised_status(o))
+                  for o in orders if in_week(o["delivery_date"])),
+                 key=lambda e: (e["delivery_date"], e["order_number"]))
+
+    # Garment-type tally: what came in against what went out
+    tally = {}
+    for e in taken:
+        for i in e["items"]:
+            tally.setdefault(i["garment_type"], {"taken": 0, "delivered": 0})["taken"] += i["qty"]
+    for e in delivered:
+        for i in e["items"]:
+            tally.setdefault(i["garment_type"], {"taken": 0, "delivered": 0})["delivered"] += i["qty"]
+    garments = sorted(({"garment_type": k, **v} for k, v in tally.items()),
+                      key=lambda g: (-(g["taken"] + g["delivered"]), g["garment_type"]))
+
+    # Day-by-day strip, Monday to Sunday
+    days = []
+    for n in range(7):
+        day = week_start + timedelta(days=n)
+        ds = day.isoformat()
+        days.append({
+            "date": ds,
+            "weekday": day.strftime("%a"),
+            "taken": sum(1 for e in taken if e["order_date"] == ds),
+            "delivered": sum(1 for e in delivered if e["delivered_on"] == ds),
+            "trials": sum(1 for e in trials if e["trial_date"] == ds),
+            "is_future": ds > today_s,
+        })
+
+    # Where things stand right now — open work is not week-bound, it is what
+    # the tailor still has in hand when they read this.
+    open_orders = [o for o in orders if o["stage"] != "Delivered"]
+    pending_stages = {s: 0 for s in STAGES[:-1]}
+    pending_garments = 0
+    for o in open_orders:
+        pending_stages[o["stage"]] = pending_stages.get(o["stage"], 0) + 1
+        pending_garments += sum(i["qty"] for i in o["items"] if i["stage"] != "Delivered")
+
+    overdue = sorted(
+        (brief(o, days_late=(today - date.fromisoformat(o["delivery_date"])).days)
+         for o in open_orders if _is_overdue(o, today_s)),
+        key=lambda e: e["delivery_date"])
+
+    totals = {
+        "orders_taken": len(taken),
+        "garments_taken": sum(e["qty"] for e in taken),
+        "orders_delivered": len(delivered),
+        "garments_delivered": sum(e["qty"] for e in delivered),
+        "trials": len(trials),
+        "due": len(due),
+        "due_kept": sum(1 for e in due if e["status"] == "Delivered"),
+        "open_orders": len(open_orders),
+        "pending_garments": pending_garments,
+        "overdue": len(overdue),
+    }
+
+    next_start = week_start + timedelta(days=7)
+    return {
+        "week_start": start_s, "week_end": end_s, "today": today_s,
+        "prev_week": (week_start - timedelta(days=7)).isoformat(),
+        "next_week": next_start.isoformat(),
+        "has_next": next_start <= today,
+        "is_current_week": start_s <= today_s <= end_s,
+        "taken": taken, "delivered": delivered, "trials": trials, "due": due,
+        "garments": garments, "days": days, "overdue": overdue,
+        "pending_stages": pending_stages, "totals": totals,
+    }
+
+
+@tailoring_pages_bp.route("/tailoring/report/weekly")
+@login_required
+def tailoring_weekly_report():
+    """Staff view — printable, week picker, WhatsApp button with a share link."""
+    week_start = _parse_week_arg(request.args.get("week"), _ist_date())
+    data = _build_weekly_report_data(week_start)
+    token = _weekly_report_token(data["week_start"])
+    share_path = f"/tailoring/report/weekly/share/{data['week_start']}/{token}"
+    return render_template("tailoring_weekly_report.html", shared=False,
+                           share_path=share_path, **data)
+
+
+@tailoring_pages_bp.route("/tailoring/report/weekly/share/<week>/<token>")
+def tailoring_weekly_report_shared(week, token):
+    """Public weekly view opened from the WhatsApp link — no login needed.
+    The week is in the URL, so links are retired by age instead of by token."""
+    expired = ("<h3 style='font-family:sans-serif;text-align:center;margin-top:40px;'>"
+               "This weekly report link has expired. Please ask the shop for a new one."
+               "</h3>"), 404
+    try:
+        week_start = date.fromisoformat(week)
+    except ValueError:
+        return expired
+    if week_start.weekday() != 0:            # only Monday-aligned links are ours
+        return expired
+    if not hmac.compare_digest(token, _weekly_report_token(week)):
+        return expired
+    if (_ist_date() - week_start).days > WEEKLY_SHARE_MAX_AGE_DAYS:
+        return expired
+
+    data = _build_weekly_report_data(week_start)
+    return render_template("tailoring_weekly_report.html", shared=True,
                            share_path=None, **data)
 
 

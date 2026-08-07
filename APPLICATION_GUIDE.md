@@ -836,6 +836,8 @@ logged-in user, **Admin** = admin role only.
 | `/tailoring` | Login | Tailoring dashboard / orders / customers |
 | `/tailoring/report` | Login | Tailor work report (printable + WhatsApp) |
 | `/tailoring/report/share/<token>` | None | Public tailor-facing report link (expires in ~2 days) |
+| `/tailoring/report/weekly` | Login | Weekly tailor report, `?week=YYYY-MM-DD` picks the week |
+| `/tailoring/report/weekly/share/<week>/<token>` | None | Public weekly report link (expires ~4 weeks after the week starts) |
 | `/tailoring/share/<order_number>` | None | Public customer receipt link |
 | `/admin/users` | Admin | User management |
 | `/profile` | Login | Change own password |
@@ -1021,6 +1023,43 @@ inconsistency to be aware of if extending this code.
   (with photos) only loads when the link is opened, and it correctly uses
   the app's configured `SHARE_BASE_URL` rather than whatever host happens
   to be serving the page.
+
+### Tailor Weekly Report (`/tailoring/report/weekly`)
+Looks **backwards** over one Monday–Sunday week, where the daily report
+looks forwards at tomorrow. Same audience (the tailor), so it carries
+**no money** — no totals, advances, balances or cloth balances.
+
+- **Week selected** by `?week=YYYY-MM-DD`; any date inside the week
+  resolves to that week's Monday, and an unparseable value falls back to
+  the default. The default is the current week, except **on a Monday**,
+  when the week that just ended is shown instead — a fresh Monday has
+  nothing in it worth reading.
+- **Sections**: orders taken, orders delivered, trials that fell in the
+  week (with whether the garments actually reached Trial Ready),
+  deliveries promised for the week (kept / ready-but-uncollected /
+  still pending), a per-garment-type taken-vs-delivered tally, a
+  Mon–Sun activity strip, and a closing "still on the table **today**"
+  block with stage counts and the current overdue list.
+- The open/overdue block is deliberately **as-of-now, not week-bound** —
+  it is what the tailor still has in hand when they read the report.
+- **Share link** works like the daily one but the week is in the URL, so
+  the token is HMAC of the week's Monday and links are retired by age
+  instead: `WEEKLY_SHARE_MAX_AGE_DAYS` (27) after the week starts. The
+  same `SECRET_KEY` stability requirement applies.
+
+#### `delivered_at` — why it exists
+Item `stage` records **that** an order was delivered, never **when**, so
+a weekly "delivered this week" list was not derivable. `tailoring_orders`
+therefore has a `delivered_at` column, kept in step by
+`_sync_delivered_at()` after every stage change: stamped the first time
+all garments read Delivered, cleared if any item is rolled back.
+- Delivery is tracked at **order level** — an order with only some items
+  delivered is not counted, since individual items carry no timestamp.
+- Existing rows were **backfilled from `updated_at`** in the migration, so
+  history is approximate (accurate only if delivery was the last edit);
+  everything stamped after this change is exact. The backfill runs once,
+  in the `if "delivered_at" not in order_cols` branch, so a later
+  rollback is never re-stamped on the next startup.
 
 ## 19. Loyalty Program In Depth
 

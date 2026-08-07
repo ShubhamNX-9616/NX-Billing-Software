@@ -63,6 +63,7 @@ SCHEMA = f"""
         payment_mode  TEXT,
         cloth_balance REAL NOT NULL DEFAULT 0,
         notes         TEXT,
+        delivered_at  TEXT,
         created_at    TEXT DEFAULT ({IST_NOW}),
         updated_at    TEXT DEFAULT ({IST_NOW})
     );
@@ -122,6 +123,22 @@ def init_tailoring_db(conn=None):
         conn.execute(
             "ALTER TABLE tailoring_orders ADD COLUMN cloth_balance REAL NOT NULL DEFAULT 0"
         )
+    # Migration: orders gained a hand-over timestamp so the weekly report can
+    # say *when* an order was delivered — item stages alone only say that it
+    # was. Existing delivered orders are backfilled from updated_at, which is
+    # bumped on every stage change, so it is the closest record we have. This
+    # runs once, right after the column appears, so a later un-delivery (stage
+    # rolled back) is not re-stamped on the next startup.
+    if "delivered_at" not in order_cols:
+        conn.execute("ALTER TABLE tailoring_orders ADD COLUMN delivered_at TEXT")
+        conn.execute("""
+            UPDATE tailoring_orders SET delivered_at = updated_at
+            WHERE EXISTS (SELECT 1 FROM tailoring_items
+                          WHERE order_id = tailoring_orders.id)
+              AND NOT EXISTS (SELECT 1 FROM tailoring_items
+                              WHERE order_id = tailoring_orders.id
+                                AND stage != 'Delivered')
+        """)
     conn.commit()
     if own:
         conn.close()

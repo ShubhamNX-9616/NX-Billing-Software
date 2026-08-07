@@ -8,6 +8,7 @@ import io
 import itertools
 import os
 import sys
+from datetime import timedelta
 
 import pytest
 from flask import Flask
@@ -943,3 +944,121 @@ def test_customer_suggest_handles_orders_without_mobile(client):
     assert len(rows) == 1
     assert rows[0]["customer_name"] == "Walk In"
     assert rows[0]["mobile"] == ""
+
+
+# ---------------------------------------------------------------------------
+# Weekly report
+# ---------------------------------------------------------------------------
+def test_delivered_at_is_stamped_and_cleared(client):
+    """Item stages say an order *was* delivered; delivered_at says when."""
+    import routes.tailoring as tr
+    o = make_order(client).get_json()
+    assert o["delivered_at"] is None
+
+    # Only the last pending garment flipping over counts as a delivery
+    first = o["items"][0]["id"]
+    body = client.patch(f"/api/tailoring/items/{first}/stage",
+                        json={"stage": "Delivered"}).get_json()
+    assert body["delivered_at"] is None
+
+    body = client.patch(f"/api/tailoring/orders/{o['id']}/stage",
+                        json={"stage": "Delivered"}).get_json()
+    assert body["stage"] == "Delivered"
+    assert body["delivered_at"][:10] == tr._ist_date().isoformat()
+
+    # Rolled back by mistake — the stamp goes away with it
+    body = client.patch(f"/api/tailoring/orders/{o['id']}/stage",
+                        json={"stage": "Full Stitched"}).get_json()
+    assert body["delivered_at"] is None
+
+
+def test_weekly_report_covers_the_whole_week(client):
+    import routes.tailoring as tr
+    today = tr._ist_date()
+    monday, sunday = tr._week_bounds(today)
+
+    # Booked inside the week, and one the week before that must stay out
+    make_order(client, customer_name="ThisWeekGuy", order_date=monday.isoformat(),
+               trial_date=None, delivery_date=sunday.isoformat())
+    make_order(client, customer_name="LastWeekGuy",
+               order_date=(monday - timedelta(days=3)).isoformat(),
+               trial_date=None, delivery_date=None)
+
+    handed = make_order(client, customer_name="HandedOver",
+                        order_date=monday.isoformat(), trial_date=None,
+                        delivery_date=sunday.isoformat()).get_json()
+    client.patch(f"/api/tailoring/orders/{handed['id']}/stage",
+                 json={"stage": "Delivered"})
+
+    # Carried over from earlier and still not finished — belongs in the
+    # "still on the table" section however old the week being viewed is.
+    make_order(client, customer_name="OverdueGuy",
+               order_date=(monday - timedelta(days=20)).isoformat(),
+               trial_date=None, delivery_date=(today - timedelta(days=4)).isoformat())
+
+    html = client.get(f"/tailoring/report/weekly?week={monday.isoformat()}") \
+                 .get_data(as_text=True)
+    assert "ThisWeekGuy" in html          # taken this week
+    assert "HandedOver" in html           # delivered this week
+    assert "LastWeekGuy" not in html      # booked before the week started
+    assert "Orders taken (2)" in html     # ThisWeekGuy + HandedOver
+    assert "Delivered (1)" in html
+    assert "Overdue — finish first (1)" in html
+    assert "OverdueGuy" in html
+    assert "4 days late" in html
+    assert "Garments this week" in html   # garment tally rendered
+
+
+def test_weekly_report_week_picker_selects_past_weeks(client):
+    import routes.tailoring as tr
+    monday, _ = tr._week_bounds(tr._ist_date())
+    prev_monday = monday - timedelta(days=7)
+
+    make_order(client, customer_name="OldWeekGuy",
+               order_date=(prev_monday + timedelta(days=2)).isoformat(),
+               trial_date=None, delivery_date=None)
+
+    # Any date inside the week resolves to that week
+    html = client.get(f"/tailoring/report/weekly?week="
+                      f"{(prev_monday + timedelta(days=4)).isoformat()}") \
+                 .get_data(as_text=True)
+    assert "OldWeekGuy" in html
+    assert f"/tailoring/report/weekly?week={(prev_monday - timedelta(days=7)).isoformat()}" in html
+
+    # A garbage week falls back to the default week instead of erroring
+    assert client.get("/tailoring/report/weekly?week=not-a-date").status_code == 200
+
+
+def test_weekly_report_share_link(client):
+    import re
+    import routes.tailoring as tr
+    monday, _ = tr._week_bounds(tr._ist_date())
+    make_order(client, customer_name="WeekShare", order_date=monday.isoformat(),
+               trial_date=None, delivery_date=None)
+
+    html = client.get(f"/tailoring/report/weekly?week={monday.isoformat()}") \
+                 .get_data(as_text=True)
+    m = re.search(r"/tailoring/report/weekly/share/[\d-]+/[0-9a-f]+", html)
+    assert m, "share path missing from staff weekly report"
+    share_path = m.group(0)
+
+    # The tailor opens it WITHOUT being logged in
+    with client.session_transaction() as sess:
+        sess.clear()
+    res = client.get(share_path)
+    assert res.status_code == 200
+    assert "WeekShare" in res.get_data(as_text=True)
+
+    # Forged token, non-Monday week, and a long-stale week are all rejected
+    good_token = share_path.rsplit("/", 1)[1]
+    assert client.get(
+        f"/tailoring/report/weekly/share/{monday.isoformat()}/deadbeef00").status_code == 404
+    assert client.get(
+        f"/tailoring/report/weekly/share/{(monday + timedelta(days=1)).isoformat()}"
+        f"/{good_token}").status_code == 404
+    stale = monday - timedelta(days=tr.WEEKLY_SHARE_MAX_AGE_DAYS + 7)
+    with client.application.app_context():   # token derives from the app secret
+        stale_token = tr._weekly_report_token(stale.isoformat())
+    assert client.get(f"/tailoring/report/weekly/share/{stale.isoformat()}"
+                      f"/{stale_token}").status_code == 404
+    assert client.get("/tailoring/report/weekly").status_code != 200   # login guard

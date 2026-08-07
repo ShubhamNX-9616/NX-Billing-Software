@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tailor Weekly Report — {{ week_start | format_date }} to {{ week_end | format_date }}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif; background: #f3f4f6;
+      color: #111827; padding: 16px; font-size: 14px;
+    }
+    .sheet {
+      max-width: 720px; margin: 0 auto; background: #fff;
+      border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,.12);
+      padding: 20px 22px;
+    }
+    .head { border-bottom: 2px solid #111827; padding-bottom: 10px; margin-bottom: 14px; }
+    .head h1 { font-size: 19px; }
+    .head .sub { font-size: 12.5px; color: #6b7280; margin-top: 2px; }
+    .head .live { color: #b45309; font-weight: 600; }
+
+    /* Summary tiles */
+    .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 4px; }
+    .tile {
+      background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px;
+      padding: 9px 10px; text-align: center;
+    }
+    .tile .n { font-size: 20px; font-weight: 700; line-height: 1.1; }
+    .tile .l { font-size: 11px; color: #6b7280; text-transform: uppercase;
+               letter-spacing: .03em; margin-top: 2px; }
+    .tile .sub { font-size: 11px; color: #9ca3af; margin-top: 1px; }
+    .tile.taken .n     { color: #1e40af; }
+    .tile.delivered .n { color: #057a55; }
+    .tile.trial .n     { color: #92400e; }
+    .tile.pending .n   { color: #b45309; }
+    @media (max-width: 560px) { .tiles { grid-template-columns: repeat(2, 1fr); } }
+
+    /* Day strip */
+    .days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; margin-top: 12px; }
+    .day {
+      border: 1px solid #e5e7eb; border-radius: 7px; padding: 6px 3px;
+      text-align: center; font-size: 11px;
+    }
+    .day.future { opacity: .45; }
+    .day .d { font-weight: 700; font-size: 11.5px; }
+    .day .dt { color: #9ca3af; font-size: 10px; margin-bottom: 3px; }
+    .day .v { display: block; line-height: 1.5; }
+    .day .in  { color: #1e40af; }
+    .day .out { color: #057a55; }
+    .day .tr  { color: #92400e; }
+    .day .zero { color: #d1d5db; }
+
+    .section { margin-top: 18px; }
+    .section > h2 {
+      font-size: 14px; text-transform: uppercase; letter-spacing: .05em;
+      padding: 6px 10px; border-radius: 6px; margin-bottom: 8px;
+    }
+    .section.taken > h2     { background: #dbeafe; color: #1e40af; }
+    .section.delivered > h2 { background: #d1fae5; color: #065f46; }
+    .section.trial > h2     { background: #fef3c7; color: #92400e; }
+    .section.due > h2       { background: #ede9fe; color: #5b21b6; }
+    .section.tally > h2     { background: #f3f4f6; color: #374151; }
+    .section.open > h2      { background: #fee2e2; color: #991b1b; }
+
+    .order { padding: 7px 4px 8px; border-bottom: 1px dashed #d1d5db; }
+    .order:last-child { border-bottom: none; }
+    .order-head { font-weight: 700; font-size: 14px; }
+    .order-meta { font-size: 12px; color: #6b7280; margin-top: 2px; }
+    .order-notes { font-size: 12.5px; color: #6b7280; margin-top: 2px; }
+    .garments { font-size: 13px; margin-top: 3px; }
+    .late { color: #dc2626; font-weight: 700; }
+
+    .pill {
+      display: inline-block; padding: 1px 7px; border-radius: 20px;
+      font-size: 11px; font-weight: 700; vertical-align: 1px;
+    }
+    .pill-ok      { background: #d1fae5; color: #065f46; }
+    .pill-wait    { background: #dbeafe; color: #1e40af; }
+    .pill-pending { background: #fee2e2; color: #991b1b; }
+    .pill-stage   { background: #f3f4f6; color: #4b5563; }
+
+    table.tally { width: 100%; border-collapse: collapse; font-size: 13px; }
+    table.tally th, table.tally td {
+      padding: 5px 8px; border-bottom: 1px solid #e5e7eb; text-align: right;
+    }
+    table.tally th:first-child, table.tally td:first-child { text-align: left; }
+    table.tally th { font-size: 11.5px; color: #6b7280; text-transform: uppercase;
+                     letter-spacing: .03em; }
+    table.tally tr.total td { font-weight: 700; border-bottom: none; border-top: 2px solid #111827; }
+
+    .stage-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+    .stage-chip {
+      background: #f3f4f6; border-radius: 6px; padding: 4px 9px; font-size: 12.5px;
+    }
+    .stage-chip b { font-size: 14px; }
+
+    .empty { color: #6b7280; font-size: 13px; padding: 4px 2px; }
+    .quiet-week { text-align: center; padding: 26px 0; font-size: 15px; color: #6b7280; }
+
+    .actions { display: flex; gap: 10px; margin: 0 auto 14px; max-width: 720px; }
+    .btn {
+      flex: 1; text-align: center; padding: 11px 14px; border-radius: 8px;
+      font-weight: 600; text-decoration: none; font-size: 14px;
+      border: none; cursor: pointer; display: block;
+    }
+    .btn-print { background: #111827; color: #fff; }
+    .btn-wa { background: #25d366; color: #fff; }
+
+    .weeknav {
+      display: flex; align-items: center; justify-content: space-between; gap: 8px;
+      max-width: 720px; margin: 0 auto 10px;
+    }
+    .weeknav a, .weeknav span.disabled {
+      padding: 7px 13px; border-radius: 7px; font-size: 13px; font-weight: 600;
+      text-decoration: none; background: #fff; color: #111827;
+      border: 1px solid #d1d5db;
+    }
+    .weeknav span.disabled { color: #d1d5db; border-color: #e5e7eb; }
+    .weeknav .label { font-size: 13px; color: #6b7280; font-weight: 600; }
+
+    @media print {
+      body { background: #fff; padding: 0; }
+      .sheet { box-shadow: none; border-radius: 0; max-width: none; padding: 0; }
+      .actions, .weeknav { display: none; }
+      .section { break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="actions">
+    <button type="button" class="btn btn-print" onclick="window.print()">&#128424;&#65039; Print</button>
+    {% if not shared %}
+    <a class="btn btn-wa" id="wa-btn" href="#" target="_blank" rel="noopener">&#128172; Send on WhatsApp</a>
+    {% endif %}
+  </div>
+
+  {% if not shared %}
+  <div class="weeknav">
+    <a href="/tailoring/report/weekly?week={{ prev_week }}">&#8592; Previous week</a>
+    <span class="label">{{ week_start | format_date }} — {{ week_end | format_date }}</span>
+    {% if has_next %}
+    <a href="/tailoring/report/weekly?week={{ next_week }}">Next week &#8594;</a>
+    {% else %}
+    <span class="disabled">Next week &#8594;</span>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <div class="sheet">
+    <div class="head">
+      <h1>Tailor Weekly Report</h1>
+      <div class="sub">
+        <b>{{ week_start | format_date }}</b> to <b>{{ week_end | format_date }}</b>
+        · prepared {{ today | format_date }}
+        {% if is_current_week %}<span class="live">· week still running</span>{% endif %}
+      </div>
+    </div>
+
+    <div class="tiles">
+      <div class="tile taken">
+        <div class="n">{{ totals.orders_taken }}</div>
+        <div class="l">Orders taken</div>
+        <div class="sub">{{ totals.garments_taken }} garment{{ 's' if totals.garments_taken != 1 }}</div>
+      </div>
+      <div class="tile delivered">
+        <div class="n">{{ totals.orders_delivered }}</div>
+        <div class="l">Delivered</div>
+        <div class="sub">{{ totals.garments_delivered }} garment{{ 's' if totals.garments_delivered != 1 }}</div>
+      </div>
+      <div class="tile trial">
+        <div class="n">{{ totals.trials }}</div>
+        <div class="l">Trials</div>
+        <div class="sub">due this week</div>
+      </div>
+      <div class="tile pending">
+        <div class="n">{{ totals.open_orders }}</div>
+        <div class="l">Still open</div>
+        <div class="sub">{{ totals.pending_garments }} garment{{ 's' if totals.pending_garments != 1 }} left</div>
+      </div>
+    </div>
+
+    <div class="days">
+      {% for d in days %}
+      <div class="day {{ 'future' if d.is_future }}">
+        <div class="d">{{ d.weekday }}</div>
+        <div class="dt">{{ d.date[8:10] }}</div>
+        <span class="v {{ 'in' if d.taken else 'zero' }}">&#9660; {{ d.taken }}</span>
+        <span class="v {{ 'out' if d.delivered else 'zero' }}">&#9650; {{ d.delivered }}</span>
+        <span class="v {{ 'tr' if d.trials else 'zero' }}">&#128085; {{ d.trials }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    <div class="order-meta" style="text-align:center;margin-top:4px;">
+      &#9660; taken · &#9650; delivered · &#128085; trials
+    </div>
+
+    {% macro garment_line(e) %}
+    <div class="garments">
+      {% for i in e['items'] %}{{ i.garment_type }} × {{ i.qty }}{{ ', ' if not loop.last }}{% endfor %}
+    </div>
+    {% endmacro %}
+
+    {# The caller block becomes the meta line under the garments — dates and
+       status differ per section, everything above it does not. #}
+    {% macro order_row(e) %}
+    <div class="order">
+      <div class="order-head">
+        #{{ e.order_number }} — {{ e.customer_name }}
+        {% if e.days_late %}<span class="late">({{ e.days_late }} day{{ 's' if e.days_late != 1 }} late)</span>{% endif %}
+      </div>
+      {{ garment_line(e) }}
+      <div class="order-meta">{{ caller() }}</div>
+      {% if e.notes %}<div class="order-notes">Note: {{ e.notes }}</div>{% endif %}
+    </div>
+    {% endmacro %}
+
+    {% if not taken and not delivered and not trials and not due %}
+    <div class="quiet-week">No orders taken, delivered or due in this week.</div>
+    {% endif %}
+
+    {% if taken %}
+    <div class="section taken">
+      <h2>&#9660; Orders taken ({{ totals.orders_taken }})</h2>
+      {% for e in taken %}
+        {% call order_row(e) %}
+          Booked {{ e.order_date | format_date }}
+          {% if e.trial_date %}· trial {{ e.trial_date | format_date }}{% endif %}
+          · delivery {{ e.delivery_date | format_date if e.delivery_date else 'not set' }}
+          <span class="pill pill-stage">{{ e.stage }}</span>
+        {% endcall %}
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if delivered %}
+    <div class="section delivered">
+      <h2>&#9650; Delivered ({{ totals.orders_delivered }})</h2>
+      {% for e in delivered %}
+        {% call order_row(e) %}
+          Handed over {{ e.delivered_on | format_date }}
+          {% if e.delivery_date %}· was promised {{ e.delivery_date | format_date }}{% endif %}
+        {% endcall %}
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if trials %}
+    <div class="section trial">
+      <h2>&#128085; Trials this week ({{ totals.trials }})</h2>
+      {% for e in trials %}
+        {% call order_row(e) %}
+          Trial {{ e.trial_date | format_date }} ·
+          {% if e.done %}<span class="pill pill-ok">Reached trial stage</span>
+          {% else %}<span class="pill pill-pending">Still in stitching</span>{% endif %}
+        {% endcall %}
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if due %}
+    <div class="section due">
+      <h2>&#128197; Deliveries promised this week ({{ totals.due_kept }}/{{ totals.due }} done)</h2>
+      {% for e in due %}
+        {% call order_row(e) %}
+          Promised {{ e.delivery_date | format_date }} ·
+          {% if e.status == 'Delivered' %}
+            <span class="pill pill-ok">Delivered{{ ' ' + (e.delivered_on | format_date) if e.delivered_on }}</span>
+          {% elif e.status == 'Ready to collect' %}
+            <span class="pill pill-wait">Ready — not collected</span>
+          {% else %}
+            <span class="pill pill-pending">Still pending — {{ e.stage }}</span>
+          {% endif %}
+        {% endcall %}
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if garments %}
+    <div class="section tally">
+      <h2>&#129525; Garments this week</h2>
+      <table class="tally">
+        <tr><th>Garment</th><th>Taken in</th><th>Delivered out</th></tr>
+        {% for g in garments %}
+        <tr>
+          <td>{{ g.garment_type }}</td>
+          <td>{{ g.taken or '—' }}</td>
+          <td>{{ g.delivered or '—' }}</td>
+        </tr>
+        {% endfor %}
+        <tr class="total">
+          <td>Total</td>
+          <td>{{ totals.garments_taken }}</td>
+          <td>{{ totals.garments_delivered }}</td>
+        </tr>
+      </table>
+    </div>
+    {% endif %}
+
+    <div class="section open">
+      <h2>&#128203; Still on the table today ({{ totals.open_orders }})</h2>
+      {% if totals.open_orders %}
+      <div class="stage-row">
+        {% for stage, n in pending_stages.items() if n %}
+        <div class="stage-chip"><b>{{ n }}</b> {{ stage }}</div>
+        {% endfor %}
+        <div class="stage-chip"><b>{{ totals.pending_garments }}</b> garments left</div>
+      </div>
+      {% else %}
+      <div class="empty">Nothing open — every order has been delivered. &#127881;</div>
+      {% endif %}
+
+      {% if overdue %}
+      <div class="order-meta" style="margin:10px 0 2px;font-weight:700;color:#991b1b;">
+        Overdue — finish first ({{ totals.overdue }})
+      </div>
+      {% for e in overdue %}
+        {% call order_row(e) %}
+          Was due {{ e.delivery_date | format_date }}
+          <span class="pill pill-stage">{{ e.stage }}</span>
+        {% endcall %}
+      {% endfor %}
+      {% endif %}
+    </div>
+  </div>
+
+  {% if not shared %}
+  <script>
+    const WEEK = {{ ((week_start | format_date) + ' to ' + (week_end | format_date)) | tojson }};
+    const SHARE_PATH = {{ share_path | tojson }};
+    const SHARE_BASE_URL = {{ (share_base_url or '') | tojson }};
+    const T = {{ totals | tojson }};
+
+    function waText() {
+      const L = ['*Tailor Weekly Report* — ' + WEEK, ''];
+      L.push('🔻 Orders taken: ' + T.orders_taken + ' (' + T.garments_taken + ' garments)');
+      L.push('🔺 Delivered: ' + T.orders_delivered + ' (' + T.garments_delivered + ' garments)');
+      L.push('👕 Trials due: ' + T.trials);
+      L.push('📅 Deliveries promised: ' + T.due_kept + '/' + T.due + ' done');
+      L.push('📋 Still open: ' + T.open_orders + ' orders, ' + T.pending_garments + ' garments');
+      if (T.overdue) L.push('🔴 Overdue right now: ' + T.overdue);
+      L.push('');
+      L.push('Open the full week report:');
+      L.push((SHARE_BASE_URL || window.location.origin) + SHARE_PATH);
+      return L.join('\n');
+    }
+
+    document.getElementById('wa-btn').href =
+      'https://wa.me/?text=' + encodeURIComponent(waText());
+  </script>
+  {% endif %}
+</body>
+</html>
