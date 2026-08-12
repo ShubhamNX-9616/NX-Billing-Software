@@ -21,7 +21,7 @@
     .head .live { color: #b45309; font-weight: 600; }
 
     /* Summary tiles */
-    .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 4px; }
+    .tiles { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 4px; }
     .tile {
       background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px;
       padding: 9px 10px; text-align: center;
@@ -31,6 +31,7 @@
                letter-spacing: .03em; margin-top: 2px; }
     .tile .sub { font-size: 11px; color: #9ca3af; margin-top: 1px; }
     .tile.taken .n     { color: #1e40af; }
+    .tile.stitched .n  { color: #6d28d9; }
     .tile.delivered .n { color: #057a55; }
     .tile.trial .n     { color: #92400e; }
     .tile.pending .n   { color: #b45309; }
@@ -61,6 +62,10 @@
     .section.trial > h2     { background: #fef3c7; color: #92400e; }
     .section.due > h2       { background: #ede9fe; color: #5b21b6; }
     .section.tally > h2     { background: #f3f4f6; color: #374151; }
+    .section.stitched > h2  { background: #f3e8ff; color: #6b21a8; }
+    .section.stitched { margin-top: 12px; }
+    table.tally td.ordnos, table.tally th.ordnos { text-align: left; padding-left: 24px; }
+    table.tally td.ordnos { color: #6b7280; }
     .section.open > h2      { background: #fee2e2; color: #991b1b; }
 
     .order { padding: 7px 4px 8px; border-bottom: 1px dashed #d1d5db; }
@@ -164,6 +169,11 @@
         <div class="l">Orders taken</div>
         <div class="sub">{{ totals.garments_taken }} garment{{ 's' if totals.garments_taken != 1 }}</div>
       </div>
+      <div class="tile stitched">
+        <div class="n">{{ totals.garments_stitched }}</div>
+        <div class="l">Fully stitched</div>
+        <div class="sub">garment{{ 's' if totals.garments_stitched != 1 }}</div>
+      </div>
       <div class="tile delivered">
         <div class="n">{{ totals.orders_delivered }}</div>
         <div class="l">Delivered</div>
@@ -180,6 +190,27 @@
         <div class="sub">{{ totals.pending_garments }} garment{{ 's' if totals.pending_garments != 1 }} left</div>
       </div>
     </div>
+
+    {% if stitched_garments %}
+    <div class="section stitched">
+      <h2>&#9986; Fully stitched this week ({{ totals.garments_stitched }} garment{{ 's' if totals.garments_stitched != 1 }})</h2>
+      <table class="tally">
+        <tr><th>Garment</th><th>Stitched</th><th class="ordnos">Order no.</th></tr>
+        {% for g in stitched_garments %}
+        <tr>
+          <td>{{ g.garment_type }}</td>
+          <td>{{ g.qty }}</td>
+          <td class="ordnos">{% for n in g.orders %}#{{ n }}{{ ', ' if not loop.last }}{% endfor %}</td>
+        </tr>
+        {% endfor %}
+        <tr class="total">
+          <td>Total</td>
+          <td>{{ totals.garments_stitched }}</td>
+          <td class="ordnos">across {{ totals.stitched_orders }} order{{ 's' if totals.stitched_orders != 1 }}</td>
+        </tr>
+      </table>
+    </div>
+    {% endif %}
 
     <div class="days">
       {% for d in days %}
@@ -335,6 +366,7 @@
     function waText() {
       const L = ['*Tailor Weekly Report* — ' + WEEK, ''];
       L.push('🔻 Orders taken: ' + T.orders_taken + ' (' + T.garments_taken + ' garments)');
+      L.push('✂️ Fully stitched: ' + T.garments_stitched + ' garments');
       L.push('🔺 Delivered: ' + T.orders_delivered + ' (' + T.garments_delivered + ' garments)');
       L.push('👕 Trials due: ' + T.trials);
       L.push('📅 Deliveries promised: ' + T.due_kept + '/' + T.due + ' done');

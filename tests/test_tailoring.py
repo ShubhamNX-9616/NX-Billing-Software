@@ -972,6 +972,105 @@ def test_delivered_at_is_stamped_and_cleared(client):
     assert body["delivered_at"] is None
 
 
+def test_stitched_at_is_stamped_per_garment(client):
+    """The weekly count is garment-wise, so every piece carries the date its
+    own stitching finished — item stages alone do not record when."""
+    import routes.tailoring as tr
+    today = tr._ist_date().isoformat()
+    o = make_order(client).get_json()
+    assert [i["stitched_at"] for i in o["items"]] == [None, None]
+    shirt, blazer = o["items"][0]["id"], o["items"][1]["id"]
+
+    def stamps(body):
+        return {i["id"]: i["stitched_at"] for i in body["items"]}
+
+    # One garment done stamps that garment and leaves its siblings alone
+    body = client.patch(f"/api/tailoring/items/{shirt}/stage",
+                        json={"stage": "Full Stitched"}).get_json()
+    assert stamps(body)[shirt][:10] == today
+    assert stamps(body)[blazer] is None
+    shirt_stamp = stamps(body)[shirt]
+
+    # Finishing the rest does not disturb the first garment's date
+    body = client.patch(f"/api/tailoring/orders/{o['id']}/stage",
+                        json={"stage": "Full Stitched"}).get_json()
+    assert stamps(body) == {shirt: shirt_stamp, blazer: stamps(body)[blazer]}
+    assert stamps(body)[blazer][:10] == today
+
+    # Handing it over keeps the stitching date, it does not re-stamp
+    body = client.patch(f"/api/tailoring/orders/{o['id']}/stage",
+                        json={"stage": "Delivered"}).get_json()
+    assert stamps(body)[shirt] == shirt_stamp
+
+    # One garment sent back for alteration — only its stamp goes
+    body = client.patch(f"/api/tailoring/items/{shirt}/stage",
+                        json={"stage": "In Stitching"}).get_json()
+    assert stamps(body)[shirt] is None
+    assert stamps(body)[blazer][:10] == today
+    assert body["delivered_at"] is None
+
+    # Marked delivered without pausing at Full Stitched still counts
+    o2 = make_order(client).get_json()
+    body = client.patch(f"/api/tailoring/orders/{o2['id']}/stage",
+                        json={"stage": "Delivered"}).get_json()
+    assert all(i["stitched_at"][:10] == today for i in body["items"])
+
+
+def test_weekly_report_counts_garments_stitched_that_week(client):
+    """Counts only — the stitched output never gets its own order listing."""
+    import re
+    import routes.tailoring as tr
+    monday, _ = tr._week_bounds(tr._ist_date())
+
+    o = make_order(client, customer_name="StitchedGuy").get_json()   # 3 garments
+    client.patch(f"/api/tailoring/orders/{o['id']}/stage", json={"stage": "Full Stitched"})
+
+    # Half an order counts too — these 2 shirts came off the machine this week
+    # even though the blazer beside them is still being sewn
+    part = make_order(client, customer_name="HalfDoneGuy").get_json()
+    client.patch(f"/api/tailoring/items/{part['items'][0]['id']}/stage",
+                 json={"stage": "Full Stitched"})
+    make_order(client, customer_name="StillSewingGuy")
+
+    html = client.get(f"/tailoring/report/weekly?week={monday.isoformat()}") \
+                 .get_data(as_text=True)
+    assert "Fully stitched this week (5 garments)" in html
+    assert "across 2 orders" in html
+    assert f"#{o['order_number']}" in html   # traceable back to the receipt
+    assert "StitchedGuy" not in html         # garment counts only, not a listing
+
+    # Garment-wise: 2+2 shirts and the one blazer that is done, nothing from
+    # the order still on the machine
+    rows = re.findall(r"<td>(\w+)</td>\s*<td>(\d+)</td>", html)
+    assert ("Shirt", "4") in rows and ("Blazer", "1") in rows
+
+
+def test_garment_stitched_last_week_stays_in_that_week(client):
+    """The whole point of the per-garment date: a piece finished in one week
+    is not dragged into the next by its slower siblings."""
+    import routes.tailoring as tr
+    from db.tailoring import get_tailoring_db
+    monday, _ = tr._week_bounds(tr._ist_date())
+    last_monday = monday - timedelta(days=7)
+
+    o = make_order(client, customer_name="SlowOrder").get_json()
+    shirt, blazer = o["items"][0]["id"], o["items"][1]["id"]
+    client.patch(f"/api/tailoring/items/{shirt}/stage", json={"stage": "Full Stitched"})
+    with client.application.app_context():
+        db = get_tailoring_db()
+        db.execute("UPDATE tailoring_items SET stitched_at = ? WHERE id = ?",
+                   (last_monday.isoformat() + " 10:00:00", shirt))
+        db.commit()
+    client.patch(f"/api/tailoring/items/{blazer}/stage", json={"stage": "Full Stitched"})
+
+    last = client.get(f"/tailoring/report/weekly?week={last_monday.isoformat()}") \
+                 .get_data(as_text=True)
+    this = client.get(f"/tailoring/report/weekly?week={monday.isoformat()}") \
+                 .get_data(as_text=True)
+    assert "Fully stitched this week (2 garments)" in last   # the 2 shirts
+    assert "Fully stitched this week (1 garment)" in this    # the blazer
+
+
 def test_weekly_report_covers_the_whole_week(client):
     import routes.tailoring as tr
     today = tr._ist_date()

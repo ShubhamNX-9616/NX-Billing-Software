@@ -76,6 +76,7 @@ SCHEMA = f"""
         rate         REAL NOT NULL DEFAULT 0,
         amount       REAL NOT NULL DEFAULT 0,
         stage        TEXT NOT NULL DEFAULT 'In Stitching',
+        stitched_at  TEXT,
         notes        TEXT
     );
 
@@ -139,6 +140,30 @@ def init_tailoring_db(conn=None):
                               WHERE order_id = tailoring_orders.id
                                 AND stage != 'Delivered')
         """)
+    # Migration: each garment gained the date its own stitching finished, so the
+    # weekly report can count the pieces that came off the machine that week
+    # rather than waiting for the rest of their order.
+    #
+    # Garments already finished when the column appears are backfilled, because
+    # leaving them NULL is worse than an approximate date: the stamp is applied
+    # by stage, so the next unrelated edit to an old delivered order would date
+    # months-old work into the current week. Best guess in order — the hand-over
+    # timestamp, else the promised delivery date (roughly when it came off the
+    # machine, and unlike updated_at not bumped by later payments and edits),
+    # else updated_at. Runs once, so a later roll-back is not re-stamped.
+    item_cols = {r[1] for r in conn.execute("PRAGMA table_info(tailoring_items)").fetchall()}
+    if "stitched_at" not in item_cols:
+        conn.execute("ALTER TABLE tailoring_items ADD COLUMN stitched_at TEXT")
+        conn.execute("""
+            UPDATE tailoring_items SET stitched_at = (
+                SELECT COALESCE(o.delivered_at, o.delivery_date, o.updated_at)
+                FROM tailoring_orders o WHERE o.id = tailoring_items.order_id)
+            WHERE stage IN ('Full Stitched', 'Delivered')
+        """)
+    # The stitching date briefly lived on the order before moving to the garment
+    # above. Drop the leftover so nothing reads a column that no longer syncs.
+    if "stitched_at" in order_cols:
+        conn.execute("ALTER TABLE tailoring_orders DROP COLUMN stitched_at")
     conn.commit()
     if own:
         conn.close()

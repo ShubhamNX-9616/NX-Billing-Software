@@ -176,6 +176,8 @@ function renderList() {
 let tlActiveTab = 'dashboard';
 let tlSelectedDay = null;   // date whose orders are expanded under the strip
 let tlDashDays = [];        // last-loaded 15-day data, for the day detail
+let tlOverdueDay = null;    // same shape as a day, shown first in the strip
+const TL_OVERDUE_KEY = 'overdue';   // stands in for a date in tlSelectedDay
 
 function switchTlTab(tab) {
   tlActiveTab = tab;
@@ -192,6 +194,7 @@ async function loadDashboard() {
   try {
     const d = await tlFetch('/api/tailoring/dashboard');
     tlDashDays = d.days;
+    tlOverdueDay = d.overdue_day;
     renderDayStrip(d);
     renderDashSections(d);
     renderDayDetail();   // keep the expanded day (if any) in sync
@@ -213,41 +216,62 @@ function tlDayName(iso, todayIso) {
 function renderDayStrip(d) {
   const strip = document.getElementById('tl-day-strip');
   strip.innerHTML = '';
+  // Overdue rides at the head of the strip in the same format as a day, but
+  // only when there is something overdue — an always-on zero card would just
+  // push the real days out of view.
+  if (d.overdue_day && d.overdue_day.orders) {
+    strip.appendChild(dayCard(d, d.overdue_day, TL_OVERDUE_KEY, 'Overdue', 'overdue'));
+  }
   d.days.forEach(day => {
-    const card = document.createElement('div');
-    card.className = 'tl-day'
-      + (day.date === d.today ? ' today' : '')
-      + (day.date === tlSelectedDay ? ' selected' : '');
-    const garmentLines = Object.entries(day.garments)
-      .map(([g, n]) => `${tlEsc(g)} – ${n}`).join('<br/>');
-    const countHtml = day.orders
-      ? `<div class="tl-day-count${day.orders >= 4 ? ' busy' : ''}">${day.orders} order${day.orders > 1 ? 's' : ''}</div>`
-      : `<div class="tl-day-count free">Free</div>`;
-    card.innerHTML = `
-      <div class="tl-day-name">${tlDayName(day.date, d.today)} · ${tlFmtDate(day.date)}</div>
-      ${countHtml}
-      <div class="tl-day-garments">${garmentLines}</div>
-      ${day.trials ? `<div class="tl-day-trials">${day.trials} trial${day.trials > 1 ? 's' : ''}</div>` : ''}`;
-    card.onclick = () => {
-      tlSelectedDay = tlSelectedDay === day.date ? null : day.date;
-      renderDayStrip(d);
-      renderDayDetail();
-    };
-    strip.appendChild(card);
+    const cls = day.date === d.today ? 'today' : '';
+    const title = `${tlDayName(day.date, d.today)} · ${tlFmtDate(day.date)}`;
+    strip.appendChild(dayCard(d, day, day.date, title, cls));
   });
+}
+
+function dayCard(d, day, key, title, extraCls) {
+  const overdue = key === TL_OVERDUE_KEY;
+  const card = document.createElement('div');
+  card.className = 'tl-day' + (extraCls ? ' ' + extraCls : '')
+    + (key === tlSelectedDay ? ' selected' : '');
+  const garmentLines = Object.entries(day.garments)
+    .map(([g, n]) => `${tlEsc(g)} <span class="tl-day-qty">${n}</span>`)
+    .join('<br/>');
+  const countHtml = day.orders
+    ? `<div class="tl-day-count${overdue || day.orders >= 4 ? ' busy' : ''}">${day.orders} order${day.orders > 1 ? 's' : ''}</div>`
+    : `<div class="tl-day-count free">Free</div>`;
+  const trialWord = overdue ? 'missed trial' : 'trial';
+  card.innerHTML = `
+    <div class="tl-day-name">${title}</div>
+    ${countHtml}
+    <div class="tl-day-garments">${garmentLines}</div>
+    ${day.trials ? `<div class="tl-day-trials">${day.trials} ${trialWord}${day.trials > 1 ? 's' : ''}</div>` : ''}`;
+  card.onclick = () => {
+    tlSelectedDay = tlSelectedDay === key ? null : key;
+    renderDayStrip(d);
+    renderDayDetail();
+  };
+  return card;
 }
 
 function renderDayDetail() {
   const box = document.getElementById('tl-day-detail');
-  const day = tlDashDays.find(x => x.date === tlSelectedDay);
+  const overdue = tlSelectedDay === TL_OVERDUE_KEY;
+  // A reload that clears the last overdue order also drops its card, so the
+  // panel below must close with it instead of lingering as an empty box.
+  const day = overdue
+    ? (tlOverdueDay && tlOverdueDay.orders ? tlOverdueDay : null)
+    : tlDashDays.find(x => x.date === tlSelectedDay);
   if (!day) { box.style.display = 'none'; box.innerHTML = ''; return; }
   box.style.display = '';
   box.innerHTML = `
     <div style="font-weight:600;font-size:13px;margin-bottom:2px;">
-      Deliveries on ${tlFmtDate(day.date)}</div>
+      ${overdue ? 'Overdue deliveries — stitching pending'
+                : `Deliveries on ${tlFmtDate(day.date)}`}</div>
     ${day.order_list.length
       ? day.order_list.map(dashRowHtml).join('')
-      : '<div class="tl-dash-empty">No deliveries planned — good day to promise.</div>'}`;
+      : `<div class="tl-dash-empty">${overdue ? 'Nothing overdue. 🎉'
+           : 'No deliveries planned — good day to promise.'}</div>`}`;
 }
 
 function dashRowHtml(b) {

@@ -73,21 +73,36 @@ def _split_off_unit(db, item, qty, stage):
                (remaining_qty, remaining_amount, item["id"]))
     cur = db.execute(
         """INSERT INTO tailoring_items
-           (order_id, garment_type, qty, rate, amount, stage, notes)
-           VALUES (?, ?, ?, ?, ?, ?, ?)""",
+           (order_id, garment_type, qty, rate, amount, stage, stitched_at, notes)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
         (item["order_id"], item["garment_type"], qty, item["rate"],
-         split_amount, stage, item["notes"]),
+         split_amount, stage, item["stitched_at"], item["notes"]),
     )
     return cur.lastrowid
 
 
-def _sync_delivered_at(db, order_id):
-    """Keep the order's delivered_at in step with its item stages.
+def _sync_stage_stamps(db, order_id):
+    """Keep each garment's stitched_at and the order's delivered_at in step
+    with the item stages. Caller commits.
 
-    Stamped the first time every garment reads Delivered, cleared if any item
-    is rolled back — the weekly report needs the date an order was handed
-    over, and item stages on their own only record that it happened.
-    Caller commits."""
+    stitched_at is per garment: stamped the first time that piece reads Full
+    Stitched, cleared if it is sent back for alteration. The weekly report
+    counts the pieces finished in a week, so an order-level date would be
+    wrong — it would push a shirt finished on Monday into whatever week its
+    slowest sibling is done. 'Delivered' counts as past Full Stitched, so a
+    garment handed over without pausing there still counts as stitched.
+
+    delivered_at stays on the order: the hand-over is one event for the whole
+    order, stamped once every garment reads Delivered and cleared if any is
+    rolled back."""
+    db.execute(
+        f"""UPDATE tailoring_items SET stitched_at = COALESCE(stitched_at, {IST_NOW})
+           WHERE order_id = ? AND stage IN ('Full Stitched', 'Delivered')""",
+        (order_id,))
+    db.execute(
+        """UPDATE tailoring_items SET stitched_at = NULL
+           WHERE order_id = ? AND stage NOT IN ('Full Stitched', 'Delivered')""",
+        (order_id,))
     stages = [r["stage"] for r in db.execute(
         "SELECT stage FROM tailoring_items WHERE order_id = ?", (order_id,)).fetchall()]
     if stages and all(s == "Delivered" for s in stages):
@@ -249,7 +264,7 @@ def create_order():
                 "VALUES (?, ?, ?, 'Advance')",
                 (order_id, advance, payment_mode),
             )
-        _sync_delivered_at(db, order_id)   # items may be created already Delivered
+        _sync_stage_stamps(db, order_id)   # items may be created already Delivered
         db.commit()
 
         order = db.execute("SELECT * FROM tailoring_orders WHERE id = ?", (order_id,)).fetchone()
@@ -396,12 +411,30 @@ def tailoring_dashboard():
             "order_list": [_order_brief(o) for o in due],
         })
 
-    overdue = sorted(
-        (_order_brief(o) for o in open_orders if _is_overdue(o, today_s)),
-        key=lambda b: b["delivery_date"],
-    )
+    overdue_orders = [o for o in open_orders if _is_overdue(o, today_s)]
+    overdue = sorted((_order_brief(o) for o in overdue_orders),
+                     key=lambda b: b["delivery_date"])
     for b in overdue:
         b["days_late"] = (today - date.fromisoformat(b["delivery_date"])).days
+
+    # Same shape as a `days` entry, so the dashboard can show everything already
+    # past its delivery date as one more card at the head of the day strip.
+    # "trials" here means trial dates that have come and gone while the order is
+    # still being stitched — the missed-trial counterpart of a day's booked ones.
+    overdue_garments = {}
+    for o in overdue_orders:
+        for i in o["items"]:
+            if i["stage"] != "Delivered":
+                overdue_garments[i["garment_type"]] = \
+                    overdue_garments.get(i["garment_type"], 0) + i["qty"]
+    overdue_day = {
+        "orders": len(overdue),
+        "garments": overdue_garments,
+        "trials": sum(1 for o in open_orders
+                      if o["trial_date"] and o["trial_date"] < today_s
+                      and o["stage"] != "Full Stitched"),
+        "order_list": overdue,
+    }
 
     # Fully stitched, delivery date arrived/passed (or never set) — the
     # customer needs a reminder call to come and collect.
@@ -421,6 +454,7 @@ def tailoring_dashboard():
     return jsonify({
         "today": today_s,
         "days": days,
+        "overdue_day": overdue_day,
         "overdue": overdue,
         "ready_waiting": ready_waiting,
         "deliveries_today": due_on("delivery_date", today_s),
@@ -663,7 +697,7 @@ def update_order(order_id):
             return jsonify({"error": f"Order number {order_number} already exists"}), 400
         # Item rows were reconciled above — deleting the last pending garment
         # can make the order fully delivered (or a new one can un-deliver it).
-        _sync_delivered_at(db, order_id)
+        _sync_stage_stamps(db, order_id)
         db.commit()
         row = db.execute("SELECT * FROM tailoring_orders WHERE id = ?", (order_id,)).fetchone()
         return jsonify(_order_payload(db, row))
@@ -689,7 +723,7 @@ def update_item_stage(item_id):
     db.execute("UPDATE tailoring_items SET stage = ? WHERE id = ?", (stage, item_id))
     db.execute(f"UPDATE tailoring_orders SET updated_at = {IST_NOW} WHERE id = ?",
                (item["order_id"],))
-    _sync_delivered_at(db, item["order_id"])
+    _sync_stage_stamps(db, item["order_id"])
     db.commit()
     row = db.execute("SELECT * FROM tailoring_orders WHERE id = ?", (item["order_id"],)).fetchone()
     return jsonify(_order_payload(db, row))
@@ -739,7 +773,7 @@ def update_order_stage(order_id):
         return jsonify({"error": "Order not found"}), 404
     db.execute("UPDATE tailoring_items SET stage = ? WHERE order_id = ?", (stage, order_id))
     db.execute(f"UPDATE tailoring_orders SET updated_at = {IST_NOW} WHERE id = ?", (order_id,))
-    _sync_delivered_at(db, order_id)
+    _sync_stage_stamps(db, order_id)
     db.commit()
     row = db.execute("SELECT * FROM tailoring_orders WHERE id = ?", (order_id,)).fetchone()
     return jsonify(_order_payload(db, row))
@@ -1062,7 +1096,7 @@ def set_photo_stage(photo_id):
             db.execute("UPDATE tailoring_items SET stage = ? WHERE id = ?", (stage, item["id"]))
         db.execute(f"UPDATE tailoring_orders SET updated_at = {IST_NOW} WHERE id = ?",
                    (item["order_id"],))
-        _sync_delivered_at(db, item["order_id"])
+        _sync_stage_stamps(db, item["order_id"])
         db.commit()
 
     order = db.execute("SELECT * FROM tailoring_orders WHERE id = ?", (item["order_id"],)).fetchone()
@@ -1252,6 +1286,26 @@ def _build_weekly_report_data(week_start):
     delivered = sorted((brief(o) for o in orders if in_week(o["delivered_at"])),
                        key=lambda e: (e["delivered_on"], e["order_number"]))
 
+    # Garments whose own stitching finished during the week, tallied by type —
+    # the week's output as counts, not another order listing. A piece counts in
+    # the week it came off the machine even if the rest of its order is still
+    # being sewn. Order numbers ride along so the tailor can trace a lot back to
+    # its receipt; nothing else is shown.
+    stitched_tally = {}
+    stitched_orders = set()
+    for o in sorted(orders, key=lambda o: o["order_number"]):
+        for i in o["items"]:
+            if not in_week(i["stitched_at"]):
+                continue
+            stitched_orders.add(o["order_number"])
+            e = stitched_tally.setdefault(i["garment_type"], {"qty": 0, "orders": []})
+            e["qty"] += i["qty"]
+            if o["order_number"] not in e["orders"]:
+                e["orders"].append(o["order_number"])
+    stitched_garments = sorted(
+        ({"garment_type": g, **v} for g, v in stitched_tally.items()),
+        key=lambda g: (-g["qty"], g["garment_type"]))
+
     # Trials that fell in the week, and whether the garments got that far
     trials = sorted(
         (brief(o, done=o["stage"] in ("Trial Ready", "Full Stitched", "Delivered"))
@@ -1310,6 +1364,8 @@ def _build_weekly_report_data(week_start):
     totals = {
         "orders_taken": len(taken),
         "garments_taken": sum(e["qty"] for e in taken),
+        "garments_stitched": sum(g["qty"] for g in stitched_garments),
+        "stitched_orders": len(stitched_orders),
         "orders_delivered": len(delivered),
         "garments_delivered": sum(e["qty"] for e in delivered),
         "trials": len(trials),
@@ -1329,6 +1385,7 @@ def _build_weekly_report_data(week_start):
         "is_current_week": start_s <= today_s <= end_s,
         "taken": taken, "delivered": delivered, "trials": trials, "due": due,
         "garments": garments, "days": days, "overdue": overdue,
+        "stitched_garments": stitched_garments,
         "pending_stages": pending_stages, "totals": totals,
     }
 

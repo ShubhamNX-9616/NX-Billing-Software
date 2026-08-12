@@ -113,16 +113,24 @@
 
   .tl-day-strip { display:flex; gap:8px; overflow-x:auto; padding-bottom:6px; }
   .tl-day {
-    min-width:104px; flex:0 0 auto; padding:8px 10px; border-radius:10px;
+    min-width:124px; flex:0 0 auto; padding:8px 10px; border-radius:10px;
     border:1px solid var(--border); background:var(--bg); cursor:pointer;
   }
   .tl-day.today { outline:2px solid var(--primary); }
+  .tl-day.overdue { border-color:#dc2626; background:#fef2f2; }
+  .tl-day.overdue .tl-day-name { color:#dc2626; font-weight:700; }
+  [data-theme="dark"] .tl-day.overdue { background:rgba(220,38,38,.14); }
   .tl-day.selected { background:var(--surface); border-color:var(--primary); }
+  .tl-day.overdue.selected { background:#fee2e2; border-color:#dc2626; }
+  [data-theme="dark"] .tl-day.overdue.selected { background:rgba(220,38,38,.24); }
   .tl-day-name { font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.4px; }
-  .tl-day-count { font-size:17px; font-weight:700; margin:2px 0; }
-  .tl-day-count.free { color:#057a55; font-size:13px; }
+  /* The garment breakdown is what the tailor plans the day around, so it
+     carries the type scale here; the order count is the supporting line. */
+  .tl-day-count { font-size:11px; font-weight:600; margin:1px 0 3px; color:var(--text-muted); }
+  .tl-day-count.free { color:#057a55; }
   .tl-day-count.busy { color:#dc2626; }
-  .tl-day-garments { font-size:11px; color:var(--text-muted); line-height:1.5; }
+  .tl-day-garments { font-size:14px; font-weight:600; color:var(--text); line-height:1.6; }
+  .tl-day-qty { font-size:18px; font-weight:700; }
   .tl-day-trials { font-size:11px; color:#1e40af; font-weight:600; }
   [data-theme="dark"] .tl-day-trials { color:#93c5fd; }
 
