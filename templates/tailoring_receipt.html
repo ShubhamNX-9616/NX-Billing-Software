@@ -99,6 +99,7 @@
 
       <div class="r-meta">
         <span>Date : <b>{{ order.order_date | format_date }}</b></span>
+        {% if order.book_no %}<span>Book : <b>{{ order.book_no }}</b></span>{% endif %}
         <span>No. : <b>{{ order.order_number }}</b></span>
       </div>
 

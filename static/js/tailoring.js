@@ -1,13 +1,24 @@
 /* ============================================================
    tailoring.js — Tailoring Delivery System page
    Standalone: does not depend on billing JS modules.
+   Shared by both the general Tailoring page and the Suits page —
+   window.TL_CONFIG (set by the page template) picks which backend
+   this instance talks to and whether the Book No field applies.
    ============================================================ */
+
+const TL_CFG = window.TL_CONFIG || {};
+const TL_API = TL_CFG.apiBase || '/api/tailoring';
+const TL_SHARE_PATH = TL_CFG.sharePath || '/tailoring/share';
+const TL_HAS_BOOK_NO = !!TL_CFG.hasBookNo;
 
 let TL_STAGES = [];
 let TL_GARMENTS = [];
+let TL_GARMENT_RATES = {};   // garment_type -> last-used stitching rate
+let TL_LAST_BOOK_NO = '';    // sticky default for a brand-new order's Book No
 let tlOrders = [];
 let tlEditingOrderId = null;   // null → creating
 let tlDetailOrderId = null;
+let tlDetailOrder = null;      // last-rendered order object, for the payment popup
 
 const SHOP = {
   name: 'Tailoring Needs',
@@ -45,6 +56,11 @@ function stageBadge(stage) {
   return `<span class="tl-badge s${idx}">${tlEsc(stage)}</span>`;
 }
 
+// "Book 4 · #12" when this order carries a Book No, else just "#12".
+function tlOrderLabel(o) {
+  return (o.book_no ? `Book ${tlEsc(o.book_no)} · ` : '') + `#${o.order_number}`;
+}
+
 async function tlFetch(url, opts) {
   const res = await fetch(url, opts);
   const data = await res.json().catch(() => ({}));
@@ -61,9 +77,11 @@ function debouncedLoad() {
 }
 
 async function loadMeta() {
-  const meta = await tlFetch('/api/tailoring/meta');
+  const meta = await tlFetch(`${TL_API}/meta`);
   TL_STAGES = meta.stages;
   TL_GARMENTS = meta.garment_types;
+  TL_GARMENT_RATES = meta.garment_rates || {};
+  TL_LAST_BOOK_NO = meta.last_book_no || '';
   const sel = document.getElementById('tl-stage-filter');
   TL_STAGES.forEach(s => {
     const o = document.createElement('option');
@@ -83,7 +101,7 @@ async function loadOrders() {
   if (due) params.set('due', due);
   if (sort) params.set('sort', sort);
 
-  const data = await tlFetch('/api/tailoring/orders?' + params.toString());
+  const data = await tlFetch(`${TL_API}/orders?` + params.toString());
   tlOrders = data.orders;
   renderStats(data.counts);
   renderList();
@@ -153,7 +171,7 @@ function renderList() {
 
     row.innerHTML = `
       <div class="tl-order-main">
-        <span class="tl-order-no">#${o.order_number}</span>
+        <span class="tl-order-no">${tlOrderLabel(o)}</span>
         <span class="tl-order-cust">&nbsp; ${tlEsc(o.customer_name)}${o.mobile ? ' · ' + tlEsc(o.mobile) : ''}</span>
         <div class="tl-order-items">${itemsSummary(o.items)}
           ${o.photos.length ? `&nbsp;· \u{1F4F7} ${o.photos.length}` : ''}</div>
@@ -192,7 +210,7 @@ function switchTlTab(tab) {
 
 async function loadDashboard() {
   try {
-    const d = await tlFetch('/api/tailoring/dashboard');
+    const d = await tlFetch(`${TL_API}/dashboard`);
     tlDashDays = d.days;
     tlOverdueDay = d.overdue_day;
     renderDayStrip(d);
@@ -289,7 +307,7 @@ function dashRowHtml(b) {
   return `
     <div class="tl-dash-row" onclick="openDetailModal(${b.id})">
       <div class="tl-dash-main">
-        <span class="tl-order-no">#${b.order_number}</span>
+        <span class="tl-order-no">${tlOrderLabel(b)}</span>
         <span class="tl-order-cust">&nbsp;${tlEsc(b.customer_name)}${b.mobile ? ' · ' + tlEsc(b.mobile) : ''}</span>
         <div class="tl-order-items">${itemsSummary(b.items)}</div>
       </div>
@@ -340,7 +358,7 @@ async function loadCustomers() {
   const q = document.getElementById('tl-cust-search').value.trim();
   const params = q ? '?q=' + encodeURIComponent(q) : '';
   try {
-    const data = await tlFetch('/api/tailoring/customers' + params);
+    const data = await tlFetch(`${TL_API}/customers` + params);
     renderCustomers(data);
   } catch (e) {
     console.error(e);
@@ -407,6 +425,10 @@ function addItemRow(item) {
   const row = document.createElement('div');
   row.className = 'tlf-item-row';
   row.dataset.itemId = item.id || '';
+  // A row loaded with its own saved rate (existing item, or a rate already
+  // typed) must never have that rate silently replaced by a garment's
+  // default — only a still-untouched rate field auto-fills.
+  row.dataset.rateAuto = item.rate === '' ? 'true' : 'false';
   const isCustom = item.garment_type && !TL_GARMENTS.includes(item.garment_type);
   row.innerHTML = `
     <select class="input tlf-garment" onchange="onGarmentChange(this)">
@@ -414,10 +436,10 @@ function addItemRow(item) {
     </select>
     <input type="text" class="input tlf-custom" placeholder="Garment name"
            style="flex:2;min-width:120px;${isCustom ? '' : 'display:none;'}"
-           value="${isCustom ? tlEsc(item.garment_type) : ''}" oninput="recalcTotals()" />
+           value="${isCustom ? tlEsc(item.garment_type) : ''}" oninput="onCustomGarmentInput(this)" />
     <input type="number" class="input tlf-qty" min="1" value="${item.qty}" oninput="recalcTotals()" />
     <input type="number" class="input tlf-rate" min="0" placeholder="Rate"
-           value="${item.rate === '' ? '' : item.rate}" oninput="recalcTotals()" />
+           value="${item.rate === '' ? '' : item.rate}" oninput="onRateInput(this)" />
     <span class="tlf-amount">0.00</span>
     <button type="button" class="btn btn-danger btn-sm" title="Remove"
             onclick="this.parentElement.remove(); recalcTotals();">&#215;</button>`;
@@ -425,9 +447,32 @@ function addItemRow(item) {
   recalcTotals();
 }
 
+// Fills the rate field with that garment's last-used rate — but only while
+// the field is still "auto" (untouched by hand since the row was created or
+// since the garment was last changed). Typing a rate marks the row so the
+// default never overwrites a deliberate override.
+function applyDefaultRate(row, garmentType) {
+  if (row.dataset.rateAuto === 'false') return;
+  const rate = garmentType && TL_GARMENT_RATES[garmentType];
+  if (rate === undefined || rate === null) return;
+  row.querySelector('.tlf-rate').value = rate;
+}
+
 function onGarmentChange(sel) {
-  const custom = sel.parentElement.querySelector('.tlf-custom');
+  const row = sel.parentElement;
+  const custom = row.querySelector('.tlf-custom');
   custom.style.display = sel.value === '__other__' ? '' : 'none';
+  if (sel.value !== '__other__') applyDefaultRate(row, sel.value);
+  recalcTotals();
+}
+
+function onCustomGarmentInput(el) {
+  applyDefaultRate(el.closest('.tlf-item-row'), el.value.trim());
+  recalcTotals();
+}
+
+function onRateInput(el) {
+  el.closest('.tlf-item-row').dataset.rateAuto = 'false';
   recalcTotals();
 }
 
@@ -545,7 +590,7 @@ async function tlMobileSearch() {
 
   spinner.style.display = 'inline-block';
   try {
-    const data = await tlFetch(`/api/tailoring/customers/search?mobile=${norm}`);
+    const data = await tlFetch(`${TL_API}/customers/search?mobile=${norm}`);
     if (data.found) tlApplyCustomer(data.customer, { flash: true });
     else tlSetCustomerStatus(false);
   } catch (e) {
@@ -601,7 +646,7 @@ async function tlNameSuggest() {
 
   let list;
   try {
-    list = await tlFetch(`/api/tailoring/customers/suggest?q=${encodeURIComponent(q)}`);
+    list = await tlFetch(`${TL_API}/customers/suggest?q=${encodeURIComponent(q)}`);
   } catch (e) {
     tlHideNameSuggestions(); return;
   }
@@ -653,6 +698,10 @@ function openOrderModal(order) {
   document.getElementById('tl-order-modal-title').textContent =
     order ? `Edit Order #${order.order_number}` : 'New Tailoring Order';
   document.getElementById('tlf-error').style.display = 'none';
+  const bookNoEl = document.getElementById('tlf-book-no');
+  // New order: default to whatever Book No was last used, since a shop
+  // works through one book at a time — retyping it every order isn't worth it.
+  if (bookNoEl) bookNoEl.value = order ? (order.book_no || '') : TL_LAST_BOOK_NO;
   document.getElementById('tlf-order-no').value = order ? order.order_number : '';
   document.getElementById('tlf-name').value = order ? order.customer_name : '';
   document.getElementById('tlf-mobile').value = order ? (order.mobile || '') : '';
@@ -689,6 +738,8 @@ async function saveOrder() {
   const cashAdv = isNewCombo ? (parseFloat(document.getElementById('tlf-advance-cash').value) || 0) : 0;
   const upiAdv = isNewCombo ? (parseFloat(document.getElementById('tlf-advance-upi').value) || 0) : 0;
 
+  const bookNoEl = document.getElementById('tlf-book-no');
+
   const body = {
     order_number: document.getElementById('tlf-order-no').value.trim(),
     customer_name: document.getElementById('tlf-name').value.trim(),
@@ -703,7 +754,11 @@ async function saveOrder() {
     notes: document.getElementById('tlf-notes').value.trim(),
     items: readItemRows(),
   };
+  if (bookNoEl) body.book_no = bookNoEl.value.trim();
 
+  if (bookNoEl && !body.book_no) {
+    err.textContent = 'Book number is required.'; err.style.display = 'block'; return;
+  }
   if (!body.order_number || !(parseInt(body.order_number, 10) > 0)) {
     err.textContent = 'Order number from the receipt book is required.'; err.style.display = 'block'; return;
   }
@@ -721,7 +776,7 @@ async function saveOrder() {
   btn.disabled = true; btn.textContent = 'Saving...';
   try {
     const url = tlEditingOrderId
-      ? `/api/tailoring/orders/${tlEditingOrderId}` : '/api/tailoring/orders';
+      ? `${TL_API}/orders/${tlEditingOrderId}` : `${TL_API}/orders`;
     const method = tlEditingOrderId ? 'PUT' : 'POST';
     let saved = await tlFetch(url, {
       method,
@@ -729,23 +784,31 @@ async function saveOrder() {
       body: JSON.stringify(body),
     });
 
+    // The server just remembered these as the new defaults — mirror that
+    // in the page's cache so the very next order (same tab, no reload)
+    // auto-fills the rate (and Book No) just typed instead of the stale one.
+    body.items.forEach(it => {
+      if (it.rate > 0) TL_GARMENT_RATES[it.garment_type] = it.rate;
+    });
+    if (bookNoEl) TL_LAST_BOOK_NO = body.book_no;
+
     if (isNewCombo) {
       if (cashAdv > 0) {
-        saved = await tlFetch(`/api/tailoring/orders/${saved.id}/payments`, {
+        saved = await tlFetch(`${TL_API}/orders/${saved.id}/payments`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ amount: cashAdv, mode: 'Cash' }),
         });
       }
       if (upiAdv > 0) {
-        saved = await tlFetch(`/api/tailoring/orders/${saved.id}/payments`, {
+        saved = await tlFetch(`${TL_API}/orders/${saved.id}/payments`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ amount: upiAdv, mode: 'Phone Pay' }),
         });
       }
       if (cashAdv > 0 && upiAdv > 0) {
-        saved = await tlFetch(`/api/tailoring/orders/${saved.id}/payment`, {
+        saved = await tlFetch(`${TL_API}/orders/${saved.id}/payment`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ advance: saved.advance, payment_mode: 'Combination' }),
@@ -767,19 +830,23 @@ async function saveOrder() {
 
 async function openDetailModal(orderId) {
   tlDetailOrderId = orderId;
-  const o = await tlFetch(`/api/tailoring/orders/${orderId}`);
+  closePaymentModal();   // start clean in case it was left open on a previous order
+  const o = await tlFetch(`${TL_API}/orders/${orderId}`);
   renderDetail(o);
   document.getElementById('tl-detail-modal').classList.remove('hidden');
 }
 
 function closeDetailModal() {
   document.getElementById('tl-detail-modal').classList.add('hidden');
+  closePaymentModal();
   tlDetailOrderId = null;
+  tlDetailOrder = null;
 }
 
 function renderDetail(o) {
+  tlDetailOrder = o;
   document.getElementById('tl-detail-title').textContent =
-    `Order #${o.order_number} — ${o.customer_name}`;
+    `${o.book_no ? 'Book ' + o.book_no + ' · ' : ''}Order #${o.order_number} — ${o.customer_name}`;
 
   const stageOpts = s => TL_STAGES.map(st =>
     `<option value="${tlEsc(st)}" ${st === s ? 'selected' : ''}>${tlEsc(st)}</option>`).join('');
@@ -888,40 +955,15 @@ function renderDetail(o) {
       ${photoButtons(null)}
     </div>
 
-    <div style="margin-top:14px;">
-      <div style="font-weight:600;margin-bottom:4px;">Payment</div>
-      <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:14px;">
-        <span>Total (stitching): <strong>${tlFmt(o.total)}</strong></span>
-        <span>Final Total: <strong>${tlFmt(o.final_total)}</strong></span>
-        <span>Paid: <strong>${tlFmt(o.advance)}</strong></span>
-        <span>Balance: <strong style="color:${o.balance > 0 ? '#dc2626' : '#057a55'};">${tlFmt(o.balance)}</strong></span>
+    <div style="margin-top:14px;display:flex;justify-content:space-between;align-items:center;gap:12px;
+                flex-wrap:wrap;padding:10px 12px;border:1px solid var(--border);border-radius:8px;">
+      <div style="font-size:14px;">
+        Balance: <strong style="color:${o.balance > 0 ? '#dc2626' : '#057a55'};">${tlFmt(o.balance)}</strong>
+        ${o.cloth_balance > 0
+          ? `<span style="color:var(--text-muted);font-size:12px;"> (incl. cloth ${tlFmt(o.cloth_balance)})</span>`
+          : ''}
       </div>
-      <div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap;">
-        <span style="font-size:14px;">Cloth Balance:</span>
-        <input type="number" class="input" id="tl-cloth-balance" min="0" style="max-width:120px;"
-               value="${o.cloth_balance || 0}" />
-        <button type="button" class="btn btn-secondary btn-sm" onclick="updateClothBalance()">Update</button>
-        <span style="font-size:12px;color:var(--text-muted);">included in Final Total &amp; Balance above</span>
-      </div>
-      ${paymentHistoryHtml(o)}
-      ${o.balance > 0 ? `
-      <div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap;">
-        <select class="input" id="tl-pay-mode" style="max-width:140px;" onchange="onPayModeChange()">
-          <option value="" ${!o.payment_mode ? 'selected' : ''}>— mode —</option>
-          <option value="Phone Pay" ${o.payment_mode === 'Phone Pay' ? 'selected' : ''}>Phone Pay</option>
-          <option value="Cash" ${o.payment_mode === 'Cash' ? 'selected' : ''}>Cash</option>
-          <option value="Combination" ${o.payment_mode === 'Combination' ? 'selected' : ''}>Combination</option>
-        </select>
-        <span id="tl-pay-single" style="display:${o.payment_mode === 'Combination' ? 'none' : 'inline-flex'};">
-          <input type="number" class="input" id="tl-pay-amount" placeholder="Amount received now"
-                 style="max-width:180px;" min="0" />
-        </span>
-        <span id="tl-pay-combo" style="display:${o.payment_mode === 'Combination' ? 'inline-flex' : 'none'};gap:8px;flex-wrap:wrap;">
-          <input type="number" class="input" id="tl-pay-cash" placeholder="Cash amount" style="max-width:130px;" min="0" />
-          <input type="number" class="input" id="tl-pay-upi" placeholder="UPI (Phone Pay) amount" style="max-width:160px;" min="0" />
-        </span>
-        <button type="button" class="btn btn-secondary btn-sm" onclick="recordPayment()">Record Payment</button>
-      </div>` : ''}
+      <button type="button" class="btn btn-secondary btn-sm" onclick="openPaymentModal()">&#128176; Payment</button>
     </div>
 
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:18px;">
@@ -929,15 +971,71 @@ function renderDetail(o) {
          href="${buildTlWhatsAppURL(o)}">&#128172; WhatsApp</a>
       <a class="btn btn-secondary" href="${buildTlPhoneURL(o)}">&#128222; Call</a>
       <a class="btn btn-secondary" target="_blank" rel="noopener"
-         href="/tailoring/share/${o.order_number}">&#128424; Receipt / Print</a>
-      <button type="button" class="btn btn-secondary" onclick="copyTlLink(${o.order_number}, this)">Copy Link</button>
+         href="${buildTlShareLink(o)}">&#128424; Receipt / Print</a>
+      <button type="button" class="btn btn-secondary" onclick="copyTlLink(this)">Copy Link</button>
       <button type="button" class="btn btn-secondary" onclick='openOrderModal(${JSON.stringify(o).replace(/'/g, "&#39;")})'>Edit</button>
       <button type="button" class="btn btn-danger" onclick="deleteOrder(${o.id})">Delete</button>
     </div>`;
+
+  // Keep an already-open payment popup in step with whatever just changed
+  // (e.g. a stage change doesn't touch money, but re-rendering is cheap and
+  // means the popup is never left showing stale figures).
+  if (!document.getElementById('tl-payment-modal').classList.contains('hidden')) {
+    renderPaymentModal(o);
+  }
+}
+
+function renderPaymentModal(o) {
+  document.getElementById('tl-payment-title').textContent =
+    `Payment — Order #${o.order_number}`;
+  const body = document.getElementById('tl-payment-body');
+  body.innerHTML = `
+    <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:14px;">
+      <span>Total (stitching): <strong>${tlFmt(o.total)}</strong></span>
+      <span>Final Total: <strong>${tlFmt(o.final_total)}</strong></span>
+      <span>Paid: <strong>${tlFmt(o.advance)}</strong></span>
+      <span>Balance: <strong style="color:${o.balance > 0 ? '#dc2626' : '#057a55'};">${tlFmt(o.balance)}</strong></span>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap;">
+      <span style="font-size:14px;">Cloth Balance:</span>
+      <input type="number" class="input" id="tl-cloth-balance" min="0" style="max-width:120px;"
+             value="${o.cloth_balance || 0}" />
+      <button type="button" class="btn btn-secondary btn-sm" onclick="updateClothBalance()">Update</button>
+      <span style="font-size:12px;color:var(--text-muted);">included in Final Total &amp; Balance above</span>
+    </div>
+    ${paymentHistoryHtml(o)}
+    ${o.balance > 0 ? `
+    <div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap;">
+      <select class="input" id="tl-pay-mode" style="max-width:140px;" onchange="onPayModeChange()">
+        <option value="" ${!o.payment_mode ? 'selected' : ''}>— mode —</option>
+        <option value="Phone Pay" ${o.payment_mode === 'Phone Pay' ? 'selected' : ''}>Phone Pay</option>
+        <option value="Cash" ${o.payment_mode === 'Cash' ? 'selected' : ''}>Cash</option>
+        <option value="Combination" ${o.payment_mode === 'Combination' ? 'selected' : ''}>Combination</option>
+      </select>
+      <span id="tl-pay-single" style="display:${o.payment_mode === 'Combination' ? 'none' : 'inline-flex'};">
+        <input type="number" class="input" id="tl-pay-amount" placeholder="Amount received now"
+               style="max-width:180px;" min="0" />
+      </span>
+      <span id="tl-pay-combo" style="display:${o.payment_mode === 'Combination' ? 'inline-flex' : 'none'};gap:8px;flex-wrap:wrap;">
+        <input type="number" class="input" id="tl-pay-cash" placeholder="Cash amount" style="max-width:130px;" min="0" />
+        <input type="number" class="input" id="tl-pay-upi" placeholder="UPI (Phone Pay) amount" style="max-width:160px;" min="0" />
+      </span>
+      <button type="button" class="btn btn-secondary btn-sm" onclick="recordPayment()">Record Payment</button>
+    </div>` : ''}`;
+}
+
+function openPaymentModal() {
+  if (!tlDetailOrder) return;
+  renderPaymentModal(tlDetailOrder);
+  document.getElementById('tl-payment-modal').classList.remove('hidden');
+}
+
+function closePaymentModal() {
+  document.getElementById('tl-payment-modal').classList.add('hidden');
 }
 
 async function changeItemStage(itemId, stage) {
-  const o = await tlFetch(`/api/tailoring/items/${itemId}/stage`, {
+  const o = await tlFetch(`${TL_API}/items/${itemId}/stage`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ stage }),
@@ -953,7 +1051,7 @@ async function splitItem(itemId, currentQty) {
     alert(`Enter a number between 1 and ${currentQty - 1}`);
     return;
   }
-  const o = await tlFetch(`/api/tailoring/items/${itemId}/split`, {
+  const o = await tlFetch(`${TL_API}/items/${itemId}/split`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ qty }),
@@ -964,7 +1062,7 @@ async function splitItem(itemId, currentQty) {
 
 async function setWholeOrderStage(stage) {
   if (!tlDetailOrderId) return;
-  const o = await tlFetch(`/api/tailoring/orders/${tlDetailOrderId}/stage`, {
+  const o = await tlFetch(`${TL_API}/orders/${tlDetailOrderId}/stage`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ stage }),
@@ -1024,14 +1122,14 @@ async function recordPayment() {
     let o = null;
     try {
       if (cash > 0) {
-        o = await tlFetch(`/api/tailoring/orders/${tlDetailOrderId}/payments`, {
+        o = await tlFetch(`${TL_API}/orders/${tlDetailOrderId}/payments`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ amount: cash, mode: 'Cash' }),
         });
       }
       if (upi > 0) {
-        o = await tlFetch(`/api/tailoring/orders/${tlDetailOrderId}/payments`, {
+        o = await tlFetch(`${TL_API}/orders/${tlDetailOrderId}/payments`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ amount: upi, mode: 'Phone Pay' }),
@@ -1041,7 +1139,7 @@ async function recordPayment() {
       // relabel the order's overall mode back to "Combination" so it doesn't
       // just show whichever leg happened to be posted last.
       if (cash > 0 && upi > 0) {
-        o = await tlFetch(`/api/tailoring/orders/${tlDetailOrderId}/payment`, {
+        o = await tlFetch(`${TL_API}/orders/${tlDetailOrderId}/payment`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ advance: o.advance, payment_mode: 'Combination' }),
@@ -1057,7 +1155,7 @@ async function recordPayment() {
   const amount = parseFloat(document.getElementById('tl-pay-amount').value);
   if (!(amount > 0)) { alert('Enter the amount received now.'); return; }
   try {
-    const o = await tlFetch(`/api/tailoring/orders/${tlDetailOrderId}/payments`, {
+    const o = await tlFetch(`${TL_API}/orders/${tlDetailOrderId}/payments`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ amount, mode }),
@@ -1073,7 +1171,7 @@ async function updateClothBalance() {
   if (!tlDetailOrderId) return;
   const cloth_balance = parseFloat(document.getElementById('tl-cloth-balance').value) || 0;
   try {
-    const o = await tlFetch(`/api/tailoring/orders/${tlDetailOrderId}/cloth-balance`, {
+    const o = await tlFetch(`${TL_API}/orders/${tlDetailOrderId}/cloth-balance`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ cloth_balance }),
@@ -1088,7 +1186,7 @@ async function updateClothBalance() {
 async function deleteTlPayment(paymentId) {
   if (!confirm('Delete this payment entry? The balance will go back up.')) return;
   try {
-    const o = await tlFetch(`/api/tailoring/payments/${paymentId}`, { method: 'DELETE' });
+    const o = await tlFetch(`${TL_API}/payments/${paymentId}`, { method: 'DELETE' });
     renderDetail(o);
     loadOrders();
   } catch (e) {
@@ -1099,7 +1197,7 @@ async function deleteTlPayment(paymentId) {
 async function deleteOrder(orderId) {
   if (!confirm('Delete this order permanently? Photos will also be removed.')) return;
   try {
-    await tlFetch(`/api/tailoring/orders/${orderId}`, { method: 'DELETE' });
+    await tlFetch(`${TL_API}/orders/${orderId}`, { method: 'DELETE' });
     closeDetailModal();
     loadOrders();
   } catch (e) {
@@ -1204,7 +1302,7 @@ async function confirmPhotoUpload() {
       const fd = new FormData();
       fd.append('photo', f);
       if (itemId) fd.append('item_id', itemId);
-      o = await tlFetch(`/api/tailoring/orders/${orderId}/photos`, {
+      o = await tlFetch(`${TL_API}/orders/${orderId}/photos`, {
         method: 'POST', body: fd,
       });
     }
@@ -1237,7 +1335,7 @@ function showPhotoRecoveryNotice() {
 async function deletePhoto(photoId) {
   if (!confirm('Delete this photo?')) return;
   try {
-    await tlFetch(`/api/tailoring/photos/${photoId}`, { method: 'DELETE' });
+    await tlFetch(`${TL_API}/photos/${photoId}`, { method: 'DELETE' });
     if (tlDetailOrderId) openDetailModal(tlDetailOrderId);
     loadOrders();
   } catch (e) {
@@ -1247,7 +1345,7 @@ async function deletePhoto(photoId) {
 
 async function movePhoto(photoId, itemId) {
   try {
-    const o = await tlFetch(`/api/tailoring/photos/${photoId}/item`, {
+    const o = await tlFetch(`${TL_API}/photos/${photoId}/item`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ item_id: itemId || null }),
@@ -1261,7 +1359,7 @@ async function movePhoto(photoId, itemId) {
 
 async function setPhotoStage(photoId, stage) {
   try {
-    const o = await tlFetch(`/api/tailoring/photos/${photoId}/stage`, {
+    const o = await tlFetch(`${TL_API}/photos/${photoId}/stage`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ stage }),
@@ -1286,9 +1384,12 @@ document.addEventListener('keydown', (e) => {
 
 /* ---------- WhatsApp & share link ---------- */
 
-function buildTlShareLink(orderNumber) {
+function buildTlShareLink(o) {
   const base = window.SHARE_BASE_URL || window.location.origin;
-  return base + '/tailoring/share/' + orderNumber;
+  if (TL_HAS_BOOK_NO) {
+    return `${base}${TL_SHARE_PATH}/${encodeURIComponent(o.book_no)}/${o.order_number}`;
+  }
+  return `${base}${TL_SHARE_PATH}/${o.order_number}`;
 }
 
 function buildTlWhatsAppURL(o) {
@@ -1298,6 +1399,7 @@ function buildTlWhatsAppURL(o) {
   lines.push('Thank you for choosing *' + SHOP.name + '*! \u{1F64F}');
   lines.push('');
   lines.push('*Order Details:*');
+  if (o.book_no) lines.push('Book No : ' + o.book_no);
   lines.push('Order No : ' + o.order_number);
   lines.push('Date     : ' + tlFmtDate(o.order_date));
   lines.push('');
@@ -1312,7 +1414,7 @@ function buildTlWhatsAppURL(o) {
   if (o.balance > 0) lines.push('Balance : ' + tlFmt(o.balance) + ' (pending)');
   lines.push('');
   lines.push('\u{1F4C4} View your order here:');
-  lines.push(buildTlShareLink(o.order_number));
+  lines.push(buildTlShareLink(o));
   lines.push('');
   lines.push('\u{1F4CD} ' + SHOP.address);
   lines.push('\u{1F4DE} ' + SHOP.phone);
@@ -1333,8 +1435,9 @@ function buildTlPhoneURL(o) {
   return 'tel:+' + tlNormalizeMobile(o.mobile);
 }
 
-function copyTlLink(orderNumber, btn) {
-  const link = buildTlShareLink(orderNumber);
+function copyTlLink(btn) {
+  if (!tlDetailOrder) return;
+  const link = buildTlShareLink(tlDetailOrder);
   const done = () => {
     const t = btn.textContent;
     btn.textContent = 'Copied ✓';

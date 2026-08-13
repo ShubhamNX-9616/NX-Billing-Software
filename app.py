@@ -25,6 +25,7 @@ from routes.institution_bills import inst_bills_bp
 from routes.loyalty import loyalty_bp
 from db.tailoring import init_tailoring_db, close_tailoring_db
 from routes.tailoring import tailoring_api_bp, tailoring_pages_bp
+from routes.tailoring_suits import tailoring_suit_api_bp, tailoring_suit_pages_bp
 
 app = Flask(__name__)
 
@@ -146,6 +147,8 @@ app.register_blueprint(inst_bills_bp,  url_prefix="/api")
 app.register_blueprint(loyalty_bp,     url_prefix="/api")
 app.register_blueprint(tailoring_api_bp, url_prefix="/api")
 app.register_blueprint(tailoring_pages_bp)
+app.register_blueprint(tailoring_suit_api_bp, url_prefix="/api")
+app.register_blueprint(tailoring_suit_pages_bp)
 app.register_blueprint(pages_bp)
 
 

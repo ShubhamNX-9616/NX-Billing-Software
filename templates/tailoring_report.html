@@ -32,6 +32,7 @@
     .order:last-child { border-bottom: none; }
     .order-head { font-weight: 700; font-size: 14.5px; }
     .order-head .late { color: #dc2626; font-weight: 700; }
+    .order-head .book-tag { color: #6b7280; font-weight: 600; font-size: 12.5px; }
     .order-notes { font-size: 12.5px; color: #6b7280; margin-top: 2px; }
     .cloth-bal {
       display: inline-block; margin-top: 4px; padding: 2px 8px; border-radius: 5px;
@@ -94,7 +95,7 @@
     {% macro order_block(e, show_late=False) %}
     <div class="order">
       <div class="order-head">
-        #{{ e.order_number }} — {{ e.customer_name }}
+        #{{ e.order_number }}{% if e.book_no %} <span class="book-tag">(Book {{ e.book_no }})</span>{% endif %} — {{ e.customer_name }}
         {% if show_late %}<span class="late">({{ e.days_late }} day{{ 's' if e.days_late > 1 }} late)</span>{% endif %}
       </div>
       {% if e.notes %}<div class="order-notes">Note: {{ e.notes }}</div>{% endif %}

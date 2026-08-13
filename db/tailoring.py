@@ -18,7 +18,7 @@ STAGES = ["In Stitching", "Trial Ready", "Full Stitched", "Delivered"]
 # Pre-printed garment list from the paper receipt book
 GARMENT_TYPES = [
     "Trouser", "Shirt", "Kurta", "Payjama", "Safari",
-    "Blazer", "Jacket", "West Coat", "Jodhpuri", "Sherwani",
+    "Blazer", "Jacket", "Suit", "West Coat", "Jodhpuri", "Sherwani",
 ]
 
 
@@ -97,10 +97,83 @@ SCHEMA = f"""
         paid_at  TEXT DEFAULT ({IST_NOW})
     );
 
+    CREATE TABLE IF NOT EXISTS tailoring_garment_rates (
+        garment_type TEXT PRIMARY KEY,
+        rate         REAL NOT NULL,
+        updated_at   TEXT DEFAULT ({IST_NOW})
+    );
+
     CREATE INDEX IF NOT EXISTS idx_tailoring_items_order    ON tailoring_items(order_id);
     CREATE INDEX IF NOT EXISTS idx_tailoring_payments_order ON tailoring_payments(order_id);
     CREATE INDEX IF NOT EXISTS idx_tailoring_photos_order ON tailoring_photos(order_id);
     CREATE INDEX IF NOT EXISTS idx_tailoring_orders_dates ON tailoring_orders(delivery_date, trial_date);
+
+    -- Suits book: same shape as the tables above, kept fully separate (own
+    -- tables, own order-number sequence) because its receipt book identifies
+    -- an order by (book_no, order_number) — a different physical book can
+    -- reuse a number the previous book already used, which the general
+    -- tailoring_orders.order_number UNIQUE constraint could never allow.
+    CREATE TABLE IF NOT EXISTS tailoring_suit_orders (
+        id            INTEGER PRIMARY KEY AUTOINCREMENT,
+        book_no       TEXT NOT NULL,
+        order_number  INTEGER NOT NULL,
+        order_date    TEXT NOT NULL,
+        customer_name TEXT NOT NULL,
+        mobile        TEXT,
+        address       TEXT,
+        trial_date    TEXT,
+        delivery_date TEXT,
+        total         REAL NOT NULL DEFAULT 0,
+        advance       REAL NOT NULL DEFAULT 0,
+        balance       REAL NOT NULL DEFAULT 0,
+        payment_mode  TEXT,
+        cloth_balance REAL NOT NULL DEFAULT 0,
+        notes         TEXT,
+        delivered_at  TEXT,
+        created_at    TEXT DEFAULT ({IST_NOW}),
+        updated_at    TEXT DEFAULT ({IST_NOW}),
+        UNIQUE(book_no, order_number)
+    );
+
+    CREATE TABLE IF NOT EXISTS tailoring_suit_items (
+        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        order_id     INTEGER NOT NULL REFERENCES tailoring_suit_orders(id) ON DELETE CASCADE,
+        garment_type TEXT NOT NULL,
+        qty          INTEGER NOT NULL DEFAULT 1,
+        rate         REAL NOT NULL DEFAULT 0,
+        amount       REAL NOT NULL DEFAULT 0,
+        stage        TEXT NOT NULL DEFAULT 'In Stitching',
+        stitched_at  TEXT,
+        notes        TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS tailoring_suit_photos (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        order_id   INTEGER NOT NULL REFERENCES tailoring_suit_orders(id) ON DELETE CASCADE,
+        item_id    INTEGER REFERENCES tailoring_suit_items(id) ON DELETE SET NULL,
+        filename   TEXT NOT NULL,
+        created_at TEXT DEFAULT ({IST_NOW})
+    );
+
+    CREATE TABLE IF NOT EXISTS tailoring_suit_payments (
+        id       INTEGER PRIMARY KEY AUTOINCREMENT,
+        order_id INTEGER NOT NULL REFERENCES tailoring_suit_orders(id) ON DELETE CASCADE,
+        amount   REAL NOT NULL,
+        mode     TEXT,
+        note     TEXT,
+        paid_at  TEXT DEFAULT ({IST_NOW})
+    );
+
+    CREATE TABLE IF NOT EXISTS tailoring_suit_garment_rates (
+        garment_type TEXT PRIMARY KEY,
+        rate         REAL NOT NULL,
+        updated_at   TEXT DEFAULT ({IST_NOW})
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_tailoring_suit_items_order    ON tailoring_suit_items(order_id);
+    CREATE INDEX IF NOT EXISTS idx_tailoring_suit_payments_order ON tailoring_suit_payments(order_id);
+    CREATE INDEX IF NOT EXISTS idx_tailoring_suit_photos_order   ON tailoring_suit_photos(order_id);
+    CREATE INDEX IF NOT EXISTS idx_tailoring_suit_orders_dates   ON tailoring_suit_orders(delivery_date, trial_date);
 """
 
 

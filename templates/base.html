@@ -44,9 +44,14 @@
       </a>
       {% endif %}
       <a href="/tailoring"
-         class="nav-link {% if request.path.startswith('/tailoring') %}active{% endif %}">
+         class="nav-link {% if request.path.startswith('/tailoring') and not request.path.startswith('/tailoring/suits') %}active{% endif %}">
         <span class="nav-icon">&#9986;</span>
         Tailoring
+      </a>
+      <a href="/tailoring/suits"
+         class="nav-link {% if request.path.startswith('/tailoring/suits') %}active{% endif %}">
+        <span class="nav-icon">&#128084;</span>
+        Suits
       </a>
 
       {# Admin-only nav links #}
@@ -186,6 +191,16 @@
       </svg>
       <span>Tailoring</span>
     </a>
+    <a href="/tailoring/suits" class="mob-nav-item" data-page="suits">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="6" cy="6" r="3"/>
+        <circle cx="6" cy="18" r="3"/>
+        <line x1="20" y1="4" x2="8.12" y2="15.88"/>
+        <line x1="14.47" y1="14.48" x2="20" y2="20"/>
+        <line x1="8.12" y1="8.12" x2="12" y2="12"/>
+      </svg>
+      <span>Suits</span>
+    </a>
 
     {# Admin-only tabs #}
     {% if current_user.is_admin %}
@@ -235,7 +250,8 @@
         'history':   path.startsWith('/bill'),
         'customers': path.startsWith('/customers'),
         'inventory': path.startsWith('/inventory'),
-        'tailoring': path.startsWith('/tailoring'),
+        'tailoring': path.startsWith('/tailoring') && !path.startsWith('/tailoring/suits'),
+        'suits': path.startsWith('/tailoring/suits'),
       };
       document.querySelectorAll('.mob-nav-item').forEach(function (el) {
         if (map[el.dataset.page]) el.classList.add('active');
