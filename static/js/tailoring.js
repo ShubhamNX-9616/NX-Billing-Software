@@ -1020,7 +1020,7 @@ function renderPaymentModal(o) {
         <input type="number" class="input" id="tl-pay-cash" placeholder="Cash amount" style="max-width:130px;" min="0" />
         <input type="number" class="input" id="tl-pay-upi" placeholder="UPI (Phone Pay) amount" style="max-width:160px;" min="0" />
       </span>
-      <button type="button" class="btn btn-secondary btn-sm" onclick="recordPayment()">Record Payment</button>
+      <button type="button" class="btn btn-secondary btn-sm" onclick="recordPayment()">Save Payment</button>
     </div>` : ''}`;
 }
 

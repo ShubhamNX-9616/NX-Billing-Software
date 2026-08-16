@@ -310,6 +310,15 @@ SORTS = {
 }
 DEFAULT_SORT = "order-desc"
 
+# Historical orders backfilled from the old Drive measurement archive (see
+# scripts/import_drive_measurements.py). They're all closed/delivered and
+# only ever relevant to a measurement lookup, never to the live prep board —
+# excluded from the unfiltered browse/count views so those don't pay to load
+# and build a full payload (items+photos+payments) for ~1000 dead rows on
+# every request. A search query (q) still reaches them, since that's exactly
+# when someone wants an old measurement.
+ARCHIVE_EXCLUDE_SQL = "(notes IS NULL OR notes NOT LIKE 'Imported from Drive archive%')"
+
 
 # ---------------------------------------------------------------------------
 # GET /api/tailoring/orders?q=&stage=&due=&sort=
@@ -331,6 +340,8 @@ def list_orders():
         where.append("(customer_name LIKE ? OR mobile LIKE ? OR CAST(order_number AS TEXT) LIKE ?)")
         like = f"%{q}%"
         params += [like, like, like]
+    else:
+        where.append(ARCHIVE_EXCLUDE_SQL)
     if where:
         sql += " WHERE " + " AND ".join(where)
     sql += " ORDER BY order_number DESC"
@@ -351,9 +362,11 @@ def list_orders():
     key, reverse = SORTS[sort]
     orders.sort(key=key, reverse=reverse)
 
-    # Dashboard counts (computed over all orders, ignoring the filters)
+    # Dashboard counts (computed over all orders, ignoring the filters) —
+    # these badges describe the live board, so the archive stays excluded
+    # here even while q is searching it.
     all_orders = [_order_payload(db, r) for r in
-                  db.execute("SELECT * FROM tailoring_orders").fetchall()]
+                  db.execute(f"SELECT * FROM tailoring_orders WHERE {ARCHIVE_EXCLUDE_SQL}").fetchall()]
     counts = {s: 0 for s in STAGES}
     trial_today = delivery_today = overdue = 0
     for o in all_orders:
@@ -410,7 +423,7 @@ def tailoring_dashboard():
     tomorrow_s = (today + timedelta(days=1)).isoformat()
 
     orders = [_order_payload(db, r) for r in
-              db.execute("SELECT * FROM tailoring_orders").fetchall()]
+              db.execute(f"SELECT * FROM tailoring_orders WHERE {ARCHIVE_EXCLUDE_SQL}").fetchall()]
     open_orders = [o for o in orders if o["stage"] != "Delivered"]
 
     # Delivery load per day for the next 15 days (today included):
@@ -1150,7 +1163,7 @@ def _build_report_data():
     tomorrow_s = (today + timedelta(days=1)).isoformat()
 
     orders = [_order_payload(db, r) for r in
-              db.execute("SELECT * FROM tailoring_orders").fetchall()]
+              db.execute(f"SELECT * FROM tailoring_orders WHERE {ARCHIVE_EXCLUDE_SQL}").fetchall()]
     open_orders = [o for o in orders if o["stage"] != "Delivered"]
 
     def entry(o, mode):
@@ -1287,7 +1300,7 @@ def _build_weekly_report_data(week_start):
         return bool(value) and start_s <= str(value)[:10] <= end_s
 
     orders = [_order_payload(db, r) for r in
-              db.execute("SELECT * FROM tailoring_orders").fetchall()]
+              db.execute(f"SELECT * FROM tailoring_orders WHERE {ARCHIVE_EXCLUDE_SQL}").fetchall()]
 
     def brief(o, **extra):
         e = {
