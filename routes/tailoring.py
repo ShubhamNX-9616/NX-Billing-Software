@@ -142,6 +142,51 @@ def _order_payload(db, order_row):
     return order
 
 
+def _order_payloads_bulk(db, order_rows):
+    """Same shape as [_order_payload(db, r) for r in order_rows], but fetches
+    items/photos/payments for every order in 3 queries total instead of 3
+    per order — the list/dashboard/report endpoints were doing 1+3N queries
+    for N orders, which dominates load time once N is more than a handful."""
+    order_rows = list(order_rows)
+    if not order_rows:
+        return []
+    ids = [r["id"] for r in order_rows]
+    placeholders = ",".join("?" * len(ids))
+
+    items_by_order, photos_by_order, payments_by_order = {}, {}, {}
+    for r in db.execute(
+        f"SELECT * FROM tailoring_items WHERE order_id IN ({placeholders}) ORDER BY id", ids
+    ).fetchall():
+        items_by_order.setdefault(r["order_id"], []).append(dict(r))
+    for r in db.execute(
+        f"SELECT * FROM tailoring_photos WHERE order_id IN ({placeholders}) ORDER BY id", ids
+    ).fetchall():
+        photos_by_order.setdefault(r["order_id"], []).append(dict(r))
+    for r in db.execute(
+        f"SELECT * FROM tailoring_payments WHERE order_id IN ({placeholders}) ORDER BY id", ids
+    ).fetchall():
+        payments_by_order.setdefault(r["order_id"], []).append(dict(r))
+
+    orders = []
+    for row in order_rows:
+        order = dict(row)
+        items = items_by_order.get(order["id"], [])
+        photos = photos_by_order.get(order["id"], [])
+        for it in items:
+            it["photos"] = [p for p in photos if p["item_id"] == it["id"]]
+        order["items"] = items
+        order["photos"] = photos
+        order["general_photos"] = [p for p in photos if not p["item_id"]]
+        order["stage"] = _derived_stage([i["stage"] for i in items])
+        order["final_total"] = _final_total(order["total"], order["cloth_balance"])
+        payments = payments_by_order.get(order["id"], [])
+        order["payments"] = payments
+        order["unrecorded_paid"] = round(
+            order["advance"] - sum(p["amount"] for p in payments), 2)
+        orders.append(order)
+    return orders
+
+
 def _parse_items(body):
     """Validate and normalise the items array from a create/update body."""
     items = body.get("items") or []
@@ -346,7 +391,7 @@ def list_orders():
         sql += " WHERE " + " AND ".join(where)
     sql += " ORDER BY order_number DESC"
 
-    orders = [_order_payload(db, r) for r in db.execute(sql, params).fetchall()]
+    orders = _order_payloads_bulk(db, db.execute(sql, params).fetchall())
 
     if stage:
         orders = [o for o in orders if o["stage"] == stage]
@@ -365,8 +410,8 @@ def list_orders():
     # Dashboard counts (computed over all orders, ignoring the filters) —
     # these badges describe the live board, so the archive stays excluded
     # here even while q is searching it.
-    all_orders = [_order_payload(db, r) for r in
-                  db.execute(f"SELECT * FROM tailoring_orders WHERE {ARCHIVE_EXCLUDE_SQL}").fetchall()]
+    all_orders = _order_payloads_bulk(
+        db, db.execute(f"SELECT * FROM tailoring_orders WHERE {ARCHIVE_EXCLUDE_SQL}").fetchall())
     counts = {s: 0 for s in STAGES}
     trial_today = delivery_today = overdue = 0
     for o in all_orders:
@@ -422,8 +467,8 @@ def tailoring_dashboard():
     today_s = today.isoformat()
     tomorrow_s = (today + timedelta(days=1)).isoformat()
 
-    orders = [_order_payload(db, r) for r in
-              db.execute(f"SELECT * FROM tailoring_orders WHERE {ARCHIVE_EXCLUDE_SQL}").fetchall()]
+    orders = _order_payloads_bulk(
+        db, db.execute(f"SELECT * FROM tailoring_orders WHERE {ARCHIVE_EXCLUDE_SQL}").fetchall())
     open_orders = [o for o in orders if o["stage"] != "Delivered"]
 
     # Delivery load per day for the next 15 days (today included):
@@ -570,8 +615,8 @@ def tailoring_customers():
     db = get_tailoring_db()
     q = (request.args.get("q") or "").strip().lower()
 
-    orders = [_order_payload(db, r) for r in db.execute(
-        "SELECT * FROM tailoring_orders ORDER BY order_number").fetchall()]
+    orders = _order_payloads_bulk(db, db.execute(
+        "SELECT * FROM tailoring_orders ORDER BY order_number").fetchall())
 
     groups = {}
     for o in orders:
@@ -1162,8 +1207,8 @@ def _build_report_data():
     today_s = today.isoformat()
     tomorrow_s = (today + timedelta(days=1)).isoformat()
 
-    orders = [_order_payload(db, r) for r in
-              db.execute(f"SELECT * FROM tailoring_orders WHERE {ARCHIVE_EXCLUDE_SQL}").fetchall()]
+    orders = _order_payloads_bulk(
+        db, db.execute(f"SELECT * FROM tailoring_orders WHERE {ARCHIVE_EXCLUDE_SQL}").fetchall())
     open_orders = [o for o in orders if o["stage"] != "Delivered"]
 
     def entry(o, mode):
@@ -1299,8 +1344,8 @@ def _build_weekly_report_data(week_start):
         """True for a date or timestamp string landing inside the week."""
         return bool(value) and start_s <= str(value)[:10] <= end_s
 
-    orders = [_order_payload(db, r) for r in
-              db.execute(f"SELECT * FROM tailoring_orders WHERE {ARCHIVE_EXCLUDE_SQL}").fetchall()]
+    orders = _order_payloads_bulk(
+        db, db.execute(f"SELECT * FROM tailoring_orders WHERE {ARCHIVE_EXCLUDE_SQL}").fetchall())
 
     def brief(o, **extra):
         e = {
