@@ -512,6 +512,23 @@ def _m25_drop_loyalty_gifts_fy(conn):
         conn.execute("ALTER TABLE loyalty_gifts DROP COLUMN fy")
 
 
+def _m26_bill_search_indexes(conn):
+    """Bill search/list and get_bill all join bill_items/bill_payments on
+    bill_id with no index backing it, so SQLite rebuilds a throwaway
+    covering index on every call. Indexing the FK columns removes that
+    per-query cost; indexing bills.created_at lets the DESC listing order
+    come straight off the index instead of a temp b-tree sort."""
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_bill_items_bill_id ON bill_items(bill_id)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_bill_payments_bill_id ON bill_payments(bill_id)")
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_inst_bill_items_bill_id ON institution_bill_items(bill_id)"
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_inst_bill_payments_bill_id ON institution_bill_payments(bill_id)"
+    )
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_bills_created_at ON bills(created_at DESC)")
+
+
 MIGRATIONS = [
     (1,  _m01_baseline_schema),
     (2,  _m02_bills_extra_columns),
@@ -538,6 +555,7 @@ MIGRATIONS = [
     (23, _m23_loyalty_cycles),
     (24, _m24_loyalty_cycles_unique),
     (25, _m25_drop_loyalty_gifts_fy),
+    (26, _m26_bill_search_indexes),
 ]
 
 
