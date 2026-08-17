@@ -261,14 +261,22 @@ a:hover {
     height: 250px;
   }
 
-  /* Ensure 16px font on inputs to prevent iOS zoom */
+  /* Ensure 16px font on inputs to prevent iOS zoom, and give fields a
+     taller, easier-to-tap box (was 8px 10px / ~34px tall — too cramped
+     for a touchscreen) */
   input[type="text"],
   input[type="number"],
   input[type="tel"],
   select,
-  textarea {
+  textarea,
+  .input,
+  .select {
     font-size: 16px !important;
+    padding: 12px 14px !important;
+    min-height: 46px;
   }
+
+  textarea { min-height: 90px; }
 
   /* Better tap highlight */
   * { -webkit-tap-highlight-color: rgba(26, 86, 219, 0.1); }
@@ -276,6 +284,25 @@ a:hover {
   /* Headings smaller on mobile */
   h1 { font-size: 20px; }
   h2 { font-size: 17px; }
+}
+
+/* Tablets (and any touch device wider than the phone breakpoint above):
+   same field-sizing fix, without pulling in the phone-only layout
+   changes above (column hiding, stacked grids) that tablets don't need. */
+@media (min-width: 769px) and (max-width: 1024px), (pointer: coarse) and (min-width: 769px) {
+  input[type="text"],
+  input[type="number"],
+  input[type="tel"],
+  select,
+  textarea,
+  .input,
+  .select {
+    font-size: 16px !important;
+    padding: 12px 14px !important;
+    min-height: 46px;
+  }
+
+  textarea { min-height: 90px; }
 }
 
 /* ============================================================
