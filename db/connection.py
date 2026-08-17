@@ -13,6 +13,10 @@ def _open_connection():
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA foreign_keys=ON")
+    # Now that the server runs threaded, two requests can genuinely write at
+    # the same instant — wait up to 5s for the other's lock instead of
+    # failing immediately with "database is locked".
+    conn.execute("PRAGMA busy_timeout=5000")
     return conn
 
 

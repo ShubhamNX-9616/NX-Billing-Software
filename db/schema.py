@@ -529,6 +529,14 @@ def _m26_bill_search_indexes(conn):
     conn.execute("CREATE INDEX IF NOT EXISTS idx_bills_created_at ON bills(created_at DESC)")
 
 
+def _m27_bills_customer_id_index(conn):
+    """bills.customer_id is scanned on every mobile-number lookup on the new
+    bill screen (customer_summary) and on every bill creation (loyalty's
+    get_cycle_spent sums a customer's bills for the active cycle) — both hit
+    the full bills table with no index backing the join/filter."""
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_bills_customer_id ON bills(customer_id)")
+
+
 MIGRATIONS = [
     (1,  _m01_baseline_schema),
     (2,  _m02_bills_extra_columns),
@@ -556,6 +564,7 @@ MIGRATIONS = [
     (24, _m24_loyalty_cycles_unique),
     (25, _m25_drop_loyalty_gifts_fy),
     (26, _m26_bill_search_indexes),
+    (27, _m27_bills_customer_id_index),
 ]
 
 
