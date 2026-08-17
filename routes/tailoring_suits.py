@@ -1113,7 +1113,7 @@ def build_suit_report_entries(today, tomorrow_s):
         for i in o["items"]:
             if i["stage"] == "Delivered":
                 continue
-            done_stages = ("Trial Ready", "Full Stitched") if mode == "trial" \
+            done_stages = ("Trial Ready", "Alteration", "Full Stitched") if mode == "trial" \
                 else ("Full Stitched",)
             items.append({
                 "garment_type": i["garment_type"],

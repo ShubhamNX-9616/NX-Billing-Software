@@ -1217,7 +1217,7 @@ def _build_report_data():
         for i in o["items"]:
             if i["stage"] == "Delivered":
                 continue
-            done_stages = ("Trial Ready", "Full Stitched") if mode == "trial" \
+            done_stages = ("Trial Ready", "Alteration", "Full Stitched") if mode == "trial" \
                 else ("Full Stitched",)
             items.append({
                 "garment_type": i["garment_type"],
@@ -1393,7 +1393,7 @@ def _build_weekly_report_data(week_start):
 
     # Trials that fell in the week, and whether the garments got that far
     trials = sorted(
-        (brief(o, done=o["stage"] in ("Trial Ready", "Full Stitched", "Delivered"))
+        (brief(o, done=o["stage"] in ("Trial Ready", "Alteration", "Full Stitched", "Delivered"))
          for o in orders if in_week(o["trial_date"])),
         key=lambda e: (e["trial_date"], e["order_number"]))
 

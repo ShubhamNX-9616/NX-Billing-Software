@@ -13,7 +13,7 @@ TAILORING_DB_PATH = os.path.join(os.path.dirname(__file__), "..", "tailoring.db"
 IST_NOW = "datetime('now', '+5 hours', '+30 minutes')"
 
 # Stitching stages in workflow order
-STAGES = ["In Stitching", "Trial Ready", "Full Stitched", "Delivered"]
+STAGES = ["In Stitching", "Trial Ready", "Alteration", "Full Stitched", "Delivered"]
 
 # Pre-printed garment list from the paper receipt book
 GARMENT_TYPES = [

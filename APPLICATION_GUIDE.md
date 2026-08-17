@@ -206,8 +206,8 @@ question: *"What needs to be delivered, and is it ready?"*
   invents its own numbers, so it always matches what's written on the
   customer's paper receipt).
 - Each order lists the garments being stitched, with a quantity, rate, and
-  its own progress: **In Stitching → Trial Ready → Full Stitched →
-  Delivered**. An order's overall status is always its *least* finished
+  its own progress: **In Stitching → Trial Ready → Alteration → Full
+  Stitched → Delivered**. An order's overall status is always its *least* finished
   garment — so an order isn't "done" until every piece in it is.
 - **Cloth sample photos** can be attached per garment (so staff remember
   exactly which fabric was used), and **measurement photos** can be
@@ -677,7 +677,7 @@ never mix with or corrupt retail/institution billing data.
 | `order_id` | INTEGER | FK → tailoring_orders (CASCADE DELETE) |
 | `garment_type` | TEXT NOT NULL | |
 | `qty`, `rate`, `amount` | NUMERIC | |
-| `stage` | TEXT | `In Stitching` → `Trial Ready` → `Full Stitched` → `Delivered` |
+| `stage` | TEXT | `In Stitching` → `Trial Ready` → `Alteration` → `Full Stitched` → `Delivered` |
 | `notes` | TEXT | |
 
 An order's overall stage (shown as its badge) is always the **earliest**
@@ -952,7 +952,7 @@ between two devices still returns a friendly "already exists" error rather
 than a raw 500.
 
 ### Stages and Derived Status
-Garment stages: `In Stitching → Trial Ready → Full Stitched → Delivered`.
+Garment stages: `In Stitching → Trial Ready → Alteration → Full Stitched → Delivered`.
 An order's stage = the *earliest* stage among its items
 (`_derived_stage`). Several statuses are **computed, not stored**:
 
