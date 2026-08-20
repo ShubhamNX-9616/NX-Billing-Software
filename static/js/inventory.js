@@ -617,7 +617,7 @@ function addBaRow(gid) {
     <td style="padding:3px 4px;"><input type="number" style="${sr}" placeholder="0.00" min="0" step="0.01" /></td>
     <td style="padding:3px 4px;"><input type="number" style="${sr}" placeholder="0.00" min="0" step="0.01" /></td>
     <td style="padding:3px 4px;"><input type="number" style="${sr}" placeholder="0"    min="0" step="0.01" /></td>
-    <td style="padding:3px 4px;"><input type="number" style="${sr}" value="5"           min="0" step="0.01" /></td>
+    <td style="padding:3px 4px;"><input type="number" style="${sr}" value="2"           min="0" step="0.01" /></td>
     <td style="padding:3px 4px;"><input type="text"   style="${s}"  placeholder="Optional" /></td>
     <td style="padding:3px 4px;text-align:center;">
       <button type="button" style="background:none;border:none;cursor:pointer;color:var(--danger,#ef4444);font-size:16px;line-height:1;" onclick="removeBaRow(${gid},${rowId})">&#215;</button>
@@ -672,7 +672,7 @@ async function saveBatch() {
       const cost_price     = parseFloat(inp[3].value) || 0;
       const mrp            = parseFloat(inp[4].value) || 0;
       const opening_stock  = parseFloat(inp[5].value) || 0;
-      const min_stock_alert = parseFloat(inp[6].value) || 5;
+      const min_stock_alert = parseFloat(inp[6].value) || 2;
       const notes          = inp[7].value.trim();
       if (!item_name && !shade_number && !quality_number && !cost_price && !mrp) continue;
       items.push({ item_name, shade_number, quality_number, cost_price, mrp,
@@ -1021,7 +1021,7 @@ function openAddItemModal(preselectedInvoiceId) {
   ['ai-cloth-add-row','ai-company-add-row','ai-supplier-add-row'].forEach(id => {
     document.getElementById(id).style.display = 'none';
   });
-  document.getElementById('ai-alert').value = '5';
+  document.getElementById('ai-alert').value = '2';
   document.getElementById('ai-unit').value  = 'm';
   document.getElementById('ai-error').textContent = '';
   document.getElementById('add-item-modal').classList.remove('hidden');
@@ -1077,7 +1077,7 @@ async function saveNewItem() {
         mrp:             mrp,
         cost_price:      parseFloat(document.getElementById('ai-cp').value) || 0,
         opening_stock:   parseFloat(document.getElementById('ai-opening').value) || 0,
-        min_stock_alert: parseFloat(document.getElementById('ai-alert').value) || 5,
+        min_stock_alert: parseFloat(document.getElementById('ai-alert').value) || 2,
         notes:           document.getElementById('ai-notes').value.trim(),
         supplier_id:     supplierId,
         item_name:       document.getElementById('ai-item-name').value.trim(),
@@ -1131,7 +1131,7 @@ async function saveAllScanItems() {
       notes:           item.notes          || '',
       mrp:             item.mrp            || 0,
       cost_price:      item.cost_price     || 0,
-      min_stock_alert: item.min_stock_alert || 5,
+      min_stock_alert: item.min_stock_alert || 2,
     })),
   };
 
@@ -1237,7 +1237,7 @@ async function saveEditItem() {
         cost_price:      parseFloat(document.getElementById('ei-cp').value) || 0,
         quality_number:  document.getElementById('ei-quality').value.trim(),
         supplier_id:     document.getElementById('ei-supplier').value || null,
-        min_stock_alert: parseFloat(document.getElementById('ei-alert').value) || 5,
+        min_stock_alert: parseFloat(document.getElementById('ei-alert').value) || 2,
         notes:           document.getElementById('ei-notes').value.trim(),
         item_name:       document.getElementById('ei-item-name').value.trim(),
         shade_number:    document.getElementById('ei-shade').value.trim(),
@@ -1722,7 +1722,7 @@ function _saveCurrentItemEdits() {
     notes:          document.getElementById('ai-notes').value.trim(),
     mrp:            parseFloat(document.getElementById('ai-mrp').value) || 0,
     cost_price:     parseFloat(document.getElementById('ai-cp').value) || 0,
-    min_stock_alert: parseFloat(document.getElementById('ai-alert').value) || 5,
+    min_stock_alert: parseFloat(document.getElementById('ai-alert').value) || 2,
   });
 }
 
@@ -1795,7 +1795,7 @@ function _renderItem(item) {
   document.getElementById('ai-unit').value      = item.unit_label     || 'm';
   document.getElementById('ai-mrp').value       = item.mrp            || '';
   document.getElementById('ai-cp').value        = item.cost_price     || '';
-  document.getElementById('ai-alert').value     = item.min_stock_alert || 5;
+  document.getElementById('ai-alert').value     = item.min_stock_alert || 2;
   updateAiSpecialCode();
 }
 

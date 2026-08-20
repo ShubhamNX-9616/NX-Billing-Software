@@ -240,7 +240,7 @@ def create_inventory_item():
         mrp             = float(body.get("mrp")        or 0)
         cost_price      = float(body.get("cost_price") or 0)
         opening_stock   = float(body.get("opening_stock") or 0)
-        min_stock_alert = float(body.get("min_stock_alert") or 5)
+        min_stock_alert = float(body.get("min_stock_alert") or 2)
         notes           = (body.get("notes") or "").strip() or None
         supplier_id_raw = body.get("supplier_id")
         supplier_id     = int(supplier_id_raw) if supplier_id_raw else None
@@ -419,7 +419,7 @@ def batch_create_inventory_items():
                 cost_price     = float(item.get("cost_price")     or 0)
                 mrp            = float(item.get("mrp")            or 0)
                 opening_stock  = float(item.get("opening_stock")  or 0)
-                min_stock_alert = float(item.get("min_stock_alert") or 5)
+                min_stock_alert = float(item.get("min_stock_alert") or 2)
                 notes          = (item.get("notes") or "").strip() or None
                 unit_label     = (item.get("unit_label") or "m").strip()
                 special_code   = compute_special_code(cost_price, sup_name)
@@ -695,7 +695,7 @@ def current_stock_qr():
                 """INSERT INTO inventory_items
                    (cloth_type, company_name, quality_number, unit_label, mrp,
                     current_stock, min_stock_alert, item_code, item_name, shade_number, notes)
-                   VALUES (?, ?, ?, ?, ?, ?, 5, ?, ?, ?, ?)""",
+                   VALUES (?, ?, ?, ?, ?, ?, 2, ?, ?, ?, ?)""",
                 (cloth_type, company_name, quality_number, unit_label, mrp,
                  opening_stock, item_code, item_name or None, shade_number or None, notes or None),
             )
