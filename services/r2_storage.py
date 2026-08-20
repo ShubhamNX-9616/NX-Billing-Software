@@ -59,5 +59,26 @@ def delete_object(key):
         pass
 
 
+def object_size(key):
+    """Size in bytes of the stored object, or None if it doesn't exist / on
+    any storage error (e.g. the photo is only on local disk, never uploaded
+    to R2)."""
+    try:
+        resp = _get_client().head_object(Bucket=R2_BUCKET_NAME, Key=key)
+        return resp["ContentLength"]
+    except (BotoCoreError, ClientError):
+        return None
+
+
+def download_bytes(key):
+    """Raw bytes of the stored object, or None if missing / on any storage
+    error."""
+    try:
+        resp = _get_client().get_object(Bucket=R2_BUCKET_NAME, Key=key)
+        return resp["Body"].read()
+    except (BotoCoreError, ClientError):
+        return None
+
+
 def public_url(key):
     return f"{R2_PUBLIC_URL}/{key}"

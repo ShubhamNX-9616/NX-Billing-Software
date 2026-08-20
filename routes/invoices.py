@@ -55,3 +55,45 @@ def create_invoice():
         return jsonify(dict(row)), 201
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+@invoices_bp.route("/invoices/<int:invoice_id>", methods=["PUT"])
+@api_admin_required
+def update_invoice(invoice_id):
+    try:
+        db = get_db()
+        existing = db.execute("SELECT * FROM invoices WHERE id = ?", (invoice_id,)).fetchone()
+        if not existing:
+            return jsonify({"error": "Invoice not found"}), 404
+
+        body           = request.get_json(force=True, silent=True) or {}
+        invoice_number = (body.get("invoice_number") or "").strip()
+        invoice_date   = (body.get("invoice_date")   or "").strip()
+        if "supplier_id" in body:
+            supplier_id_raw = body.get("supplier_id")
+            supplier_id = int(supplier_id_raw) if supplier_id_raw else None
+        else:
+            supplier_id = existing["supplier_id"]
+        if "notes" in body:
+            notes = (body.get("notes") or "").strip() or None
+        else:
+            notes = existing["notes"]
+
+        if not invoice_number:
+            return jsonify({"error": "invoice_number is required"}), 400
+        if not invoice_date:
+            return jsonify({"error": "invoice_date is required"}), 400
+
+        db.execute(
+            "UPDATE invoices SET invoice_number = ?, invoice_date = ?, supplier_id = ?, notes = ? WHERE id = ?",
+            (invoice_number, invoice_date, supplier_id, notes, invoice_id),
+        )
+        db.commit()
+        row = db.execute("""
+            SELECT i.*, s.name AS supplier_name
+            FROM invoices i LEFT JOIN suppliers s ON i.supplier_id = s.id
+            WHERE i.id = ?
+        """, (invoice_id,)).fetchone()
+        return jsonify(dict(row))
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500

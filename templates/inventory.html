@@ -284,7 +284,18 @@
     </div>
     <div class="modal-body" style="display:grid;gap:12px;">
       <input type="hidden" id="ei-id" />
+      <input type="hidden" id="ei-invoice-id" />
       <input type="hidden" id="ei-special-code" />
+      <div id="ei-invoice-fields" style="display:none;grid-template-columns:1fr 1fr;gap:12px;">
+        <div>
+          <label>Invoice Number</label>
+          <input type="text" id="ei-invoice-number" class="input" />
+        </div>
+        <div>
+          <label>Invoice Date</label>
+          <input type="date" id="ei-invoice-date" class="input" />
+        </div>
+      </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
           <div>
             <label>CP (₹)</label>

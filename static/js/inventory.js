@@ -1126,6 +1126,15 @@ function openEditItemModal(id) {
   const item = allItems.find(i => i.id === id);
   if (!item) return;
   document.getElementById('ei-id').value        = item.id;
+  document.getElementById('ei-invoice-id').value = item.invoice_id || '';
+  const invFieldsEl = document.getElementById('ei-invoice-fields');
+  if (item.invoice_id) {
+    invFieldsEl.style.display = 'grid';
+    document.getElementById('ei-invoice-number').value = item.invoice_number || '';
+    document.getElementById('ei-invoice-date').value   = item.invoice_date || '';
+  } else {
+    invFieldsEl.style.display = 'none';
+  }
   document.getElementById('ei-mrp').value       = item.mrp;
   document.getElementById('ei-cp').value        = item.cost_price || 0;
   document.getElementById('ei-quality').value   = item.quality_number || '';
@@ -1151,8 +1160,30 @@ async function saveEditItem() {
   const btn   = document.getElementById('btn-ei-save');
 
   errEl.textContent = '';
+
+  const invoiceId = document.getElementById('ei-invoice-id').value;
+  if (invoiceId) {
+    const invNum  = document.getElementById('ei-invoice-number').value.trim();
+    const invDate = document.getElementById('ei-invoice-date').value.trim();
+    if (!invNum)  { errEl.textContent = 'Invoice number is required.'; return; }
+    if (!invDate) { errEl.textContent = 'Invoice date is required.'; return; }
+  }
+
   btn.disabled = true;
   try {
+    if (invoiceId) {
+      const invRes = await fetch(`/api/invoices/${invoiceId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          invoice_number: document.getElementById('ei-invoice-number').value.trim(),
+          invoice_date:   document.getElementById('ei-invoice-date').value.trim(),
+        }),
+      });
+      const invData = await invRes.json();
+      if (!invRes.ok) { errEl.textContent = invData.error || 'Invoice save failed.'; return; }
+    }
+
     const res = await fetch(`/api/inventory/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },

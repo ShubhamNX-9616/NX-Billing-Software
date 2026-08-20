@@ -705,6 +705,33 @@ Setup, in the [Cloudflare dashboard](https://dash.cloudflare.com/):
 Photos already on local disk keep working after this is turned on — only new
 uploads go to R2. Deleting a photo removes it from wherever it's actually stored.
 
+### In progress: shrinking oversized archived photos on R2
+
+The Drive-archive import (`scripts/import_drive_measurements.py`) renders
+PDF scans straight to JPEG with no size/quality cap, unlike a normal
+in-app upload (which caps the longest side at 1400px and re-encodes at
+JPEG quality 82 — see `MAX_PHOTO_DIM`/`PHOTO_JPEG_QUALITY` in
+`routes/tailoring.py`). That left ~977 archived photos on R2 at 500KB–1.4MB
+each (~1.39 GB total) instead of the usual small size.
+
+`scripts/shrink_r2_photos.py` fixes this: it re-applies the same
+resize/re-encode to any photo (referenced in the tailoring DB) that is
+still ≥500KB on R2, and overwrites it in place under the same filename —
+no DB rows change.
+
+- Dry run (report only, no changes): `python scripts/shrink_r2_photos.py`
+- Apply for real: `python scripts/shrink_r2_photos.py --apply`
+
+**Status:** the `--apply` run was started 2026-08-17 ~21:10 IST and is
+still going (977 photos, each downloaded/resized/re-uploaded one at a
+time — slow, network-bound).
+
+**If it gets interrupted (network drop, etc.):** just re-run the same
+`--apply` command. The script is safe to re-run any number of times —
+each run only touches objects that are *currently* ≥500KB, so anything
+already shrunk in a previous run is automatically skipped, and it
+picks up exactly where it left off. No manual resume state to track.
+
 ---
 
 ## Default Credentials
