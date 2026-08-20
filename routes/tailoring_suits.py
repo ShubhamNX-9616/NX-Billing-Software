@@ -123,6 +123,50 @@ def _order_payload(db, order_row):
     return order
 
 
+def _order_payloads_bulk(db, order_rows):
+    """Same shape as [_order_payload(db, r) for r in order_rows], but fetches
+    items/photos/payments for every order in 3 queries total instead of 3
+    per order — mirrors tailoring.py's _order_payloads_bulk."""
+    order_rows = list(order_rows)
+    if not order_rows:
+        return []
+    ids = [r["id"] for r in order_rows]
+    placeholders = ",".join("?" * len(ids))
+
+    items_by_order, photos_by_order, payments_by_order = {}, {}, {}
+    for r in db.execute(
+        f"SELECT * FROM tailoring_suit_items WHERE order_id IN ({placeholders}) ORDER BY id", ids
+    ).fetchall():
+        items_by_order.setdefault(r["order_id"], []).append(dict(r))
+    for r in db.execute(
+        f"SELECT * FROM tailoring_suit_photos WHERE order_id IN ({placeholders}) ORDER BY id", ids
+    ).fetchall():
+        photos_by_order.setdefault(r["order_id"], []).append(dict(r))
+    for r in db.execute(
+        f"SELECT * FROM tailoring_suit_payments WHERE order_id IN ({placeholders}) ORDER BY id", ids
+    ).fetchall():
+        payments_by_order.setdefault(r["order_id"], []).append(dict(r))
+
+    orders = []
+    for row in order_rows:
+        order = dict(row)
+        items = items_by_order.get(order["id"], [])
+        photos = photos_by_order.get(order["id"], [])
+        for it in items:
+            it["photos"] = [p for p in photos if p["item_id"] == it["id"]]
+        order["items"] = items
+        order["photos"] = photos
+        order["general_photos"] = [p for p in photos if not p["item_id"]]
+        order["stage"] = _derived_stage([i["stage"] for i in items])
+        order["final_total"] = _final_total(order["total"], order["cloth_balance"])
+        payments = payments_by_order.get(order["id"], [])
+        order["payments"] = payments
+        order["unrecorded_paid"] = round(
+            order["advance"] - sum(p["amount"] for p in payments), 2)
+        orders.append(order)
+    return orders
+
+
 def _parse_items(body):
     items = body.get("items") or []
     if not isinstance(items, list) or not items:
@@ -327,7 +371,7 @@ def list_orders():
         sql += " WHERE " + " AND ".join(where)
     sql += " ORDER BY order_number DESC"
 
-    orders = [_order_payload(db, r) for r in db.execute(sql, params).fetchall()]
+    orders = _order_payloads_bulk(db, db.execute(sql, params).fetchall())
 
     if stage:
         orders = [o for o in orders if o["stage"] == stage]
@@ -343,8 +387,8 @@ def list_orders():
     key, reverse = SORTS[sort]
     orders.sort(key=key, reverse=reverse)
 
-    all_orders = [_order_payload(db, r) for r in
-                  db.execute("SELECT * FROM tailoring_suit_orders").fetchall()]
+    all_orders = _order_payloads_bulk(
+        db, db.execute("SELECT * FROM tailoring_suit_orders").fetchall())
     counts = {s: 0 for s in STAGES}
     trial_today = delivery_today = overdue = 0
     for o in all_orders:
@@ -400,8 +444,8 @@ def suit_dashboard():
     today_s = today.isoformat()
     tomorrow_s = (today + timedelta(days=1)).isoformat()
 
-    orders = [_order_payload(db, r) for r in
-              db.execute("SELECT * FROM tailoring_suit_orders").fetchall()]
+    orders = _order_payloads_bulk(
+        db, db.execute("SELECT * FROM tailoring_suit_orders").fetchall())
     open_orders = [o for o in orders if o["stage"] != "Delivered"]
 
     days = []
@@ -528,8 +572,8 @@ def suit_customers():
     db = get_tailoring_db()
     q = (request.args.get("q") or "").strip().lower()
 
-    orders = [_order_payload(db, r) for r in db.execute(
-        "SELECT * FROM tailoring_suit_orders ORDER BY order_number").fetchall()]
+    orders = _order_payloads_bulk(db, db.execute(
+        "SELECT * FROM tailoring_suit_orders ORDER BY order_number").fetchall())
 
     groups = {}
     for o in orders:
@@ -1104,8 +1148,8 @@ def build_suit_report_entries(today, tomorrow_s):
     db = get_tailoring_db()
     today_s = today.isoformat()
 
-    orders = [_order_payload(db, r) for r in
-              db.execute("SELECT * FROM tailoring_suit_orders").fetchall()]
+    orders = _order_payloads_bulk(
+        db, db.execute("SELECT * FROM tailoring_suit_orders").fetchall())
     open_orders = [o for o in orders if o["stage"] != "Delivered"]
 
     def entry(o, mode):
