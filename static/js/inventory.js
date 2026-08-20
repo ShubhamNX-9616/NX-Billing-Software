@@ -408,8 +408,10 @@ async function loadInvoicesForSelect(restoreId) {
       const opt = document.createElement('option');
       opt.value = inv.id;
       opt.textContent = `${inv.invoice_number} (${inv.invoice_date})${inv.supplier_name ? ' — ' + inv.supplier_name : ''}`;
-      opt.dataset.supplierName = inv.supplier_name || '';
-      opt.dataset.supplierId   = inv.supplier_id   || '';
+      opt.dataset.supplierName  = inv.supplier_name  || '';
+      opt.dataset.supplierId    = inv.supplier_id    || '';
+      opt.dataset.invoiceNumber = inv.invoice_number || '';
+      opt.dataset.invoiceDate   = inv.invoice_date   || '';
       sel.appendChild(opt);
     });
     if (restoreId) sel.value = restoreId;
@@ -418,16 +420,56 @@ async function loadInvoicesForSelect(restoreId) {
 }
 
 function onAiInvoiceChange() {
-  const sel     = document.getElementById('ai-invoice');
-  const infoEl  = document.getElementById('ai-invoice-info');
-  const opt     = sel.options[sel.selectedIndex];
+  const sel        = document.getElementById('ai-invoice');
+  const infoEl     = document.getElementById('ai-invoice-info');
+  const editFields = document.getElementById('ai-invoice-edit-fields');
+  const statusEl   = document.getElementById('ai-invoice-edit-status');
+  const opt        = sel.options[sel.selectedIndex];
+  statusEl.textContent = '';
   if (sel.value && opt.dataset.supplierName) {
     infoEl.textContent = `Supplier: ${opt.dataset.supplierName}`;
     infoEl.style.display = '';
   } else {
     infoEl.style.display = 'none';
   }
+  if (sel.value) {
+    document.getElementById('ai-invoice-number-edit').value = opt.dataset.invoiceNumber || '';
+    document.getElementById('ai-invoice-date-edit').value   = opt.dataset.invoiceDate   || '';
+    editFields.style.display = 'grid';
+  } else {
+    editFields.style.display = 'none';
+  }
   updateAiSpecialCode();
+}
+
+async function saveAiInvoiceEdits() {
+  const sel      = document.getElementById('ai-invoice');
+  const invoiceId = sel.value;
+  const statusEl = document.getElementById('ai-invoice-edit-status');
+  if (!invoiceId) return;
+
+  const invNum  = document.getElementById('ai-invoice-number-edit').value.trim();
+  const invDate = document.getElementById('ai-invoice-date-edit').value.trim();
+  if (!invNum)  { statusEl.textContent = 'Invoice number is required.'; statusEl.className = 'text-danger'; return; }
+  if (!invDate) { statusEl.textContent = 'Invoice date is required.';   statusEl.className = 'text-danger'; return; }
+
+  statusEl.textContent = 'Saving…';
+  statusEl.className = '';
+  try {
+    const res  = await fetch(`/api/invoices/${invoiceId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ invoice_number: invNum, invoice_date: invDate }),
+    });
+    const data = await res.json();
+    if (!res.ok) { statusEl.textContent = data.error || 'Save failed.'; statusEl.className = 'text-danger'; return; }
+    await loadInvoicesForSelect(invoiceId);
+    statusEl.textContent = 'Invoice updated.';
+    statusEl.className = 'text-success';
+  } catch (e) {
+    statusEl.textContent = 'Network error: ' + e.message;
+    statusEl.className = 'text-danger';
+  }
 }
 
 async function loadInvoicesForBatchSelect(restoreId) {
