@@ -1114,11 +1114,14 @@ async function saveAllScanItems() {
   if (!cloth   || cloth   === '__add__') { errEl.textContent = 'Select a cloth type first.'; return; }
   if (!company || company === '__add__') { errEl.textContent = 'Select a company first.'; return; }
 
-  const invoiceId = document.getElementById('ai-invoice').value;
+  const invoiceId  = document.getElementById('ai-invoice').value;
+  const suppRaw    = document.getElementById('ai-supplier').value;
+  const supplierId = (suppRaw && suppRaw !== '__add__') ? parseInt(suppRaw) : null;
 
   const group = {
     cloth_type:   cloth,
     company_name: company,
+    supplier_id:  supplierId,
     items: _scanItems.map(item => ({
       item_name:       item.item_name      || '',
       quality_number:  item.quality_number || '',
@@ -1128,7 +1131,7 @@ async function saveAllScanItems() {
       notes:           item.notes          || '',
       mrp:             item.mrp            || 0,
       cost_price:      item.cost_price     || 0,
-      min_stock_alert: 5,
+      min_stock_alert: item.min_stock_alert || 5,
     })),
   };
 
@@ -1719,6 +1722,7 @@ function _saveCurrentItemEdits() {
     notes:          document.getElementById('ai-notes').value.trim(),
     mrp:            parseFloat(document.getElementById('ai-mrp').value) || 0,
     cost_price:     parseFloat(document.getElementById('ai-cp').value) || 0,
+    min_stock_alert: parseFloat(document.getElementById('ai-alert').value) || 5,
   });
 }
 
@@ -1791,6 +1795,7 @@ function _renderItem(item) {
   document.getElementById('ai-unit').value      = item.unit_label     || 'm';
   document.getElementById('ai-mrp').value       = item.mrp            || '';
   document.getElementById('ai-cp').value        = item.cost_price     || '';
+  document.getElementById('ai-alert').value     = item.min_stock_alert || 5;
   updateAiSpecialCode();
 }
 

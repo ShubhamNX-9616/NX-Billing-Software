@@ -403,6 +403,15 @@ def batch_create_inventory_items():
             if not cloth_type or not company_name:
                 return jsonify({"error": "cloth_type and company_name are required for every group"}), 400
 
+            group_supplier_id_raw = group.get("supplier_id")
+            group_supplier_id = int(group_supplier_id_raw) if group_supplier_id_raw else None
+
+            sup_name = inv_supplier_name
+            if group_supplier_id:
+                sup_row = db.execute("SELECT name FROM suppliers WHERE id = ?", (group_supplier_id,)).fetchone()
+                if sup_row:
+                    sup_name = sup_row['name']
+
             for item in group.get("items", []):
                 item_name      = (item.get("item_name")    or "").strip() or None
                 shade_number   = (item.get("shade_number") or "").strip() or None
@@ -413,18 +422,18 @@ def batch_create_inventory_items():
                 min_stock_alert = float(item.get("min_stock_alert") or 5)
                 notes          = (item.get("notes") or "").strip() or None
                 unit_label     = (item.get("unit_label") or "m").strip()
-                special_code   = compute_special_code(cost_price, inv_supplier_name)
+                special_code   = compute_special_code(cost_price, sup_name)
 
                 item_code = next_item_code(db, cloth_type)
                 cur = db.execute(
                     """INSERT INTO inventory_items
                        (cloth_type, company_name, quality_number, unit_label,
                         current_stock, min_stock_alert, mrp, cost_price, notes, item_code,
-                        item_name, shade_number, invoice_id, special_code)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                        supplier_id, item_name, shade_number, invoice_id, special_code)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                     (cloth_type, company_name, quality_number, unit_label,
                      opening_stock, min_stock_alert, mrp, cost_price, notes, item_code,
-                     item_name, shade_number, invoice_id, special_code),
+                     group_supplier_id, item_name, shade_number, invoice_id, special_code),
                 )
                 item_id = cur.lastrowid
 
