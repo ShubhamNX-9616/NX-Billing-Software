@@ -12,6 +12,9 @@ let instAdvanceModified = false;
 let instComboLastChanged = null;
 let instClothTypes  = [];
 let instSalespersons = [];
+let instCompanyCache = {};
+let instAddClothTypeCtx = null;
+let instAddCompanyCtx   = null;
 
 function r2(v) { return Math.round(v * 100) / 100; }
 function fmt(v) { return '₹' + Number(v).toFixed(2); }
@@ -36,6 +39,36 @@ async function loadInstClothTypes() {
     const data = await res.json();
     instClothTypes = data;
   } catch (e) { console.error('Failed to load cloth types', e); }
+}
+
+function buildInstClothOptions(selected) {
+  return '<option value="">-- Type --</option>' +
+    instClothTypes.map(t =>
+      `<option value="${t.type_name}"${t.type_name === selected ? ' selected' : ''}>${t.type_name}</option>`
+    ).join('') +
+    '<option value="__add_new__">+ Add new cloth type…</option>';
+}
+
+async function fetchInstCompanies(clothType) {
+  if (instCompanyCache[clothType]) return instCompanyCache[clothType];
+  try {
+    const res  = await fetch(`/api/companies?clothType=${encodeURIComponent(clothType)}`);
+    const list = await res.json();
+    instCompanyCache[clothType] = list;
+    return list;
+  } catch (e) { console.error('Failed to load companies', e); return []; }
+}
+
+function invalidateInstCompanyCache(clothType) { delete instCompanyCache[clothType]; }
+
+function refreshAllInstClothSelects() {
+  instActiveIds.forEach(id => {
+    const sel = document.getElementById(`inst-cloth-${id}`);
+    if (!sel) return;
+    const cur = sel.value;
+    sel.innerHTML    = buildInstClothOptions(cur);
+    sel.dataset.prev = cur;
+  });
 }
 
 async function loadInstSalespersons() {
@@ -65,16 +98,19 @@ function addInstItem() {
   tr.id = `inst-row-${id}`;
   tr.innerHTML = `
     <td>
-      <select class="input select inst-cloth-sel" id="inst-cloth-${id}"
+      <select class="input select inst-cloth-sel" id="inst-cloth-${id}" data-prev=""
               onchange="onInstClothChange(${id})">
-        <option value="">-- Type --</option>
-        ${instClothTypes.map(t => `<option value="${t.type_name}">${t.type_name}</option>`).join('')}
+        ${buildInstClothOptions('')}
       </select>
     </td>
     <td>
-      <select class="input select" id="inst-company-${id}">
-        <option value="">-- Company --</option>
-      </select>
+      <div style="display:flex;gap:4px;align-items:center;">
+        <select class="input select" id="inst-company-${id}" style="flex:1;min-width:80px;">
+          <option value="">-- Company --</option>
+        </select>
+        <button type="button" class="btn btn-sm" style="padding:5px 8px;font-size:11px;flex-shrink:0;"
+                onclick="openAddInstCompanyModal(${id})" title="Add company">+</button>
+      </div>
     </td>
     <td>
       <input class="input" id="inst-quality-${id}" placeholder="Quality No" />
@@ -104,21 +140,158 @@ function addInstItem() {
 }
 
 async function onInstClothChange(id) {
-  const clothType = document.getElementById(`inst-cloth-${id}`).value;
-  const compSel   = document.getElementById(`inst-company-${id}`);
+  const sel       = document.getElementById(`inst-cloth-${id}`);
+  const clothType = sel.value;
+
+  if (clothType === '__add_new__') {
+    sel.value = sel.dataset.prev || '';
+    openAddInstClothTypeModal(id);
+    return;
+  }
+  sel.dataset.prev = clothType;
+
+  const compSel = document.getElementById(`inst-company-${id}`);
   compSel.innerHTML = '<option value="">-- Company --</option>';
   if (!clothType) return;
+  const data = await fetchInstCompanies(clothType);
+  data.forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c.company_name;
+    opt.textContent = c.company_name;
+    compSel.appendChild(opt);
+  });
+}
+
+// ---- Add Cloth Type modal ----
+function openAddInstClothTypeModal(rowId) {
+  instAddClothTypeCtx = { rowId };
+  document.getElementById('inst-add-cloth-type-name').value        = '';
+  document.getElementById('inst-add-cloth-type-error').textContent = '';
+  document.getElementById('inst-add-cloth-type-modal').classList.remove('hidden');
+  document.getElementById('inst-add-cloth-type-name').focus();
+}
+
+function closeAddInstClothTypeModal() {
+  document.getElementById('inst-add-cloth-type-modal').classList.add('hidden');
+  instAddClothTypeCtx = null;
+}
+
+async function saveNewInstClothType() {
+  if (!instAddClothTypeCtx) return;
+  const { rowId } = instAddClothTypeCtx;
+  const nameVal = document.getElementById('inst-add-cloth-type-name').value.trim();
+  const errEl   = document.getElementById('inst-add-cloth-type-error');
+  const saveBtn = document.getElementById('btn-inst-add-cloth-type-save');
+
+  errEl.textContent = '';
+  if (!nameVal) { errEl.textContent = 'Cloth type name is required.'; return; }
+
+  saveBtn.disabled    = true;
+  saveBtn.textContent = 'Saving…';
+
   try {
-    const res  = await fetch(`/api/companies?clothType=${encodeURIComponent(clothType)}`);
+    const res  = await fetch('/api/cloth-types', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ type_name: nameVal }),
+    });
     const data = await res.json();
-    data.forEach(c => {
+
+    if (res.status === 409) { errEl.textContent = 'Cloth type already exists.'; return; }
+    if (!res.ok)            { errEl.textContent = data.error || 'Failed to save cloth type.'; return; }
+
+    instClothTypes.push({ id: data.id, type_name: data.type_name, has_company: data.has_company });
+    refreshAllInstClothSelects();
+
+    const sel = document.getElementById(`inst-cloth-${rowId}`);
+    if (sel) {
+      sel.value        = data.type_name;
+      sel.dataset.prev = data.type_name;
+    }
+    closeAddInstClothTypeModal();
+    await onInstClothChange(rowId);
+  } catch (err) {
+    errEl.textContent = 'Network error: ' + err.message;
+  } finally {
+    saveBtn.disabled    = false;
+    saveBtn.textContent = 'Save';
+  }
+}
+
+document.getElementById('inst-add-cloth-type-modal')?.addEventListener('click', function (e) {
+  if (e.target === this) closeAddInstClothTypeModal();
+});
+document.getElementById('inst-add-cloth-type-name')?.addEventListener('keydown', function (e) {
+  if (e.key === 'Enter') saveNewInstClothType();
+});
+
+// ---- Add Company modal ----
+function openAddInstCompanyModal(rowId) {
+  const clothType = document.getElementById(`inst-cloth-${rowId}`).value;
+  if (!clothType) { alert('Select a cloth type first.'); return; }
+  instAddCompanyCtx = { rowId, clothType };
+  document.getElementById('inst-add-company-title').textContent = `Add Company — ${clothType}`;
+  document.getElementById('inst-add-company-name').value        = '';
+  document.getElementById('inst-add-company-error').textContent = '';
+  document.getElementById('inst-add-company-modal').classList.remove('hidden');
+  document.getElementById('inst-add-company-name').focus();
+}
+
+function closeAddInstCompanyModal() {
+  document.getElementById('inst-add-company-modal').classList.add('hidden');
+  instAddCompanyCtx = null;
+}
+
+async function saveNewInstCompany() {
+  if (!instAddCompanyCtx) return;
+  const { rowId, clothType } = instAddCompanyCtx;
+  const nameVal = document.getElementById('inst-add-company-name').value.trim();
+  const errEl   = document.getElementById('inst-add-company-error');
+  const saveBtn = document.getElementById('btn-inst-add-company-save');
+
+  errEl.textContent = '';
+  if (!nameVal) { errEl.textContent = 'Company name is required.'; return; }
+
+  saveBtn.disabled    = true;
+  saveBtn.textContent = 'Saving…';
+
+  try {
+    const res  = await fetch('/api/companies', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ cloth_type: clothType, company_name: nameVal }),
+    });
+    const data = await res.json();
+
+    if (res.status === 409) { errEl.textContent = 'Company already exists under this cloth type.'; return; }
+    if (!res.ok)            { errEl.textContent = data.error || 'Failed to save company.'; return; }
+
+    invalidateInstCompanyCache(clothType);
+    const list    = await fetchInstCompanies(clothType);
+    const compSel = document.getElementById(`inst-company-${rowId}`);
+    compSel.innerHTML = '<option value="">-- Company --</option>';
+    list.forEach(c => {
       const opt = document.createElement('option');
       opt.value = c.company_name;
       opt.textContent = c.company_name;
+      if (c.company_name === nameVal) opt.selected = true;
       compSel.appendChild(opt);
     });
-  } catch (e) { console.error('Failed to load companies', e); }
+    closeAddInstCompanyModal();
+  } catch (err) {
+    errEl.textContent = 'Network error: ' + err.message;
+  } finally {
+    saveBtn.disabled    = false;
+    saveBtn.textContent = 'Save Company';
+  }
 }
+
+document.getElementById('inst-add-company-modal')?.addEventListener('click', function (e) {
+  if (e.target === this) closeAddInstCompanyModal();
+});
+document.getElementById('inst-add-company-name')?.addEventListener('keydown', function (e) {
+  if (e.key === 'Enter') saveNewInstCompany();
+});
 
 function calcInstRow(id) {
   const qtyPerPc  = parseFloat(document.getElementById(`inst-qtypc-${id}`)?.value)   || 0;
@@ -415,12 +588,17 @@ async function populateInstItemForEdit(item) {
   tr.id = `inst-row-${id}`;
   tr.innerHTML = `
     <td>
-      <select class="input select inst-cloth-sel" id="inst-cloth-${id}" onchange="onInstClothChange(${id})">
-        <option value="">-- Type --</option>
-        ${instClothTypes.map(t => `<option value="${t.type_name}"${t.type_name === item.cloth_type ? ' selected' : ''}>${t.type_name}</option>`).join('')}
+      <select class="input select inst-cloth-sel" id="inst-cloth-${id}" data-prev="${item.cloth_type || ''}" onchange="onInstClothChange(${id})">
+        ${buildInstClothOptions(item.cloth_type || '')}
       </select>
     </td>
-    <td><select class="input select" id="inst-company-${id}"><option value="">-- Company --</option></select></td>
+    <td>
+      <div style="display:flex;gap:4px;align-items:center;">
+        <select class="input select" id="inst-company-${id}" style="flex:1;min-width:80px;"><option value="">-- Company --</option></select>
+        <button type="button" class="btn btn-sm" style="padding:5px 8px;font-size:11px;flex-shrink:0;"
+                onclick="openAddInstCompanyModal(${id})" title="Add company">+</button>
+      </div>
+    </td>
     <td><input class="input" id="inst-quality-${id}" placeholder="Quality No" value="${item.quality_number || ''}" /></td>
     <td><input class="input" type="number" id="inst-qtypc-${id}" min="0" step="0.01" placeholder="0.00" value="${item.quantity_per_pc || ''}" oninput="calcInstRow(${id})" /></td>
     <td><input class="input" type="number" id="inst-rate-${id}" min="0" step="0.01" placeholder="0.00" value="${item.rate_per_m || ''}" oninput="calcInstRow(${id})" /></td>
@@ -432,18 +610,15 @@ async function populateInstItemForEdit(item) {
   tbody.appendChild(tr);
 
   if (item.cloth_type) {
-    try {
-      const res  = await fetch(`/api/companies?clothType=${encodeURIComponent(item.cloth_type)}`);
-      const data = await res.json();
-      const compSel = document.getElementById(`inst-company-${id}`);
-      data.forEach(c => {
-        const opt = document.createElement('option');
-        opt.value = c.company_name;
-        opt.textContent = c.company_name;
-        if (c.company_name === item.company_name) opt.selected = true;
-        compSel.appendChild(opt);
-      });
-    } catch (e) { /* ignore */ }
+    const data = await fetchInstCompanies(item.cloth_type);
+    const compSel = document.getElementById(`inst-company-${id}`);
+    data.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.company_name;
+      opt.textContent = c.company_name;
+      if (c.company_name === item.company_name) opt.selected = true;
+      compSel.appendChild(opt);
+    });
   }
 }
 
@@ -523,6 +698,16 @@ function onInstSaveSuccess(bill) {
   document.getElementById('inst-success-bill-num').textContent = bill.bill_number;
   successBar.style.display = 'block';
 
+  const waBtn = document.getElementById('inst-whatsapp-btn');
+  if (waBtn) {
+    if (bill.contact_person_mobile) {
+      waBtn.href = buildInstWhatsAppURL(bill.contact_person_mobile, buildInstWhatsAppMessage(bill));
+      waBtn.style.display = '';
+    } else {
+      waBtn.style.display = 'none';
+    }
+  }
+
   const invoiceBtn  = document.getElementById('inst-invoice-btn');
   if (invoiceBtn)  invoiceBtn.onclick  = function () { buildPerformaWindow(bill, bill.items, bill.payments, 'invoice'); };
 
@@ -531,6 +716,51 @@ function onInstSaveSuccess(bill) {
 
   document.getElementById('inst-save-btn').style.display = 'none';
   document.getElementById('inst-save-error').textContent = '';
+}
+
+// ---- WhatsApp share ----
+function buildInstShareLink(billNumber) {
+  const base = window.SHARE_BASE_URL || window.location.origin;
+  return base + '/institution-bill/share/' + billNumber;
+}
+
+function buildInstWhatsAppMessage(bill) {
+  const shopAddress = 'Krishna Chowk, New Sangvi, Pune - 411061';
+  const shopPhone   = '+91 9284630254';
+  const dateStr     = formatPrintDate(bill.bill_date) || new Date().toLocaleDateString('en-IN');
+  const total       = fmt(bill.final_total);
+  const advance     = bill.advance_paid > 0 ? fmt(bill.advance_paid) : null;
+  const remaining   = bill.remaining > 0    ? fmt(bill.remaining)    : null;
+  const shareLink   = buildInstShareLink(bill.bill_number);
+
+  const lines = [];
+  lines.push('Dear ' + (bill.contact_person_name || bill.company_name) + ',');
+  lines.push('');
+  lines.push('Thank you for your business with *SHUBHAM NX*! 🙏');
+  lines.push('');
+  lines.push('*Bill Details:*');
+  lines.push('Bill No : ' + bill.bill_number);
+  lines.push('Date    : ' + dateStr);
+  lines.push('Amount  : ' + total);
+  if (advance)   lines.push('Advance : ' + advance);
+  if (remaining) lines.push('Balance : ' + remaining + ' (pending)');
+  lines.push('');
+  lines.push('📄 View your bill here:');
+  lines.push(shareLink);
+  lines.push('');
+  lines.push('📍 ' + shopAddress);
+  lines.push('📞 ' + shopPhone);
+  lines.push('');
+  lines.push('We look forward to serving you again!');
+
+  return lines.join('\n');
+}
+
+function buildInstWhatsAppURL(mobile, message) {
+  let m = String(mobile || '').replace(/\D/g, '');
+  if (m.length === 10)                          m = '91' + m;
+  else if (m.length === 11 && m.startsWith('0')) m = '91' + m.slice(1);
+  return 'https://wa.me/' + m + '?text=' + encodeURIComponent(message);
 }
 
 function formatPrintDate(dateStr) {
@@ -578,6 +808,8 @@ function resetInstForm() {
   // Reset print area
   document.getElementById('inst-print-area').style.display = 'none';
   document.getElementById('inst-success-bar').style.display = 'none';
+  const waBtn = document.getElementById('inst-whatsapp-btn');
+  if (waBtn) { waBtn.style.display = 'none'; waBtn.href = '#'; }
   document.getElementById('inst-save-btn').style.display = '';
   document.getElementById('inst-save-btn').disabled = false;
   document.getElementById('inst-save-btn').textContent = '✓ Save Institution Bill';

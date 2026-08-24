@@ -156,6 +156,28 @@ def get_bill_by_number(bill_number):
     }
 
 
+def get_institution_bill_by_number(bill_number):
+    """Fetch an institution bill with its items and payments by bill_number. Returns None if not found."""
+    db = get_db()
+    bill = db.execute(
+        "SELECT * FROM institution_bills WHERE bill_number = ?", (bill_number,)
+    ).fetchone()
+    if not bill:
+        return None
+    items = db.execute(
+        "SELECT * FROM institution_bill_items WHERE bill_id = ? ORDER BY id", (bill["id"],)
+    ).fetchall()
+    payments = db.execute(
+        "SELECT payment_method, amount, paid_at FROM institution_bill_payments WHERE bill_id = ? ORDER BY id",
+        (bill["id"],),
+    ).fetchall()
+    return {
+        "bill":     dict(bill),
+        "items":    [dict(i) for i in items],
+        "payments": [dict(p) for p in payments],
+    }
+
+
 def calculate_inst_items(items):
     """Validate and calculate institution bill items.
     Returns (calc_items, subtotal). Raises ValueError on invalid input."""

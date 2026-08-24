@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template
 from services.auth import login_required, admin_required
-from services.billing import get_bill_by_number
+from services.billing import get_bill_by_number, get_institution_bill_by_number
 
 pages_bp = Blueprint("pages", __name__)
 
@@ -96,6 +96,19 @@ def shared_bill(bill_number):
         return render_template("shared_bill_not_found.html", bill_number=bill_number), 404
     return render_template(
         "shared_bill.html",
+        bill=data["bill"],
+        items=data["items"],
+        payments=data["payments"],
+    )
+
+
+@pages_bp.route("/institution-bill/share/<path:bill_number>")
+def shared_institution_bill(bill_number):
+    data = get_institution_bill_by_number(bill_number)
+    if not data:
+        return render_template("shared_bill_not_found.html", bill_number=bill_number), 404
+    return render_template(
+        "shared_institution_bill.html",
         bill=data["bill"],
         items=data["items"],
         payments=data["payments"],

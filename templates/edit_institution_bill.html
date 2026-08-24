@@ -154,6 +154,46 @@
   <div id="inst-save-error" class="text-danger" style="font-size:13px;"></div>
 </div>
 
+<!-- ====== Add Cloth Type Modal ====== -->
+<div class="modal-overlay hidden" id="inst-add-cloth-type-modal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3>Add New Cloth Type</h3>
+      <button class="modal-close" onclick="closeAddInstClothTypeModal()">&#215;</button>
+    </div>
+    <div class="modal-body">
+      <label>Cloth Type Name</label>
+      <input type="text" id="inst-add-cloth-type-name" class="input" placeholder="e.g. Embroidery" />
+      <div id="inst-add-cloth-type-error" class="text-danger mt-2" style="font-size:13px;"></div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary" onclick="closeAddInstClothTypeModal()">Cancel</button>
+      <button type="button" class="btn btn-primary" id="btn-inst-add-cloth-type-save"
+              onclick="saveNewInstClothType()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ====== Add Company Modal ====== -->
+<div class="modal-overlay hidden" id="inst-add-company-modal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3 id="inst-add-company-title">Add Company</h3>
+      <button class="modal-close" onclick="closeAddInstCompanyModal()">&#215;</button>
+    </div>
+    <div class="modal-body">
+      <label>Company Name</label>
+      <input type="text" id="inst-add-company-name" class="input" placeholder="e.g. Siyaram Gold" />
+      <div id="inst-add-company-error" class="text-danger mt-2" style="font-size:13px;"></div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary" onclick="closeAddInstCompanyModal()">Cancel</button>
+      <button type="button" class="btn btn-primary" id="btn-inst-add-company-save"
+              onclick="saveNewInstCompany()">Save Company</button>
+    </div>
+  </div>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
