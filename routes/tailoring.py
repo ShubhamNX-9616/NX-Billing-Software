@@ -382,9 +382,20 @@ def list_orders():
     sql = "SELECT * FROM tailoring_orders"
     where, params = [], []
     if q:
-        where.append("(customer_name LIKE ? OR mobile LIKE ? OR CAST(order_number AS TEXT) LIKE ?)")
-        like = f"%{q}%"
-        params += [like, like, like]
+        q_digits = q.replace(" ", "")
+        if q_digits.isdigit():
+            # A digits-only query is either the start of an order number or
+            # the start of a mobile number, never both: order numbers count
+            # up from 1 while real Indian mobiles always start 6-9, so
+            # prefix-matching both (instead of the old "contains anywhere")
+            # finds the right one without also pulling in unrelated orders
+            # whose mobile just happens to contain the same digits somewhere
+            # in the middle.
+            where.append("(CAST(order_number AS TEXT) LIKE ? OR norm_mobile(mobile) LIKE ?)")
+            params += [f"{q_digits}%", f"{q_digits}%"]
+        else:
+            where.append("customer_name LIKE ?")
+            params.append(f"%{q}%")
     else:
         where.append(ARCHIVE_EXCLUDE_SQL)
     if where:

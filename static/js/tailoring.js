@@ -90,7 +90,17 @@ async function loadMeta() {
   });
 }
 
+// Requests race: a broad query (e.g. "1") can still be in flight when a
+// narrower one ("123") is fired right after, and a slow server response can
+// land after a fast one. Without this guard, whichever response arrives
+// last wins and overwrites the list — even if it's for a search the user
+// already moved past — which is why the same query could show the right
+// order once and a stale/unrelated list the next time. Each call claims the
+// next sequence number and only applies its response if still current.
+let tlLoadSeq = 0;
+
 async function loadOrders() {
+  const mySeq = ++tlLoadSeq;
   const q     = document.getElementById('tl-search').value.trim();
   const stage = document.getElementById('tl-stage-filter').value;
   const due   = document.getElementById('tl-due-filter').value;
@@ -102,6 +112,7 @@ async function loadOrders() {
   if (sort) params.set('sort', sort);
 
   const data = await tlFetch(`${TL_API}/orders?` + params.toString());
+  if (mySeq !== tlLoadSeq) return;  // a newer loadOrders() has since started — discard this stale response
   tlOrders = data.orders;
   renderStats(data.counts);
   renderList();
@@ -927,7 +938,7 @@ function renderDetail(o) {
         Delivery: <strong>${tlFmtDate(o.delivery_date)}</strong><br/>
         ${o.mobile ? `Mobile: <a href="tel:${tlEsc(o.mobile)}">${tlEsc(o.mobile)}</a><br/>` : ''}
         ${o.address ? `Address: ${tlEsc(o.address)}<br/>` : ''}
-        ${o.notes ? `Notes: ${tlEsc(o.notes)}` : ''}
+        ${o.notes ? `<span style="color:#dc2626;font-weight:600;">Notes: ${tlEsc(o.notes)}</span>` : ''}
       </div>
       <div>${stageBadge(o.stage)}</div>
     </div>
@@ -955,15 +966,21 @@ function renderDetail(o) {
       ${photoButtons(null)}
     </div>
 
-    <div style="margin-top:14px;display:flex;justify-content:space-between;align-items:center;gap:12px;
-                flex-wrap:wrap;padding:10px 12px;border:1px solid var(--border);border-radius:8px;">
-      <div style="font-size:14px;">
-        Balance: <strong style="color:${o.balance > 0 ? '#dc2626' : '#057a55'};">${tlFmt(o.balance)}</strong>
-        ${o.cloth_balance > 0
-          ? `<span style="color:var(--text-muted);font-size:12px;"> (incl. cloth ${tlFmt(o.cloth_balance)})</span>`
-          : ''}
+    <div style="margin-top:14px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+        <div style="font-weight:600;">Payment Summary</div>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="openPaymentModal()">&#128176; Payment</button>
       </div>
-      <button type="button" class="btn btn-secondary btn-sm" onclick="openPaymentModal()">&#128176; Payment</button>
+      <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:14px;margin-top:8px;">
+        <span>Final Total: <strong>${tlFmt(o.final_total)}</strong></span>
+        <span>Paid: <strong>${tlFmt(o.advance)}</strong></span>
+        <span>Balance: <strong style="color:${o.balance > 0 ? '#dc2626' : '#057a55'};">${tlFmt(o.balance)}</strong>
+          ${o.cloth_balance > 0
+            ? `<span style="color:var(--text-muted);font-size:12px;"> (incl. cloth ${tlFmt(o.cloth_balance)})</span>`
+            : ''}
+        </span>
+      </div>
+      ${paymentHistoryHtml(o)}
     </div>
 
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:18px;">

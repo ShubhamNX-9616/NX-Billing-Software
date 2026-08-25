@@ -364,9 +364,19 @@ def list_orders():
     sql = "SELECT * FROM tailoring_suit_orders"
     where, params = [], []
     if q:
-        where.append("(customer_name LIKE ? OR mobile LIKE ? OR CAST(order_number AS TEXT) LIKE ? OR book_no LIKE ?)")
-        like = f"%{q}%"
-        params += [like, like, like, like]
+        q_digits = q.replace(" ", "")
+        if q_digits.isdigit():
+            # See routes/tailoring.py's list_orders for why prefix-matching
+            # (not "contains anywhere") avoids false hits: order/book numbers
+            # count up from small integers while real Indian mobiles always
+            # start 6-9, so the two search spaces don't collide.
+            where.append(
+                "(CAST(order_number AS TEXT) LIKE ? OR norm_mobile(mobile) LIKE ? OR book_no LIKE ?)"
+            )
+            params += [f"{q_digits}%", f"{q_digits}%", f"{q_digits}%"]
+        else:
+            where.append("customer_name LIKE ?")
+            params.append(f"%{q}%")
     if where:
         sql += " WHERE " + " AND ".join(where)
     sql += " ORDER BY order_number DESC"

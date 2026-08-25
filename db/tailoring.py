@@ -7,6 +7,7 @@ sequence, so the two systems never mix.
 import sqlite3
 import os
 from flask import g, has_app_context
+from utils import normalize_mobile
 
 TAILORING_DB_PATH = os.path.join(os.path.dirname(__file__), "..", "tailoring.db")
 
@@ -31,6 +32,10 @@ def _open_connection():
     # the same instant — wait up to 5s for the other's lock instead of
     # failing immediately with "database is locked".
     conn.execute("PRAGMA busy_timeout=5000")
+    # Lets search queries match a mobile column regardless of how it was
+    # typed in ('+91 98765 43210' vs '9876543210') by normalizing both
+    # sides before comparing, instead of comparing raw stored text.
+    conn.create_function("norm_mobile", 1, lambda m: normalize_mobile(m or ""))
     return conn
 
 
