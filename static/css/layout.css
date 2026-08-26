@@ -260,7 +260,7 @@
 
 /* ---- Top bar ---- */
 .topbar {
-  height: var(--topbar-h);
+  min-height: var(--topbar-h);
   background: var(--surface);
   border-bottom: 1px solid var(--border);
   padding: 12px 24px;
