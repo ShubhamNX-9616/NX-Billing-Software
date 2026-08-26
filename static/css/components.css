@@ -163,7 +163,7 @@ label {
 }
 
 .table th {
-  background: #f1f5f9;
+  background: var(--table-head-bg);
   color: var(--text-muted);
   font-weight: 600;
   font-size: 12px;
@@ -506,7 +506,7 @@ label {
 
 #link-copied-msg {
   font-size: 13px;
-  color: #057a55;
+  color: var(--success-fg);
   font-weight: 500;
   display: inline-flex;
   align-items: center;
@@ -520,7 +520,7 @@ label {
   gap: 10px;
   margin-top: 12px;
   padding-top: 12px;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--border);
 }
 
 @media (max-width: 768px) {
@@ -572,13 +572,14 @@ label {
 .notice-box--warning { background: var(--warning-bg); border: 1px solid var(--warning-border); }
 .notice-box--warning p { color: var(--warning-fg); }
 .notice-box--danger  { background: var(--danger-bg); border: 1px solid var(--danger-border); }
+.notice-box--info { background: var(--info-bg); border: 1px solid var(--info-border); color: var(--info-fg); }
 
 .notice-danger-title { font-weight: 700; color: var(--danger-fg); margin-bottom: 8px; font-size: 14px; }
 .notice-danger-body  { color: var(--danger-fg); }
 
 /* ---- Button variants: warning (amber), restore (green), cancel-bill (amber outline) ---- */
-.btn-warning { background: #d97706; color: #fff; border-color: #d97706; }
-.btn-warning:hover:not(:disabled) { background: #b45309; border-color: #b45309; }
+.btn-warning { background: var(--warning); color: #fff; border-color: var(--warning); }
+.btn-warning:hover:not(:disabled) { background: var(--warning-dark); border-color: var(--warning-dark); }
 
 .btn-restore { background: var(--success-bg); color: var(--success-fg); border-color: var(--success-border); }
 .btn-restore:hover:not(:disabled) { background: var(--success-border); }
@@ -608,5 +609,4 @@ label {
 .txt-upi  { color: var(--pay-upi); }
 
 /* ---- "Copied!" inline feedback text ---- */
-.txt-copied { font-size: 13px; color: #057a55; }
-html[data-theme="dark"] .txt-copied { color: #34d399; }
+.txt-copied { font-size: 13px; color: var(--success-fg); }

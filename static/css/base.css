@@ -8,9 +8,11 @@
   --success:       #057a55;
   --danger:        #e02424;
   --warning:       #c27803;
+  --warning-dark:  #b45309;
   --bg:            #f9fafb;
   --surface:       #ffffff;
   --border:        #e5e7eb;
+  --table-head-bg: #f1f5f9;
   --text:          #111827;
   --text-muted:    #6b7280;
   --text-light:    #8a9099;   /* icons / decorative marks only — not text */
@@ -343,9 +345,10 @@ a:hover {
    ============================================================ */
 
 html[data-theme="dark"] {
-  --bg:         #111827;
-  --surface:    #1f2937;
-  --border:     #374151;
+  --bg:            #111827;
+  --surface:       #1f2937;
+  --border:        #374151;
+  --table-head-bg: #374151;
   --text:       #f9fafb;
   --text-muted: #9ca3af;
   --text-light: #6b7280;   /* ~3.1:1 on --surface — decorative marks only, never text */
@@ -380,10 +383,6 @@ html[data-theme="dark"] .skeleton-bar {
 }
 
 /* Tables */
-html[data-theme="dark"] .table th {
-  background: #374151;
-  color: #9ca3af;
-}
 html[data-theme="dark"] .table tbody tr:hover {
   background: rgba(255,255,255,0.04);
 }
@@ -403,13 +402,6 @@ html[data-theme="dark"] .btn-secondary:hover:not(:disabled) {
 
 /* Neutral badge — not a status pair, so it needs its own dark treatment */
 html[data-theme="dark"] .badge-neutral { background: #374151; color: #9ca3af; border-color: #4b5563; }
-
-/* Mobile bottom nav */
-html[data-theme="dark"] .mobile-bottom-nav {
-  background: #1f2937;
-  border-color: #374151;
-}
-html[data-theme="dark"] .mob-nav-item { color: #9ca3af; }
 
 /* Bill items table cell inputs */
 html[data-theme="dark"] .items-table th { background: #374151; }

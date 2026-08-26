@@ -246,8 +246,8 @@
 }
 
 .topbar-icon-btn--danger:hover {
-  background: #fee2e2;
-  color: var(--danger);
+  background: var(--danger-bg);
+  color: var(--danger-fg);
 }
 
 /* ---- Main content ---- */
@@ -373,7 +373,7 @@
     left: 0;
     right: 0;
     height: 60px;
-    background: #ffffff;
+    background: var(--surface);
     border-top: 1px solid var(--border);
     z-index: 1000;
     box-shadow: 0 -2px 8px rgba(0,0,0,0.06);
@@ -386,7 +386,7 @@
     align-items: center;
     justify-content: center;
     font-size: 10px;
-    color: #6b7280;
+    color: var(--text-muted);
     text-decoration: none;
     padding: 6px 0;
     gap: 3px;
