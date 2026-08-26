@@ -95,5 +95,5 @@
 <script>
   const CUSTOMER_ID = {{ customer_id }};
 </script>
-<script src="{{ url_for('static', filename='js/customers.js') }}"></script>
+<script src="{{ url_for('static', filename='js/customers.js') }}?v={{ sv }}"></script>
 {% endblock %}
