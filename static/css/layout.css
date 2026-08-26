@@ -241,6 +241,7 @@
 
 /* ---- Top bar ---- */
 .topbar {
+  height: var(--topbar-h);
   background: var(--surface);
   border-bottom: 1px solid var(--border);
   padding: 12px 24px;
@@ -293,6 +294,14 @@
    RESPONSIVE — Mobile (max-width: 768px)
    ============================================================ */
 @media (max-width: 768px) {
+
+  /* Topbar is shorter on mobile (smaller padding) — keep sticky table
+     headers (top: var(--topbar-h)) aligned to its real height. Overridden
+     on :root, not .topbar, so it also reaches .table th elsewhere in the
+     page (custom properties only cascade to descendants). */
+  :root {
+    --topbar-h: 65px;
+  }
 
   /* Hide sidebar */
   .sidebar {

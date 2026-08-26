@@ -180,8 +180,8 @@ label {
   text-align: left;
   border-bottom: 1px solid var(--border);
   position: sticky;
-  top: 0;
-  z-index: 2;
+  top: var(--topbar-h);
+  z-index: 40;
 }
 
 .table td {
