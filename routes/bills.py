@@ -4,6 +4,7 @@ from flask import Blueprint, current_app, jsonify, request, session
 from db import get_db, generate_bill_number, IST_NOW
 from db import current_fy
 from services.auth import api_login_required, api_admin_required
+from utils import normalize_mobile
 from services.billing import (
     validate_and_calculate_items,
     calculate_bill_totals,
@@ -115,6 +116,10 @@ def search_bills():
         bill_number = request.args.get("billNumber", "").strip()
         mobile = request.args.get("mobile", "").strip()
         name = request.args.get("name", "").strip()
+        date_from = request.args.get("dateFrom", "").strip()
+        date_to = request.args.get("dateTo", "").strip()
+        payment_status = request.args.get("paymentStatus", "").strip().lower()
+        payment_mode = request.args.get("paymentMode", "").strip()
 
         db = get_db()
         conditions = []
@@ -130,6 +135,19 @@ def search_bills():
         if name:
             conditions.append("customer_name_snapshot LIKE ?")
             params.append(f"%{name}%")
+        if date_from:
+            conditions.append("bill_date >= ?")
+            params.append(date_from)
+        if date_to:
+            conditions.append("bill_date <= ?")
+            params.append(date_to)
+        if payment_status == "paid":
+            conditions.append("remaining <= 0")
+        elif payment_status == "due":
+            conditions.append("remaining > 0")
+        if payment_mode:
+            conditions.append("payment_mode_type = ?")
+            params.append(payment_mode)
 
         where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
         rows = db.execute(

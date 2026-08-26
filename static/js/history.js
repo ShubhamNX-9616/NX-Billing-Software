@@ -168,25 +168,38 @@ async function loadAllBills() {
 // ----------------------------------------------------------------
 // Search
 // ----------------------------------------------------------------
+function currentFilterParams() {
+  const billNumber     = document.getElementById('search-bill-number').value.trim();
+  const name           = document.getElementById('search-name').value.trim();
+  const mobile         = document.getElementById('search-mobile').value.trim();
+  const dateFrom       = document.getElementById('filter-date-from').value;
+  const dateTo         = document.getElementById('filter-date-to').value;
+  const paymentStatus  = document.getElementById('filter-payment-status').value;
+  const paymentMode    = document.getElementById('filter-payment-mode').value;
+
+  const params = new URLSearchParams();
+  if (billNumber)    params.set('billNumber', billNumber);
+  if (name)          params.set('name', name);
+  if (mobile)        params.set('mobile', mobile);
+  if (dateFrom)       params.set('dateFrom', dateFrom);
+  if (dateTo)         params.set('dateTo', dateTo);
+  if (paymentStatus)  params.set('paymentStatus', paymentStatus);
+  if (paymentMode)    params.set('paymentMode', paymentMode);
+  return params;
+}
+
 async function doSearch() {
   if (currentHistoryTab === 'institution') { await doInstSearch(); return; }
 
-  const billNumber = document.getElementById('search-bill-number').value.trim();
-  const name       = document.getElementById('search-name').value.trim();
-  const mobile     = document.getElementById('search-mobile').value.trim();
+  const params = currentFilterParams();
 
-  if (!billNumber && !name && !mobile) {
+  if (![...params.keys()].length) {
     showLoading();
     await loadAllBills();
     return;
   }
 
   showLoading();
-
-  const params = new URLSearchParams();
-  if (billNumber) params.set('billNumber', billNumber);
-  if (name)       params.set('name', name);
-  if (mobile)     params.set('mobile', mobile);
 
   try {
     const res   = await fetch(`/api/bills/search?${params.toString()}`);
@@ -202,9 +215,13 @@ async function doSearch() {
 }
 
 function clearSearch() {
-  document.getElementById('search-bill-number').value = '';
-  document.getElementById('search-name').value        = '';
-  document.getElementById('search-mobile').value      = '';
+  document.getElementById('search-bill-number').value    = '';
+  document.getElementById('search-name').value           = '';
+  document.getElementById('search-mobile').value         = '';
+  document.getElementById('filter-date-from').value      = '';
+  document.getElementById('filter-date-to').value        = '';
+  document.getElementById('filter-payment-status').value = '';
+  document.getElementById('filter-payment-mode').value   = '';
   showLoading();
   if (currentHistoryTab === 'institution') {
     loadAllInstBills();
@@ -235,6 +252,10 @@ const debouncedSearch = debounce(doSearch, 400);
   el.addEventListener('input', debouncedSearch);
 });
 
+['filter-date-from', 'filter-date-to', 'filter-payment-status', 'filter-payment-mode'].forEach(id => {
+  document.getElementById(id).addEventListener('change', doSearch);
+});
+
 // ---- Init
 document.addEventListener('DOMContentLoaded', loadAllBills);
 
@@ -255,10 +276,32 @@ function switchHistoryTab(tab) {
   document.getElementById('search-bill-number').placeholder  = tab === 'institution' ? 'e.g. INST-0001'  : 'e.g. SHN-0001';
   document.getElementById('search-mobile').placeholder       = tab === 'institution' ? 'Search by contact' : '10-digit mobile';
 
-  // Clear search inputs
-  document.getElementById('search-bill-number').value = '';
-  document.getElementById('search-name').value        = '';
-  document.getElementById('search-mobile').value      = '';
+  // Clear search inputs and filters
+  document.getElementById('search-bill-number').value    = '';
+  document.getElementById('search-name').value           = '';
+  document.getElementById('search-mobile').value         = '';
+  document.getElementById('filter-date-from').value      = '';
+  document.getElementById('filter-date-to').value        = '';
+  document.getElementById('filter-payment-status').value = '';
+  document.getElementById('filter-payment-mode').value   = '';
+
+  // Institution bills support Cheque/NEFT in addition to the regular modes
+  const modeSelect = document.getElementById('filter-payment-mode');
+  modeSelect.innerHTML = tab === 'institution'
+    ? `<option value="">All</option>
+       <option value="Cash">Cash</option>
+       <option value="Card">Card</option>
+       <option value="UPI">UPI</option>
+       <option value="Cheque">Cheque</option>
+       <option value="NEFT">NEFT</option>
+       <option value="Combination">Combination</option>
+       <option value="Pending">Pending</option>`
+    : `<option value="">All</option>
+       <option value="Cash">Cash</option>
+       <option value="Card">Card</option>
+       <option value="UPI">UPI</option>
+       <option value="Combination">Combination</option>
+       <option value="Pending">Pending</option>`;
 
   showLoading();
   if (tab === 'institution') {
@@ -480,21 +523,15 @@ async function loadAllInstBills() {
 }
 
 async function doInstSearch() {
-  const billNumber = document.getElementById('search-bill-number').value.trim();
-  const name       = document.getElementById('search-name').value.trim();
-  const mobile     = document.getElementById('search-mobile').value.trim();
+  const params = currentFilterParams();
 
-  if (!billNumber && !name && !mobile) {
+  if (![...params.keys()].length) {
     showLoading();
     await loadAllInstBills();
     return;
   }
 
   showLoading();
-  const params = new URLSearchParams();
-  if (billNumber) params.set('billNumber', billNumber);
-  if (name)       params.set('name', name);
-  if (mobile)     params.set('mobile', mobile);
 
   try {
     const res  = await fetch(`/api/institution-bills/search?${params.toString()}`);

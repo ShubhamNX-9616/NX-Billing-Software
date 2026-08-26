@@ -49,6 +49,36 @@
       </button>
     </div>
   </div>
+
+  <div class="history-filter-bar" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;align-items:flex-end;margin-top:10px;">
+    <div>
+      <label>Date From</label>
+      <input type="date" id="filter-date-from" class="input" />
+    </div>
+    <div>
+      <label>Date To</label>
+      <input type="date" id="filter-date-to" class="input" />
+    </div>
+    <div>
+      <label>Payment Status</label>
+      <select id="filter-payment-status" class="input select">
+        <option value="">All</option>
+        <option value="paid">Paid</option>
+        <option value="due">Due</option>
+      </select>
+    </div>
+    <div>
+      <label id="filter-payment-mode-label">Payment Mode</label>
+      <select id="filter-payment-mode" class="input select">
+        <option value="">All</option>
+        <option value="Cash">Cash</option>
+        <option value="Card">Card</option>
+        <option value="UPI">UPI</option>
+        <option value="Combination">Combination</option>
+        <option value="Pending">Pending</option>
+      </select>
+    </div>
+  </div>
 </div>
 
 <!-- ====== Results ====== -->

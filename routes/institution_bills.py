@@ -124,9 +124,13 @@ def list_institution_bills():
 @inst_bills_bp.route("/institution-bills/search", methods=["GET"])
 @api_login_required
 def search_institution_bills():
-    bill_number = (request.args.get("billNumber") or "").strip()
-    company     = (request.args.get("name")        or "").strip()
-    contact     = (request.args.get("mobile")      or "").strip()
+    bill_number    = (request.args.get("billNumber")    or "").strip()
+    company        = (request.args.get("name")          or "").strip()
+    contact        = (request.args.get("mobile")        or "").strip()
+    date_from      = (request.args.get("dateFrom")       or "").strip()
+    date_to        = (request.args.get("dateTo")         or "").strip()
+    payment_status = (request.args.get("paymentStatus")  or "").strip().lower()
+    payment_mode   = (request.args.get("paymentMode")    or "").strip()
 
     db = get_db()
     conditions, params = [], []
@@ -139,6 +143,19 @@ def search_institution_bills():
     if contact:
         conditions.append("ib.contact_person_name LIKE ?")
         params.append(f"%{contact}%")
+    if date_from:
+        conditions.append("ib.bill_date >= ?")
+        params.append(date_from)
+    if date_to:
+        conditions.append("ib.bill_date <= ?")
+        params.append(date_to)
+    if payment_status == "paid":
+        conditions.append("ib.remaining <= 0")
+    elif payment_status == "due":
+        conditions.append("ib.remaining > 0")
+    if payment_mode:
+        conditions.append("ib.payment_mode_type = ?")
+        params.append(payment_mode)
 
     where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
     rows = db.execute(f"""
