@@ -29,6 +29,11 @@
   --info-fg:        #1e40af;
   --info-border:    #bfdbfe;
 
+  /* ---- Payment-method palette — one definition, shared by .dot-* and .txt-* ---- */
+  --pay-cash: #10b981;
+  --pay-card: #3b82f6;
+  --pay-upi:  #8b5cf6;
+
   --radius-sm:     6px;
   --radius:        8px;
   --radius-lg:     12px;

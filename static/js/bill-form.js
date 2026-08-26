@@ -577,8 +577,8 @@ function showLoyaltyAlert(tiers) {
   if (!successEl) return;
 
   const banner = document.createElement('div');
-  banner.style.cssText = 'margin-top:10px;padding:12px 14px;border-radius:8px;background:#fef3c7;' +
-    'border:1px solid #fde68a;position:relative;';
+  banner.className = 'notice-box notice-box--warning';
+  banner.style.cssText = 'margin-top:10px;position:relative;';
 
   const badges = tiers.map(t => `
     <span class="badge ${TIER_CSS[t] || 'badge-neutral'}" style="margin-right:6px;">
@@ -589,11 +589,11 @@ function showLoyaltyAlert(tiers) {
   banner.innerHTML = `
     <button type="button" aria-label="Dismiss"
             style="position:absolute;top:6px;right:8px;background:none;border:none;
-                   cursor:pointer;font-size:14px;color:#92400e;"
+                   cursor:pointer;font-size:14px;color:var(--warning-fg);"
             onclick="this.parentElement.remove()">&#10005;</button>
-    <div style="font-weight:700;color:#92400e;margin-bottom:6px;">&#127881; Loyalty Milestone Reached!</div>
+    <div style="font-weight:700;color:var(--warning-fg);margin-bottom:6px;">Loyalty Milestone Reached!</div>
     <div style="margin-bottom:8px;">${badges}</div>
-    <a href="/loyalty" style="font-size:13px;color:#92400e;font-weight:600;">View all pending gifts &#8594;</a>
+    <a href="/loyalty" style="font-size:13px;color:var(--warning-fg);font-weight:600;">View all pending gifts &#8594;</a>
   `;
 
   successEl.insertAdjacentElement('afterend', banner);

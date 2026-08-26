@@ -208,7 +208,7 @@ function appendTableRow(id, vals = {}) {
               onchange="onClothChange(${id})">
         ${buildClothOptions(clothType)}
       </select>
-      <div id="inv-badge-${id}" style="display:none;margin-top:2px;font-size:9px;background:#eff6ff;color:#2563eb;padding:1px 5px;border-radius:3px;text-align:center;cursor:pointer;" onclick="clearInventoryLink(${id})" title="Linked to inventory — click to unlink">&#128230; INV</div>
+      <div id="inv-badge-${id}" class="pill pill-info" style="display:none;margin-top:2px;cursor:pointer;" onclick="clearInventoryLink(${id})" title="Linked to inventory — click to unlink">INV</div>
     </td>
     <td id="company-wrap-${id}" style="min-width:140px;">
       <div style="display:flex;gap:4px;align-items:center;">
@@ -295,7 +295,7 @@ function appendCard(id, vals = {}) {
     <div class="item-card-header">
       <span id="card-header-${id}">Item</span>
       <div style="display:flex;align-items:center;gap:6px;">
-        <span id="inv-badge-${id}" style="display:none;font-size:9px;background:#eff6ff;color:#2563eb;padding:2px 6px;border-radius:3px;cursor:pointer;" onclick="clearInventoryLink(${id})" title="Linked to inventory — click to unlink">&#128230; INV</span>
+        <span id="inv-badge-${id}" class="pill pill-info" style="display:none;cursor:pointer;" onclick="clearInventoryLink(${id})" title="Linked to inventory — click to unlink">INV</span>
         <button type="button" class="btn-remove-row" onclick="removeRow(${id})">&#215;</button>
       </div>
     </div>

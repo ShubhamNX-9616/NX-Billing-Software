@@ -220,6 +220,24 @@ label {
 .tier-platinum  { background: #ede9fe; color: #6d28d9; }
 .tier-diamond   { background: #cffafe; color: #0e7490; }
 
+/* ---- Pill — compact status tag for JS-injected markup (consumes the token pairs) ---- */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .4px;
+}
+.pill-danger  { background: var(--danger-bg);  color: var(--danger-fg); }
+.pill-warning { background: var(--warning-bg); color: var(--warning-fg); }
+.pill-info    { background: var(--info-bg);    color: var(--info-fg); }
+
+/* ---- Inactive / cancelled table row (theme-aware — was a hardcoded near-white) ---- */
+.row-inactive { background: var(--bg); opacity: .72; }
+
 /* ---- Modal ---- */
 .modal-overlay {
   position: fixed;
@@ -579,11 +597,15 @@ label {
 .stat-val-warning { color: var(--warning); }
 .stat-val-danger  { color: var(--danger); }
 
-/* ---- Payment method colour dots (categorical legend, not status) ---- */
+/* ---- Payment method colour palette (categorical legend, not status) ---- */
 .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-.dot-green  { background: #10b981; }
-.dot-blue   { background: #3b82f6; }
-.dot-purple { background: #8b5cf6; }
+.dot-green  { background: var(--pay-cash); }
+.dot-blue   { background: var(--pay-card); }
+.dot-purple { background: var(--pay-upi); }
+
+.txt-cash { color: var(--pay-cash); }
+.txt-card { color: var(--pay-card); }
+.txt-upi  { color: var(--pay-upi); }
 
 /* ---- "Copied!" inline feedback text ---- */
 .txt-copied { font-size: 13px; color: #057a55; }

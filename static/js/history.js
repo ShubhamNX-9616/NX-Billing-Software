@@ -67,14 +67,12 @@ function renderTable(bills, titleText) {
     const remaining  = b.remaining || 0;
 
     const paymentBadgeHtml = cancelled
-      ? `<span class="badge" style="background:#fee2e2;color:#9b1c1c;font-size:10px;font-weight:700;letter-spacing:.4px;">CANCELLED</span>`
+      ? `<span class="pill pill-danger">CANCELLED</span>`
       : (remaining > 0
-          ? `<span class="badge" style="background:#fee2e2;color:#b91c1c;font-size:10px;">Due: ${fmt(remaining)}</span>`
+          ? `<span class="pill pill-danger">Due: ${fmt(remaining)}</span>`
           : `<span class="badge badge-success" style="font-size:10px;">Paid</span>`);
 
-    const rowStyle = cancelled
-      ? 'background:#fafafa;opacity:.72;'
-      : '';
+    const rowClass = cancelled ? 'row-inactive' : '';
 
     const billNumHtml = cancelled
       ? `<span class="fw-600" style="color:var(--text-muted);text-decoration:line-through;">${b.bill_number}</span>`
@@ -129,7 +127,7 @@ function renderTable(bills, titleText) {
       </div>`;
 
     return `
-      <tr onclick="location.href='/bills/${b.id}'" style="cursor:pointer;${rowStyle}">
+      <tr onclick="location.href='/bills/${b.id}'" class="${rowClass}" style="cursor:pointer;">
         <td>${billNumHtml}</td>
         <td style="${cancelled ? 'color:var(--text-muted);' : ''}">${escapeHtml(b.customer_name_snapshot) || '—'}</td>
         <td class="col-mobile" style="color:var(--text-muted);">${escapeHtml(b.customer_mobile_snapshot) || '—'}</td>
@@ -579,9 +577,9 @@ function renderInstTable(bills, titleText) {
     const remaining  = b.remaining || 0;
 
     const statusBadge = cancelled
-      ? `<span class="badge" style="background:#fee2e2;color:#9b1c1c;font-size:10px;font-weight:700;">CANCELLED</span>`
+      ? `<span class="pill pill-danger">CANCELLED</span>`
       : (remaining > 0
-          ? `<span class="badge" style="background:#fee2e2;color:#b91c1c;font-size:10px;">Due: ${fmt(remaining)}</span>`
+          ? `<span class="pill pill-danger">Due: ${fmt(remaining)}</span>`
           : `<span class="badge badge-success" style="font-size:10px;">Paid</span>`);
 
     const payBadge = `<span class="badge ${instPayBadgeMap[b.payment_mode_type] || 'badge-neutral'}">${b.payment_mode_type}</span>`;
@@ -590,7 +588,7 @@ function renderInstTable(bills, titleText) {
       ? `<span class="fw-600" style="color:var(--text-muted);text-decoration:line-through;">${b.bill_number}</span>`
       : `<span class="fw-600" style="color:var(--primary);">${b.bill_number}</span>`;
 
-    const rowStyle = cancelled ? 'background:#fafafa;opacity:.72;' : '';
+    const rowClass = cancelled ? 'row-inactive' : '';
 
     const moreItems = cancelled
       ? `<button class="row-menu-item" onclick="openInstInvoice(${b.id}); closeRowMenu('inst-menu-${b.id}'); event.stopPropagation();">&#128438; Print Invoice</button>
@@ -618,7 +616,7 @@ function renderInstTable(bills, titleText) {
       </div>`;
 
     return `
-      <tr onclick="location.href='/institution-bills/${b.id}'" style="cursor:pointer;${rowStyle}">
+      <tr onclick="location.href='/institution-bills/${b.id}'" class="${rowClass}" style="cursor:pointer;">
         <td>${billNumHtml}</td>
         <td style="${cancelled ? 'color:var(--text-muted);' : ''}">${b.company_name || '—'}</td>
         <td style="color:var(--text-muted);">${b.contact_person_name || '—'}</td>

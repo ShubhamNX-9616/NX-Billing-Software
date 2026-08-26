@@ -873,7 +873,7 @@ function renderSections(items) {
     const isOthers = section === 'Others';
     const lowCount = sectionItems.filter(i => i.current_stock < 0 || i.current_stock <= i.min_stock_alert).length;
     const alertBadge = lowCount > 0
-      ? `<span style="font-size:12px;background:#fffbeb;color:#f59e0b;padding:2px 8px;border-radius:10px;margin-left:8px;">${lowCount} alert${lowCount !== 1 ? 's' : ''}</span>`
+      ? `<span class="pill pill-warning" style="margin-left:8px;">${lowCount} alert${lowCount !== 1 ? 's' : ''}</span>`
       : '';
 
     const rows = sectionItems.map(item => {
@@ -884,9 +884,9 @@ function renderSections(items) {
           ? 'style="color:var(--warning,#f59e0b);font-weight:700;"'
           : '';
       const stockBadge = item.current_stock < 0
-        ? `<span style="font-size:10px;background:#fef2f2;color:#ef4444;padding:1px 5px;border-radius:4px;margin-left:4px;">NEG</span>`
+        ? `<span class="pill pill-danger" style="margin-left:4px;">NEG</span>`
         : item.current_stock <= item.min_stock_alert
-          ? `<span style="font-size:10px;background:#fffbeb;color:#f59e0b;padding:1px 5px;border-radius:4px;margin-left:4px;">LOW</span>`
+          ? `<span class="pill pill-warning" style="margin-left:4px;">LOW</span>`
           : '';
       const clothCol    = isOthers ? `<td>${esc(item.cloth_type)}</td>` : '';
       const invoiceCell = item.invoice_number

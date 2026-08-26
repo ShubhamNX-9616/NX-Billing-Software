@@ -938,14 +938,13 @@ function renderDetail(o) {
         Delivery: <strong>${tlFmtDate(o.delivery_date)}</strong><br/>
         ${o.mobile ? `Mobile: <a href="tel:${tlEsc(o.mobile)}">${tlEsc(o.mobile)}</a><br/>` : ''}
         ${o.address ? `Address: ${tlEsc(o.address)}<br/>` : ''}
-        ${o.notes ? `<span style="color:#dc2626;font-weight:600;">Notes: ${tlEsc(o.notes)}</span>` : ''}
+        ${o.notes ? `<span class="text-danger" style="font-weight:600;">Notes: ${tlEsc(o.notes)}</span>` : ''}
       </div>
       <div>${stageBadge(o.stage)}</div>
     </div>
 
     ${o.cloth_balance > 0 ? `
-    <div style="margin-top:10px;padding:8px 12px;border:1px solid #dc2626;background:#fef2f2;
-                border-radius:6px;color:#991b1b;font-size:13px;font-weight:600;">
+    <div class="notice-box notice-box--danger" style="margin-top:10px;color:var(--danger-fg);font-size:13px;font-weight:600;">
       &#9888; Includes ${tlFmt(o.cloth_balance)} cloth balance — collect the full balance below at delivery
     </div>` : ''}
 
@@ -1340,8 +1339,8 @@ function showPhotoRecoveryNotice() {
   const body = document.getElementById('tl-detail-body');
   if (!body) return;
   const div = document.createElement('div');
-  div.style.cssText = 'margin-bottom:12px;padding:10px 12px;border-radius:8px;' +
-    'background:#fef3c7;color:#92400e;font-size:13px;line-height:1.4;';
+  div.className = 'notice-box notice-box--warning';
+  div.style.cssText = 'margin-bottom:12px;color:var(--warning-fg);font-size:13px;line-height:1.4;';
   div.innerHTML = '&#9888;&#65039; If the photo you just took is not shown below, ' +
     'the browser reloaded before it could be saved. Please add it again — ' +
     'on this device the <strong>&#128444; Gallery</strong> button is more reliable ' +
@@ -1502,7 +1501,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   } catch (e) {
     console.error(e);
     const list = document.getElementById('tl-orders-list');
-    if (list) list.innerHTML = `<div style="padding:20px;color:#dc2626;">${tlEsc(e.message)}</div>`;
+    if (list) list.innerHTML = `<div class="text-danger" style="padding:20px;">${tlEsc(e.message)}</div>`;
     return;
   }
 

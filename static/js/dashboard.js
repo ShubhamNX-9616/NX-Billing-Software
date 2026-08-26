@@ -42,9 +42,9 @@ function renderPaymentSplit(containerId, cash, card, upi) {
   const el = document.getElementById(containerId);
   if (!el) return;
   const parts = [];
-  if (cash > 0) parts.push(`<span style="color:#10b981;font-weight:600;">Cash</span> <span>${fmtCurrency(cash)}</span>`);
-  if (card > 0) parts.push(`<span style="color:#3b82f6;font-weight:600;">Card</span> <span>${fmtCurrency(card)}</span>`);
-  if (upi  > 0) parts.push(`<span style="color:#8b5cf6;font-weight:600;">UPI</span> <span>${fmtCurrency(upi)}</span>`);
+  if (cash > 0) parts.push(`<span class="txt-cash" style="font-weight:600;">Cash</span> <span>${fmtCurrency(cash)}</span>`);
+  if (card > 0) parts.push(`<span class="txt-card" style="font-weight:600;">Card</span> <span>${fmtCurrency(card)}</span>`);
+  if (upi  > 0) parts.push(`<span class="txt-upi" style="font-weight:600;">UPI</span> <span>${fmtCurrency(upi)}</span>`);
   el.innerHTML = parts.map(p => `<span style="white-space:nowrap;">${p}</span>`).join(
     '<span style="color:var(--border);margin:0 2px;">|</span>'
   );
