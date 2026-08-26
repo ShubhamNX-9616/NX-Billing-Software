@@ -155,13 +155,6 @@ label {
   letter-spacing: -0.01em;
 }
 
-/* ---- Card accent variants (color-coded left border) ---- */
-.card-accent-blue   { border-left: 4px solid var(--primary); }
-.card-accent-green  { border-left: 4px solid var(--success); }
-.card-accent-purple { border-left: 4px solid #7c3aed; }
-.card-accent-amber  { border-left: 4px solid var(--warning); }
-.card-accent-teal   { border-left: 4px solid #0891b2; }
-
 /* ---- Table ---- */
 .table {
   width: 100%;
@@ -589,24 +582,13 @@ html[data-theme="dark"] .btn-cancel-bill { background: #292200; color: #fcd34d; 
 .stat-val-primary { color: var(--primary); }
 .stat-val-success { color: var(--success); }
 .stat-val-warning { color: var(--warning); }
-.stat-val-teal    { color: #0891b2; }
-.stat-val-green   { color: #10b981; }
-.stat-val-blue    { color: #3b82f6; }
-.stat-val-purple  { color: #8b5cf6; }
-.stat-val-amber   { color: #f59e0b; }
+.stat-val-danger  { color: var(--danger); }
 
-html[data-theme="dark"] .stat-val-teal   { color: #22d3ee; }
-html[data-theme="dark"] .stat-val-green  { color: #34d399; }
-html[data-theme="dark"] .stat-val-blue   { color: #60a5fa; }
-html[data-theme="dark"] .stat-val-purple { color: #a78bfa; }
-html[data-theme="dark"] .stat-val-amber  { color: #fbbf24; }
-
-/* ---- Payment method colour dots ---- */
+/* ---- Payment method colour dots (categorical legend, not status) ---- */
 .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
 .dot-green  { background: #10b981; }
 .dot-blue   { background: #3b82f6; }
 .dot-purple { background: #8b5cf6; }
-.dot-amber  { background: #f59e0b; }
 
 /* ---- "Copied!" inline feedback text ---- */
 .txt-copied { font-size: 13px; color: #057a55; }
