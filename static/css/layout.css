@@ -9,7 +9,7 @@
   left: 0;
   width: 220px;
   height: 100vh;
-  background: linear-gradient(160deg, #0f172a 0%, #1a3470 100%);
+  background: #0f172a;
   border-right: none;
   box-shadow: 2px 0 12px rgba(0,0,0,0.18);
   display: flex;
