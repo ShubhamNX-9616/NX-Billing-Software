@@ -215,10 +215,10 @@ label {
 .badge-info     { background: var(--info-bg);    color: var(--info-fg); }
 .badge-neutral  { background: var(--bg); color: var(--text-muted); border: 1px solid var(--border); }
 
-.tier-silver    { background: #e5e7eb; color: #4b5563; }
-.tier-gold      { background: #fef3c7; color: #b45309; }
-.tier-platinum  { background: #ede9fe; color: #6d28d9; }
-.tier-diamond   { background: #cffafe; color: #0e7490; }
+.tier-silver    { background: var(--tier-silver-bg);   color: var(--tier-silver-fg); }
+.tier-gold      { background: var(--tier-gold-bg);     color: var(--tier-gold-fg); }
+.tier-platinum  { background: var(--tier-platinum-bg); color: var(--tier-platinum-fg); }
+.tier-diamond   { background: var(--tier-diamond-bg);  color: var(--tier-diamond-fg); }
 
 /* ---- Pill — compact status tag for JS-injected markup (consumes the token pairs) ---- */
 .pill {

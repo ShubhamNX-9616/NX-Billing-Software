@@ -33,6 +33,12 @@
   --neutral-alt-bg: #ede9fe;
   --neutral-alt-fg: #5b21b6;
 
+  /* ---- Loyalty tier badges — ordered categorical scale, own colours ---- */
+  --tier-silver-bg:   #e5e7eb;  --tier-silver-fg:   #4b5563;
+  --tier-gold-bg:     #fef3c7;  --tier-gold-fg:     #b45309;
+  --tier-platinum-bg: #ede9fe;  --tier-platinum-fg: #6d28d9;
+  --tier-diamond-bg:  #cffafe;  --tier-diamond-fg:  #0e7490;
+
   /* ---- Payment-method palette — one definition, shared by .dot-* and .txt-* ---- */
   --pay-cash: #10b981;
   --pay-card: #3b82f6;
@@ -358,6 +364,11 @@ html[data-theme="dark"] {
   --info-border:    #3b82f6;
   --neutral-alt-bg: #4c1d95;
   --neutral-alt-fg: #ddd6fe;
+
+  --tier-silver-bg:   #374151;  --tier-silver-fg:   #d1d5db;
+  --tier-gold-bg:     #78350f;  --tier-gold-fg:     #fde68a;
+  --tier-platinum-bg: #5b21b6;  --tier-platinum-fg: #e9d5ff;
+  --tier-diamond-bg:  #164e63;  --tier-diamond-fg:  #a5f3fc;
 }
 
 /* Skeleton shimmer */
