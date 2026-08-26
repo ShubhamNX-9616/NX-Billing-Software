@@ -12,21 +12,21 @@
 <!-- Section 1: Summary Cards -->
 <div class="summary-grid">
   <div class="card">
-    <div class="text-muted" style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;">&#128196; Total Bills</div>
+    <div class="text-muted" style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;">Total Bills</div>
     <div class="stat-val skeleton-val" id="val-total-bills">—</div>
   </div>
   <div class="card">
-    <div class="text-muted" style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;">&#128100; Total Customers</div>
+    <div class="text-muted" style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;">Total Customers</div>
     <div class="stat-val skeleton-val" id="val-total-customers">—</div>
   </div>
   <div class="card">
-    <div class="text-muted" style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;">&#9200; Today's Sales</div>
+    <div class="text-muted" style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;">Today's Sales</div>
     <div class="stat-val stat-val-md stat-val-primary skeleton-val" id="val-today-sales">—</div>
     <div style="font-size:12px;color:var(--text-muted);margin-top:3px;" id="val-today-bills-count"></div>
     <div id="val-today-split" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;font-size:12px;"></div>
   </div>
   <div class="card">
-    <div class="text-muted" style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;">&#128197; This Month's Sales</div>
+    <div class="text-muted" style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;">This Month's Sales</div>
     <div class="stat-val stat-val-md skeleton-val" id="val-month-sales">—</div>
     <div id="val-month-split" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;font-size:12px;"></div>
   </div>
@@ -138,7 +138,7 @@
     </tbody></table>
   </div>
   <div id="salesperson-empty" class="empty-state" style="display:none;">
-    <div class="empty-state-icon">&#128100;</div>
+    <div class="empty-state-icon">{{ icon('user', 28) }}</div>
     <div>No sales found for this period.</div>
   </div>
   <div id="salesperson-table-wrap" class="table-scroll-wrapper" style="display:none;">
@@ -208,7 +208,7 @@
   </div>
 
   <div id="recent-bills-empty" class="empty-state" style="display:none;">
-    <div class="empty-state-icon">&#128196;</div>
+    <div class="empty-state-icon">{{ icon('list', 28) }}</div>
     <div>No bills yet. <a href="/new-bill">Create your first bill</a></div>
   </div>
 

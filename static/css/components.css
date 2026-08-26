@@ -361,8 +361,13 @@ label {
 }
 
 .empty-state-icon {
-  font-size: 36px;
   margin-bottom: 12px;
+  color: var(--text-light);
+}
+
+.empty-state-icon svg {
+  width: 28px;
+  height: 28px;
 }
 
 /* ---- Search bar ---- */

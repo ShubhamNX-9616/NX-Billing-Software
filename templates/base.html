@@ -1,3 +1,4 @@
+{% from "_icons.html" import icon %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -33,24 +34,24 @@
       {# New Bill — visible to all roles #}
       <a href="/new-bill"
          class="nav-link {% if request.path == '/new-bill' %}active{% endif %}">
-        <span class="nav-icon">&#43;</span>
+        <span class="nav-icon">{{ icon('plus') }}</span>
         New Bill
       </a>
       {% if current_user.is_admin %}
       <a href="/new-institution-bill"
          class="nav-link {% if request.path == '/new-institution-bill' %}active{% endif %}">
-        <span class="nav-icon">&#127970;</span>
+        <span class="nav-icon">{{ icon('grid') }}</span>
         Institution Bill
       </a>
       {% endif %}
       <a href="/tailoring"
          class="nav-link {% if request.path.startswith('/tailoring') and not request.path.startswith('/tailoring/suits') %}active{% endif %}">
-        <span class="nav-icon">&#9986;</span>
+        <span class="nav-icon">{{ icon('scissors') }}</span>
         Tailoring
       </a>
       <a href="/tailoring/suits"
          class="nav-link {% if request.path.startswith('/tailoring/suits') %}active{% endif %}">
-        <span class="nav-icon">&#128084;</span>
+        <span class="nav-icon">{{ icon('suits') }}</span>
         Suits
       </a>
 
@@ -58,32 +59,32 @@
       {% if current_user.is_admin %}
       <a href="/"
          class="nav-link {% if request.path == '/' %}active{% endif %}">
-        <span class="nav-icon">&#9632;</span>
+        <span class="nav-icon">{{ icon('dashboard') }}</span>
         Dashboard
       </a>
       <a href="/bill-history"
          class="nav-link {% if request.path.startswith('/bill') and request.path != '/new-bill' %}active{% endif %}">
-        <span class="nav-icon">&#128196;</span>
+        <span class="nav-icon">{{ icon('list') }}</span>
         Bill History
       </a>
       <a href="/customers"
          class="nav-link {% if request.path.startswith('/customers') %}active{% endif %}">
-        <span class="nav-icon">&#128100;</span>
+        <span class="nav-icon">{{ icon('user') }}</span>
         Customers
       </a>
       <a href="/inventory"
          class="nav-link {% if request.path.startswith('/inventory') %}active{% endif %}">
-        <span class="nav-icon">&#128230;</span>
+        <span class="nav-icon">{{ icon('box') }}</span>
         Inventory
       </a>
       <a href="/loyalty"
          class="nav-link {% if request.path.startswith('/loyalty') %}active{% endif %}">
-        <span class="nav-icon">&#127873;</span>
+        <span class="nav-icon">{{ icon('gift') }}</span>
         Loyalty
       </a>
       <a href="/admin/users"
          class="nav-link {% if request.path.startswith('/admin/users') %}active{% endif %}">
-        <span class="nav-icon">&#128101;</span>
+        <span class="nav-icon">{{ icon('users') }}</span>
         Users
       </a>
       {% endif %}
@@ -165,75 +166,40 @@
   <nav class="mobile-bottom-nav">
     {# New Bill — always visible #}
     <a href="/new-bill" class="mob-nav-item" data-page="new-bill">
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <line x1="12" y1="5" x2="12" y2="19"/>
-        <line x1="5" y1="12" x2="19" y2="12"/>
-      </svg>
+      {{ icon('plus') }}
       <span>New Bill</span>
     </a>
     {% if current_user.is_admin %}
     <a href="/new-institution-bill" class="mob-nav-item" data-page="inst-bill">
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <rect x="3" y="3" width="18" height="18" rx="2"/>
-        <line x1="3" y1="9" x2="21" y2="9"/>
-        <line x1="9" y1="21" x2="9" y2="9"/>
-      </svg>
+      {{ icon('grid') }}
       <span>Inst. Bill</span>
     </a>
     {% endif %}
     <a href="/tailoring" class="mob-nav-item" data-page="tailoring">
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <circle cx="6" cy="6" r="3"/>
-        <circle cx="6" cy="18" r="3"/>
-        <line x1="20" y1="4" x2="8.12" y2="15.88"/>
-        <line x1="14.47" y1="14.48" x2="20" y2="20"/>
-        <line x1="8.12" y1="8.12" x2="12" y2="12"/>
-      </svg>
+      {{ icon('scissors') }}
       <span>Tailoring</span>
     </a>
     <a href="/tailoring/suits" class="mob-nav-item" data-page="suits">
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <circle cx="6" cy="6" r="3"/>
-        <circle cx="6" cy="18" r="3"/>
-        <line x1="20" y1="4" x2="8.12" y2="15.88"/>
-        <line x1="14.47" y1="14.48" x2="20" y2="20"/>
-        <line x1="8.12" y1="8.12" x2="12" y2="12"/>
-      </svg>
+      {{ icon('suits') }}
       <span>Suits</span>
     </a>
 
     {# Admin-only tabs #}
     {% if current_user.is_admin %}
     <a href="/" class="mob-nav-item" data-page="dashboard">
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <rect x="3" y="3" width="7" height="7" rx="1"/>
-        <rect x="14" y="3" width="7" height="7" rx="1"/>
-        <rect x="3" y="14" width="7" height="7" rx="1"/>
-        <rect x="14" y="14" width="7" height="7" rx="1"/>
-      </svg>
+      {{ icon('dashboard') }}
       <span>Dashboard</span>
     </a>
     <a href="/bill-history" class="mob-nav-item" data-page="history">
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <line x1="4" y1="6" x2="20" y2="6"/>
-        <line x1="4" y1="12" x2="20" y2="12"/>
-        <line x1="4" y1="18" x2="20" y2="18"/>
-      </svg>
+      {{ icon('list') }}
       <span>History</span>
     </a>
     <a href="/customers" class="mob-nav-item" data-page="customers">
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-        <circle cx="12" cy="7" r="4"/>
-      </svg>
+      {{ icon('user') }}
       <span>Customers</span>
     </a>
     <a href="/inventory" class="mob-nav-item" data-page="inventory">
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-        <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
-        <line x1="12" y1="22.08" x2="12" y2="12"/>
-      </svg>
+      {{ icon('box') }}
       <span>Inventory</span>
     </a>
     {% endif %}

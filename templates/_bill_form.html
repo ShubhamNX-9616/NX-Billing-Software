@@ -93,7 +93,7 @@
       </button>
       <button type="button" class="btn btn-secondary btn-sm btn-block-mobile" id="btn-scan-qr"
               onclick="openQrScanModal()">
-        &#128247; Scan QR
+        {{ icon('camera', 14) }} Scan QR
       </button>
     </div>
 </div>
@@ -258,7 +258,7 @@
             class="btn btn-primary"
             style="display:none;"
             onclick="openInlinePaymentUpdateModal()">
-      &#128179; Update Payment
+      {{ icon('card', 14) }} Update Payment
     </button>
 
     <!-- Copy confirmation (hidden) -->
@@ -270,7 +270,7 @@
 
   <button type="button" class="btn btn-secondary btn-block-mobile" id="btn-print" disabled
           onclick="doPrint()">
-    &#128438; Print / PDF
+    {{ icon('printer', 14) }} Print / PDF
   </button>
   <button type="button" class="btn btn-primary btn-block-mobile" id="btn-save"
           onclick="saveBill()">
@@ -401,7 +401,7 @@
       <div id="qr-camera-section">
         <button type="button" class="btn btn-secondary" id="btn-start-camera"
                 onclick="startCamera()" style="width:100%;">
-          &#128247; Start Camera (HTTPS only)
+          {{ icon('camera', 14) }} Start Camera (HTTPS only)
         </button>
         <div id="qr-reader" style="width:100%;border-radius:8px;overflow:hidden;margin-top:10px;display:none;"></div>
         <button type="button" class="btn btn-secondary btn-sm" id="btn-stop-camera"

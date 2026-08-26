@@ -50,7 +50,7 @@
   <!-- Loyalty status -->
   <div class="card mb-3" id="cd-loyalty-card" style="display:none;">
     <div class="card-header">
-      <span class="card-title">&#127873; Loyalty Status</span>
+      <span class="card-title" style="display:inline-flex;align-items:center;gap:6px;">{{ icon('gift', 15) }} Loyalty Status</span>
       <span id="cd-loyalty-fy" style="font-size:12px;color:var(--text-muted);"></span>
     </div>
     <div id="cd-loyalty-body" style="display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start;padding:4px 0;"></div>
@@ -63,7 +63,7 @@
     </div>
 
     <div id="cd-bills-empty" class="empty-state" style="display:none;">
-      <div class="empty-state-icon">&#128196;</div>
+      <div class="empty-state-icon">{{ icon('list', 28) }}</div>
       <div>No bills for this customer yet.</div>
       <div class="mt-2">
         <a href="/new-bill" class="btn btn-primary btn-sm">&#43; Create Bill</a>

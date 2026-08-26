@@ -40,7 +40,7 @@
     </div>
     <div class="history-search-btn-wrap">
       <button type="button" class="btn btn-primary btn-block-mobile" id="btn-search" onclick="doSearch()">
-        &#128269; Search
+        {{ icon('search', 14) }} Search
       </button>
     </div>
     <div class="history-search-btn-wrap">
@@ -95,7 +95,7 @@
 
   <!-- Empty state -->
   <div id="history-empty" class="empty-state" style="display:none;">
-    <div class="empty-state-icon">&#128196;</div>
+    <div class="empty-state-icon">{{ icon('list', 28) }}</div>
     <div id="history-empty-msg">No bills found.</div>
     <div class="mt-2" id="history-empty-action">
       <a href="/new-bill" class="btn btn-primary btn-sm">&#43; Create First Bill</a>
@@ -173,7 +173,7 @@
 <div class="modal-overlay hidden" id="delete-modal">
   <div class="modal-box">
     <div class="modal-header modal-header--danger">
-      <h3>&#128465; Delete Bill &mdash; <span id="delete-modal-bill-num"></span></h3>
+      <h3>{{ icon('trash', 15) }} Delete Bill &mdash; <span id="delete-modal-bill-num"></span></h3>
       <button class="modal-close" onclick="closeDeleteModal()">&#215;</button>
     </div>
     <div class="modal-body">
@@ -231,7 +231,7 @@
 <div class="modal-overlay hidden" id="inst-delete-modal">
   <div class="modal-box">
     <div class="modal-header modal-header--danger">
-      <h3>&#128465; Delete Institution Bill &mdash; <span id="inst-delete-modal-bill-num"></span></h3>
+      <h3>{{ icon('trash', 15) }} Delete Institution Bill &mdash; <span id="inst-delete-modal-bill-num"></span></h3>
       <button class="modal-close" onclick="closeInstDeleteModal()">&#215;</button>
     </div>
     <div class="modal-body">

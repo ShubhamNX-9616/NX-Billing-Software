@@ -76,11 +76,11 @@
     </a>
     <button type="button" id="d-cancel-btn" class="btn btn-warning" onclick="openInstDetailCancel()">&#10006; Cancel</button>
     <button type="button" id="d-restore-btn" class="btn btn-secondary" style="display:none;" onclick="doInstDetailRestore()">&#10227; Restore</button>
-    <button type="button" class="btn btn-secondary" onclick="openInstInvoice(INST_BILL_ID)">&#128438; Print Invoice</button>
-    <button type="button" class="btn btn-secondary" onclick="openInstPerformaInvoice(INST_BILL_ID)">&#128438; Print Performa</button>
+    <button type="button" class="btn btn-secondary" onclick="openInstInvoice(INST_BILL_ID)">{{ icon('printer', 14) }} Print Invoice</button>
+    <button type="button" class="btn btn-secondary" onclick="openInstPerformaInvoice(INST_BILL_ID)">{{ icon('printer', 14) }} Print Performa</button>
     <button type="button" id="d-record-payment-btn" class="btn btn-primary" style="display:none;"
             onclick="openInstRecordPaymentModal()">&#43; Record Payment</button>
-    <button type="button" id="d-delete-btn" class="btn btn-danger" onclick="openInstDetailDelete()">&#128465; Delete</button>
+    <button type="button" id="d-delete-btn" class="btn btn-danger" onclick="openInstDetailDelete()">{{ icon('trash', 14) }} Delete</button>
   </div>
 
   <!-- Company Details -->
@@ -198,7 +198,7 @@
 <div class="modal-overlay hidden" id="inst-detail-delete-modal">
   <div class="modal-box">
     <div class="modal-header modal-header--danger">
-      <h3>&#128465; Delete Bill &mdash; <span id="idd-bill-num"></span></h3>
+      <h3>{{ icon('trash', 15) }} Delete Bill &mdash; <span id="idd-bill-num"></span></h3>
       <button class="modal-close" onclick="closeInstDetailDelete()">&#215;</button>
     </div>
     <div class="modal-body">

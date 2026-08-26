@@ -60,9 +60,9 @@
       <button type="button" id="action-restore-btn" class="btn btn-restore btn-block-mobile no-print" style="display:none;"
               onclick="confirmDetailRestore()">&#10227; Restore Bill</button>
       <button type="button" class="btn btn-danger btn-block-mobile no-print"
-              onclick="openDetailDeleteModal()">&#128465; Delete</button>
+              onclick="openDetailDeleteModal()">{{ icon('trash', 14) }} Delete</button>
       <button type="button" class="btn btn-primary btn-block-mobile"
-              onclick="window.print()">&#128438; Print</button>
+              onclick="window.print()">{{ icon('printer', 14) }} Print</button>
     </div>
   </div>
 
@@ -262,7 +262,7 @@
 <div class="modal-overlay hidden no-print" id="detail-delete-modal">
   <div class="modal-box">
     <div class="modal-header modal-header--danger">
-      <h3>&#128465; Delete Bill &mdash; <span id="detail-delete-bill-num"></span></h3>
+      <h3>{{ icon('trash', 15) }} Delete Bill &mdash; <span id="detail-delete-bill-num"></span></h3>
       <button class="modal-close" onclick="closeDetailDeleteModal()">&#215;</button>
     </div>
     <div class="modal-body">

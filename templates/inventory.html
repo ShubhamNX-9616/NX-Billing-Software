@@ -6,7 +6,7 @@
 {% block topbar_actions %}
   <button type="button" class="btn btn-primary" onclick="openAddItemModal()">&#43; Add Item</button>
   <button type="button" class="btn btn-secondary" style="margin-left:8px;" onclick="openBatchModal()">&#43; Add Items (Batch)</button>
-  <button type="button" class="btn btn-secondary" style="margin-left:8px;" onclick="openCurrentStockQrModal()">&#128246; Current Stock QR</button>
+  <button type="button" class="btn btn-secondary" style="margin-left:8px;" onclick="openCurrentStockQrModal()">{{ icon('qrcode', 14) }} Current Stock QR</button>
   <button type="button" class="btn btn-secondary" style="margin-left:8px;" onclick="openManageCompaniesModal()">&#9881; Manage Companies</button>
 {% endblock %}
 
@@ -149,7 +149,7 @@
         </button>
         <button type="button" class="btn btn-secondary btn-sm" id="btn-scan-invoice"
                 onclick="handleScanBtnClick()">
-          &#128247; Scan Invoice
+          {{ icon('camera', 14) }} Scan Invoice
         </button>
         <input type="file" id="scan-invoice-input" accept="image/*" capture="environment"
                style="display:none;" onchange="scanInvoiceImage(this)">
@@ -452,7 +452,7 @@
     </div>
     <div class="modal-footer">
       <button type="button" class="btn btn-secondary" onclick="closeCsQrModal()">Close</button>
-      <button type="button" class="btn btn-primary" id="btn-cs-generate" onclick="generateCsQr()">&#128246; Generate QRs</button>
+      <button type="button" class="btn btn-primary" id="btn-cs-generate" onclick="generateCsQr()">{{ icon('qrcode', 14) }} Generate QRs</button>
     </div>
   </div>
 </div>
