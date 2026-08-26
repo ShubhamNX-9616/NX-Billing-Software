@@ -29,6 +29,10 @@
   --info-fg:        #1e40af;
   --info-border:    #bfdbfe;
 
+  /* Non-semantic categorical accent (e.g. tailoring "Alteration" stage) */
+  --neutral-alt-bg: #ede9fe;
+  --neutral-alt-fg: #5b21b6;
+
   /* ---- Payment-method palette — one definition, shared by .dot-* and .txt-* ---- */
   --pay-cash: #10b981;
   --pay-card: #3b82f6;
@@ -352,6 +356,8 @@ html[data-theme="dark"] {
   --info-bg:        #1e3a8a;
   --info-fg:        #93c5fd;
   --info-border:    #3b82f6;
+  --neutral-alt-bg: #4c1d95;
+  --neutral-alt-fg: #ddd6fe;
 }
 
 /* Skeleton shimmer */
