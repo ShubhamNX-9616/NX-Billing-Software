@@ -52,7 +52,7 @@
   border: 1px dashed var(--border-color, #bbb);
   color: var(--primary, #1a3a7a);
   padding: 6px 16px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   font-size: 13px;
 }
@@ -61,7 +61,7 @@
 /* ---- Payment tabs ---- */
 .inst-payment-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
 .inst-payment-tab {
-  padding: 6px 14px; border-radius: 6px; border: 1px solid var(--border-color, #ddd);
+  padding: 6px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border-color, #ddd);
   background: none; cursor: pointer; font-size: 13px; color: var(--text, #333);
 }
 .inst-payment-tab.active {
@@ -83,7 +83,7 @@
   border: 1px solid var(--success, #057a55);
   border-left: 4px solid var(--success, #057a55);
   color: var(--text);
-  border-radius: 8px;
+  border-radius: var(--radius);
   padding: 14px 18px;
   margin-bottom: 18px;
   font-size: 14px;

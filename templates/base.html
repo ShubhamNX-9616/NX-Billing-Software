@@ -31,6 +31,7 @@
     </div>
 
     <nav class="sidebar-nav">
+      <div class="nav-section-label">Billing</div>
       {# New Bill — visible to all roles #}
       <a href="/new-bill"
          class="nav-link {% if request.path == '/new-bill' %}active{% endif %}">
@@ -44,6 +45,8 @@
         Institution Bill
       </a>
       {% endif %}
+
+      <div class="nav-section-label">Tailoring</div>
       <a href="/tailoring"
          class="nav-link {% if request.path.startswith('/tailoring') and not request.path.startswith('/tailoring/suits') %}active{% endif %}">
         <span class="nav-icon">{{ icon('scissors') }}</span>
@@ -55,8 +58,10 @@
         Suits
       </a>
 
-      {# Admin-only nav links #}
+      {# RECORDS and MANAGE groups are entirely admin-only — their labels
+         live inside the same is_admin guard so staff never see an empty group. #}
       {% if current_user.is_admin %}
+      <div class="nav-section-label">Records</div>
       <a href="/"
          class="nav-link {% if request.path == '/' %}active{% endif %}">
         <span class="nav-icon">{{ icon('dashboard') }}</span>
@@ -72,6 +77,8 @@
         <span class="nav-icon">{{ icon('user') }}</span>
         Customers
       </a>
+
+      <div class="nav-section-label">Manage</div>
       <a href="/inventory"
          class="nav-link {% if request.path.startswith('/inventory') %}active{% endif %}">
         <span class="nav-icon">{{ icon('box') }}</span>

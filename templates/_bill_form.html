@@ -44,11 +44,11 @@
       <label>Customer Name <span class="text-danger">*</span></label>
       <input type="text" id="customer-name" class="input"
              placeholder="Enter name or search…" autocomplete="off" />
-      <div id="name-suggestions" style="display:none;position:absolute;z-index:200;background:var(--surface);border:1px solid var(--border);border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,.15);width:100%;top:calc(100% + 2px);left:0;max-height:220px;overflow-y:auto;"></div>
+      <div id="name-suggestions" style="display:none;position:absolute;z-index:200;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);box-shadow:0 4px 16px rgba(0,0,0,.15);width:100%;top:calc(100% + 2px);left:0;max-height:220px;overflow-y:auto;"></div>
       <div id="name-error" class="text-danger" style="font-size:12px;margin-top:4px;"></div>
     </div>
   </div>
-  <div id="customer-summary" style="display:none;margin-top:14px;padding:10px 14px;background:var(--bg);border:1px solid var(--border);border-radius:8px;font-size:13px;"></div>
+  <div id="customer-summary" style="display:none;margin-top:14px;padding:10px 14px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);font-size:13px;"></div>
 </div>
 
 <!-- ====== Items Table ====== -->
@@ -403,7 +403,7 @@
                 onclick="startCamera()" style="width:100%;">
           {{ icon('camera', 14) }} Start Camera (HTTPS only)
         </button>
-        <div id="qr-reader" style="width:100%;border-radius:8px;overflow:hidden;margin-top:10px;display:none;"></div>
+        <div id="qr-reader" style="width:100%;border-radius:var(--radius);overflow:hidden;margin-top:10px;display:none;"></div>
         <button type="button" class="btn btn-secondary btn-sm" id="btn-stop-camera"
                 onclick="stopCamera()" style="display:none;margin-top:6px;width:100%;">
           &#9646;&#9646; Stop Camera

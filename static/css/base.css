@@ -13,10 +13,27 @@
   --border:        #e5e7eb;
   --text:          #111827;
   --text-muted:    #6b7280;
-  --text-light:    #9ca3af;
+  --text-light:    #8a9099;   /* icons / decorative marks only — not text */
+
+  /* ---- Status color pairs (bg / fg / border) — dark values in the dark block ---- */
+  --success-bg:     #d1fae5;
+  --success-fg:     #065f46;
+  --success-border: #a7f3d0;
+  --danger-bg:      #fee2e2;
+  --danger-fg:      #991b1b;
+  --danger-border:  #fca5a5;
+  --warning-bg:     #fef3c7;
+  --warning-fg:     #92400e;
+  --warning-border: #fde68a;
+  --info-bg:        #dbeafe;
+  --info-fg:        #1e40af;
+  --info-border:    #bfdbfe;
+
+  --radius-sm:     6px;
   --radius:        8px;
   --radius-lg:     12px;
-  --font:          'Segoe UI', system-ui, sans-serif;
+  --radius-full:   999px;
+  --font:          system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --topbar-h:      63.25px;
 }
 
@@ -129,7 +146,7 @@ a:hover {
   background: linear-gradient(90deg, #ececec 25%, #d8d8d8 50%, #ececec 75%);
   background-size: 200% 100%;
   animation: skeleton-shimmer 1.4s ease-in-out infinite;
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   color: transparent !important;
   vertical-align: middle;
   user-select: none;
@@ -139,7 +156,7 @@ a:hover {
 .skeleton-line {
   display: block;
   height: 13px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: linear-gradient(90deg, #ececec 25%, #d8d8d8 50%, #ececec 75%);
   background-size: 200% 100%;
   animation: skeleton-shimmer 1.4s ease-in-out infinite;
@@ -161,7 +178,7 @@ a:hover {
 .skeleton-bar {
   flex: 1;
   min-width: 0;
-  border-radius: 4px 4px 0 0;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
   background: linear-gradient(90deg, #ececec 25%, #d8d8d8 50%, #ececec 75%);
   background-size: 200% 100%;
   animation: skeleton-shimmer 1.4s ease-in-out infinite;
@@ -316,7 +333,20 @@ html[data-theme="dark"] {
   --border:     #374151;
   --text:       #f9fafb;
   --text-muted: #9ca3af;
-  --text-light: #6b7280;
+  --text-light: #6b7280;   /* ~3.1:1 on --surface — decorative marks only, never text */
+
+  --success-bg:     #064e3b;
+  --success-fg:     #6ee7b7;
+  --success-border: #065f46;
+  --danger-bg:      #7f1d1d;
+  --danger-fg:      #fca5a5;
+  --danger-border:  #991b1b;
+  --warning-bg:     #78350f;
+  --warning-fg:     #fcd34d;
+  --warning-border: #92400e;
+  --info-bg:        #1e3a8a;
+  --info-fg:        #93c5fd;
+  --info-border:    #3b82f6;
 }
 
 /* Skeleton shimmer */
@@ -349,31 +379,8 @@ html[data-theme="dark"] .btn-secondary:hover:not(:disabled) {
   background: #4b5563;
 }
 
-/* Badges */
-html[data-theme="dark"] .badge-success { background: #064e3b; color: #6ee7b7; }
-html[data-theme="dark"] .badge-warning { background: #78350f; color: #fcd34d; }
-html[data-theme="dark"] .badge-danger  { background: #7f1d1d; color: #fca5a5; }
-html[data-theme="dark"] .badge-info    { background: #1e3a8a; color: #93c5fd; }
+/* Neutral badge — not a status pair, so it needs its own dark treatment */
 html[data-theme="dark"] .badge-neutral { background: #374151; color: #9ca3af; border-color: #4b5563; }
-
-/* Alerts */
-html[data-theme="dark"] .alert-success { background: #064e3b; color: #6ee7b7; border-color: #065f46; }
-html[data-theme="dark"] .alert-danger  { background: #7f1d1d; color: #fca5a5; border-color: #991b1b; }
-html[data-theme="dark"] .alert-warning { background: #78350f; color: #fcd34d; border-color: #92400e; }
-
-/* Share / copy buttons */
-html[data-theme="dark"] .btn-share-link {
-  background: #1e3a8a;
-  border-color: #3b82f6;
-  color: #93c5fd;
-}
-html[data-theme="dark"] .btn-share-link:hover { background: #1e40af; }
-html[data-theme="dark"] .btn-share-icon {
-  background: #374151;
-  border-color: #4b5563;
-  color: #9ca3af;
-}
-html[data-theme="dark"] .btn-share-icon:hover { background: #1e3a8a; color: #93c5fd; }
 
 /* Mobile bottom nav */
 html[data-theme="dark"] .mobile-bottom-nav {

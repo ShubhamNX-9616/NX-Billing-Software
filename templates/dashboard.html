@@ -7,28 +7,121 @@
   <a href="/new-bill" class="btn btn-primary">&#43; New Bill</a>
 {% endblock %}
 
+{% block extra_css %}
+<style>
+  /* ---- Dashboard hierarchy: one promoted number, the rest supporting ---- */
+  .dash-stat-label {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .4px;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+  }
+
+  /* Top row — Today's Sales spans half the width; Total Bills, Total
+     Customers and This Month's Sales share the other half as a compact stack. */
+  .dash-hero-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .dash-hero-card  { grid-column: span 2; }
+  .dash-mini-stack {
+    grid-column: span 2;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 14px;
+  }
+  .dash-mini + .dash-mini {
+    border-top: 1px solid var(--border);
+    padding-top: 14px;
+  }
+
+  /* Payment split — one card, three inline columns (was three cards) */
+  .dash-payment-card {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    margin-bottom: 24px;
+  }
+  .dash-payment-col { padding: 0 20px; }
+  .dash-payment-col:first-child { padding-left: 0; }
+  .dash-payment-col:last-child  { padding-right: 0; }
+  .dash-payment-col + .dash-payment-col { border-left: 1px solid var(--border); }
+  .dash-payment-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+
+  /* Two scannable lists share the row on desktop */
+  .dash-tables-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 16px;
+    align-items: start;
+  }
+  /* Short lists — no sticky header needed, and it misbehaves once the
+     wrapper below becomes a horizontal-scroll container. */
+  .dash-tables-grid .table th { position: static; }
+  .dash-tables-grid .table-scroll-wrapper { overflow-x: auto; }
+  .dash-tables-grid .table-clickable th:first-child,
+  .dash-tables-grid .table-clickable td:first-child { white-space: nowrap; }
+
+  @media (min-width: 1025px) {
+    /* Side by side leaves little room — drop the lowest-priority column */
+    .dash-tables-grid .col-date { display: none; }
+  }
+
+  @media (max-width: 1024px) {
+    .dash-tables-grid { grid-template-columns: 1fr; }
+  }
+
+  @media (max-width: 768px) {
+    .dash-hero-grid { grid-template-columns: 1fr; gap: 12px; }
+    .dash-hero-card,
+    .dash-mini-stack { grid-column: auto; }
+    .dash-hero-card .stat-val-lg { font-size: 30px; }
+    .dash-payment-card { grid-template-columns: 1fr; }
+    .dash-payment-col { padding: 0; }
+    .dash-payment-col + .dash-payment-col {
+      border-left: none;
+      border-top: 1px solid var(--border);
+      padding-top: 14px;
+      margin-top: 14px;
+    }
+  }
+</style>
+{% endblock %}
+
 {% block content %}
 
-<!-- Section 1: Summary Cards -->
-<div class="summary-grid">
-  <div class="card">
-    <div class="text-muted" style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;">Total Bills</div>
-    <div class="stat-val skeleton-val" id="val-total-bills">—</div>
+<!-- Section 1: Promoted number + compact supporting stack -->
+<div class="dash-hero-grid">
+  <div class="card dash-hero-card">
+    <div class="dash-stat-label">Today's Sales</div>
+    <div class="stat-val stat-val-lg stat-val-primary skeleton-val" id="val-today-sales">—</div>
+    <div style="font-size:12px;color:var(--text-muted);margin-top:4px;" id="val-today-bills-count"></div>
+    <div id="val-today-split" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;font-size:12px;"></div>
   </div>
-  <div class="card">
-    <div class="text-muted" style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;">Total Customers</div>
-    <div class="stat-val skeleton-val" id="val-total-customers">—</div>
-  </div>
-  <div class="card">
-    <div class="text-muted" style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;">Today's Sales</div>
-    <div class="stat-val stat-val-md stat-val-primary skeleton-val" id="val-today-sales">—</div>
-    <div style="font-size:12px;color:var(--text-muted);margin-top:3px;" id="val-today-bills-count"></div>
-    <div id="val-today-split" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;font-size:12px;"></div>
-  </div>
-  <div class="card">
-    <div class="text-muted" style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;">This Month's Sales</div>
-    <div class="stat-val stat-val-md skeleton-val" id="val-month-sales">—</div>
-    <div id="val-month-split" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;font-size:12px;"></div>
+
+  <div class="card dash-mini-stack">
+    <div class="dash-mini">
+      <div class="dash-stat-label">Total Bills</div>
+      <div class="stat-val stat-val-sm skeleton-val" id="val-total-bills">—</div>
+    </div>
+    <div class="dash-mini">
+      <div class="dash-stat-label">Total Customers</div>
+      <div class="stat-val stat-val-sm skeleton-val" id="val-total-customers">—</div>
+    </div>
+    <div class="dash-mini">
+      <div class="dash-stat-label">This Month's Sales</div>
+      <div class="stat-val stat-val-sm skeleton-val" id="val-month-sales">—</div>
+      <div id="val-month-split" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px;font-size:12px;"></div>
+    </div>
   </div>
 </div>
 
@@ -84,148 +177,149 @@
   </div>
 </div>
 
-<!-- Section 4: Payment Method Cards -->
-<div class="summary-grid">
-  <div class="card">
-    <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
+<!-- Section 4: Payment method split — one card, three columns -->
+<div class="card dash-payment-card">
+  <div class="dash-payment-col">
+    <div class="dash-payment-head">
       <span class="dot dot-green"></span>
-      <span class="text-muted" style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;">Cash Sales</span>
+      <span class="dash-stat-label" style="margin-bottom:0;">Cash Sales</span>
     </div>
     <div class="stat-val stat-val-sm skeleton-val" id="pcard-cash-amount">—</div>
     <div style="font-size:12px;color:var(--text-muted);margin-top:3px;" id="pcard-cash-pct"></div>
   </div>
-  <div class="card">
-    <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
+  <div class="dash-payment-col">
+    <div class="dash-payment-head">
       <span class="dot dot-blue"></span>
-      <span class="text-muted" style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;">Card Sales</span>
+      <span class="dash-stat-label" style="margin-bottom:0;">Card Sales</span>
     </div>
     <div class="stat-val stat-val-sm skeleton-val" id="pcard-card-amount">—</div>
     <div style="font-size:12px;color:var(--text-muted);margin-top:3px;" id="pcard-card-pct"></div>
   </div>
-  <div class="card">
-    <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
+  <div class="dash-payment-col">
+    <div class="dash-payment-head">
       <span class="dot dot-purple"></span>
-      <span class="text-muted" style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;">UPI Sales</span>
+      <span class="dash-stat-label" style="margin-bottom:0;">UPI Sales</span>
     </div>
     <div class="stat-val stat-val-sm skeleton-val" id="pcard-upi-amount">—</div>
     <div style="font-size:12px;color:var(--text-muted);margin-top:3px;" id="pcard-upi-pct"></div>
   </div>
 </div>
 
-<!-- Section 4B: Salesperson Performance -->
-<div class="card" style="margin-bottom:24px;">
-  <div class="card-header">
-    <span class="card-title">Sales By Sales Person</span>
-    <span id="salesperson-period-label" class="text-muted" style="font-size:12px;"></span>
-  </div>
-  <div id="salesperson-loading" style="display:none;">
-    <table class="table" style="width:100%;"><tbody>
-      <tr class="skeleton-row">
-        <td><div class="skeleton-line" style="width:130px;"></div></td>
-        <td class="text-right"><div class="skeleton-line" style="width:28px;margin-left:auto;"></div></td>
-        <td class="text-right"><div class="skeleton-line" style="width:75px;margin-left:auto;"></div></td>
-      </tr>
-      <tr class="skeleton-row">
-        <td><div class="skeleton-line" style="width:100px;"></div></td>
-        <td class="text-right"><div class="skeleton-line" style="width:28px;margin-left:auto;"></div></td>
-        <td class="text-right"><div class="skeleton-line" style="width:82px;margin-left:auto;"></div></td>
-      </tr>
-      <tr class="skeleton-row">
-        <td><div class="skeleton-line" style="width:115px;"></div></td>
-        <td class="text-right"><div class="skeleton-line" style="width:28px;margin-left:auto;"></div></td>
-        <td class="text-right"><div class="skeleton-line" style="width:68px;margin-left:auto;"></div></td>
-      </tr>
-    </tbody></table>
-  </div>
-  <div id="salesperson-empty" class="empty-state" style="display:none;">
-    <div class="empty-state-icon">{{ icon('user', 28) }}</div>
-    <div>No sales found for this period.</div>
-  </div>
-  <div id="salesperson-table-wrap" class="table-scroll-wrapper" style="display:none;">
-    <table class="table">
-      <thead>
-        <tr>
-          <th>Sales Person</th>
-          <th class="text-right">Bills</th>
-          <th class="text-right">Sales</th>
+<!-- Section 5: Sales by Sales Person + Recent Bills, side by side on desktop -->
+<div class="dash-tables-grid">
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Sales By Sales Person</span>
+      <span id="salesperson-period-label" class="text-muted" style="font-size:12px;"></span>
+    </div>
+    <div id="salesperson-loading" style="display:none;">
+      <table class="table" style="width:100%;"><tbody>
+        <tr class="skeleton-row">
+          <td><div class="skeleton-line" style="width:130px;"></div></td>
+          <td class="text-right"><div class="skeleton-line" style="width:28px;margin-left:auto;"></div></td>
+          <td class="text-right"><div class="skeleton-line" style="width:75px;margin-left:auto;"></div></td>
         </tr>
-      </thead>
-      <tbody id="salesperson-body"></tbody>
-    </table>
-  </div>
-</div>
-
-<!-- Section 5: Recent Bills -->
-<div class="card">
-  <div class="card-header">
-    <span class="card-title">Recent Bills</span>
-    <a href="/bill-history" class="btn btn-secondary btn-sm">View All</a>
-  </div>
-
-  <div id="recent-bills-loading">
-    <table class="table" style="width:100%;"><tbody>
-      <tr class="skeleton-row">
-        <td><div class="skeleton-line" style="width:72px;"></div></td>
-        <td><div class="skeleton-line" style="width:140px;"></div></td>
-        <td class="col-date"><div class="skeleton-line" style="width:80px;"></div></td>
-        <td class="text-right"><div class="skeleton-line" style="width:70px;margin-left:auto;"></div></td>
-        <td class="col-payment"><div class="skeleton-line" style="width:48px;height:18px;border-radius:999px;"></div></td>
-        <td><div class="skeleton-line" style="width:44px;height:26px;border-radius:8px;"></div></td>
-      </tr>
-      <tr class="skeleton-row">
-        <td><div class="skeleton-line" style="width:72px;"></div></td>
-        <td><div class="skeleton-line" style="width:110px;"></div></td>
-        <td class="col-date"><div class="skeleton-line" style="width:80px;"></div></td>
-        <td class="text-right"><div class="skeleton-line" style="width:80px;margin-left:auto;"></div></td>
-        <td class="col-payment"><div class="skeleton-line" style="width:36px;height:18px;border-radius:999px;"></div></td>
-        <td><div class="skeleton-line" style="width:44px;height:26px;border-radius:8px;"></div></td>
-      </tr>
-      <tr class="skeleton-row">
-        <td><div class="skeleton-line" style="width:72px;"></div></td>
-        <td><div class="skeleton-line" style="width:125px;"></div></td>
-        <td class="col-date"><div class="skeleton-line" style="width:80px;"></div></td>
-        <td class="text-right"><div class="skeleton-line" style="width:60px;margin-left:auto;"></div></td>
-        <td class="col-payment"><div class="skeleton-line" style="width:42px;height:18px;border-radius:999px;"></div></td>
-        <td><div class="skeleton-line" style="width:44px;height:26px;border-radius:8px;"></div></td>
-      </tr>
-      <tr class="skeleton-row">
-        <td><div class="skeleton-line" style="width:72px;"></div></td>
-        <td><div class="skeleton-line" style="width:95px;"></div></td>
-        <td class="col-date"><div class="skeleton-line" style="width:80px;"></div></td>
-        <td class="text-right"><div class="skeleton-line" style="width:74px;margin-left:auto;"></div></td>
-        <td class="col-payment"><div class="skeleton-line" style="width:50px;height:18px;border-radius:999px;"></div></td>
-        <td><div class="skeleton-line" style="width:44px;height:26px;border-radius:8px;"></div></td>
-      </tr>
-      <tr class="skeleton-row">
-        <td><div class="skeleton-line" style="width:72px;"></div></td>
-        <td><div class="skeleton-line" style="width:118px;"></div></td>
-        <td class="col-date"><div class="skeleton-line" style="width:80px;"></div></td>
-        <td class="text-right"><div class="skeleton-line" style="width:65px;margin-left:auto;"></div></td>
-        <td class="col-payment"><div class="skeleton-line" style="width:44px;height:18px;border-radius:999px;"></div></td>
-        <td><div class="skeleton-line" style="width:44px;height:26px;border-radius:8px;"></div></td>
-      </tr>
-    </tbody></table>
-  </div>
-
-  <div id="recent-bills-empty" class="empty-state" style="display:none;">
-    <div class="empty-state-icon">{{ icon('list', 28) }}</div>
-    <div>No bills yet. <a href="/new-bill">Create your first bill</a></div>
-  </div>
-
-  <div id="recent-bills-table-wrap" class="table-scroll-wrapper" style="display:none;">
-    <table class="table table-clickable">
-      <thead>
-        <tr>
-          <th>Bill No</th>
-          <th>Customer</th>
-          <th class="col-date">Date</th>
-          <th class="text-right">Amount</th>
-          <th class="col-payment">Payment</th>
-          <th>Action</th>
+        <tr class="skeleton-row">
+          <td><div class="skeleton-line" style="width:100px;"></div></td>
+          <td class="text-right"><div class="skeleton-line" style="width:28px;margin-left:auto;"></div></td>
+          <td class="text-right"><div class="skeleton-line" style="width:82px;margin-left:auto;"></div></td>
         </tr>
-      </thead>
-      <tbody id="recent-bills-body"></tbody>
-    </table>
+        <tr class="skeleton-row">
+          <td><div class="skeleton-line" style="width:115px;"></div></td>
+          <td class="text-right"><div class="skeleton-line" style="width:28px;margin-left:auto;"></div></td>
+          <td class="text-right"><div class="skeleton-line" style="width:68px;margin-left:auto;"></div></td>
+        </tr>
+      </tbody></table>
+    </div>
+    <div id="salesperson-empty" class="empty-state" style="display:none;">
+      <div class="empty-state-icon">{{ icon('user', 28) }}</div>
+      <div>No sales found for this period.</div>
+    </div>
+    <div id="salesperson-table-wrap" class="table-scroll-wrapper" style="display:none;">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Sales Person</th>
+            <th class="text-right">Bills</th>
+            <th class="text-right">Sales</th>
+          </tr>
+        </thead>
+        <tbody id="salesperson-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Recent Bills</span>
+      <a href="/bill-history" class="btn btn-secondary btn-sm">View All</a>
+    </div>
+
+    <div id="recent-bills-loading">
+      <table class="table" style="width:100%;"><tbody>
+        <tr class="skeleton-row">
+          <td><div class="skeleton-line" style="width:72px;"></div></td>
+          <td><div class="skeleton-line" style="width:140px;"></div></td>
+          <td class="col-date"><div class="skeleton-line" style="width:80px;"></div></td>
+          <td class="text-right"><div class="skeleton-line" style="width:70px;margin-left:auto;"></div></td>
+          <td class="col-payment"><div class="skeleton-line" style="width:48px;height:18px;border-radius:var(--radius-full);"></div></td>
+          <td><div class="skeleton-line" style="width:44px;height:26px;border-radius:var(--radius);"></div></td>
+        </tr>
+        <tr class="skeleton-row">
+          <td><div class="skeleton-line" style="width:72px;"></div></td>
+          <td><div class="skeleton-line" style="width:110px;"></div></td>
+          <td class="col-date"><div class="skeleton-line" style="width:80px;"></div></td>
+          <td class="text-right"><div class="skeleton-line" style="width:80px;margin-left:auto;"></div></td>
+          <td class="col-payment"><div class="skeleton-line" style="width:36px;height:18px;border-radius:var(--radius-full);"></div></td>
+          <td><div class="skeleton-line" style="width:44px;height:26px;border-radius:var(--radius);"></div></td>
+        </tr>
+        <tr class="skeleton-row">
+          <td><div class="skeleton-line" style="width:72px;"></div></td>
+          <td><div class="skeleton-line" style="width:125px;"></div></td>
+          <td class="col-date"><div class="skeleton-line" style="width:80px;"></div></td>
+          <td class="text-right"><div class="skeleton-line" style="width:60px;margin-left:auto;"></div></td>
+          <td class="col-payment"><div class="skeleton-line" style="width:42px;height:18px;border-radius:var(--radius-full);"></div></td>
+          <td><div class="skeleton-line" style="width:44px;height:26px;border-radius:var(--radius);"></div></td>
+        </tr>
+        <tr class="skeleton-row">
+          <td><div class="skeleton-line" style="width:72px;"></div></td>
+          <td><div class="skeleton-line" style="width:95px;"></div></td>
+          <td class="col-date"><div class="skeleton-line" style="width:80px;"></div></td>
+          <td class="text-right"><div class="skeleton-line" style="width:74px;margin-left:auto;"></div></td>
+          <td class="col-payment"><div class="skeleton-line" style="width:50px;height:18px;border-radius:var(--radius-full);"></div></td>
+          <td><div class="skeleton-line" style="width:44px;height:26px;border-radius:var(--radius);"></div></td>
+        </tr>
+        <tr class="skeleton-row">
+          <td><div class="skeleton-line" style="width:72px;"></div></td>
+          <td><div class="skeleton-line" style="width:118px;"></div></td>
+          <td class="col-date"><div class="skeleton-line" style="width:80px;"></div></td>
+          <td class="text-right"><div class="skeleton-line" style="width:65px;margin-left:auto;"></div></td>
+          <td class="col-payment"><div class="skeleton-line" style="width:44px;height:18px;border-radius:var(--radius-full);"></div></td>
+          <td><div class="skeleton-line" style="width:44px;height:26px;border-radius:var(--radius);"></div></td>
+        </tr>
+      </tbody></table>
+    </div>
+
+    <div id="recent-bills-empty" class="empty-state" style="display:none;">
+      <div class="empty-state-icon">{{ icon('list', 28) }}</div>
+      <div>No bills yet. <a href="/new-bill">Create your first bill</a></div>
+    </div>
+
+    <div id="recent-bills-table-wrap" class="table-scroll-wrapper" style="display:none;">
+      <table class="table table-clickable">
+        <thead>
+          <tr>
+            <th>Bill No</th>
+            <th>Customer</th>
+            <th class="col-date">Date</th>
+            <th class="text-right">Amount</th>
+            <th class="col-payment">Payment</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="recent-bills-body"></tbody>
+      </table>
+    </div>
   </div>
 </div>
 

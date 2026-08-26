@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+{% from "_icons.html" import icon %}<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -7,7 +7,7 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-      font-family: 'Segoe UI', Arial, sans-serif; background: #f3f4f6;
+      font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; background: #f3f4f6;
       color: #111827; padding: 16px; font-size: 14px;
     }
     .sheet {
@@ -112,6 +112,8 @@
     .btn-print { background: #111827; color: #fff; }
     .btn-wa { background: #25d366; color: #fff; }
 
+    .btn svg, .section > h2 svg, .empty svg { vertical-align: -0.15em; margin-right: 5px; }
+
     .weeknav {
       display: flex; align-items: center; justify-content: space-between; gap: 8px;
       max-width: 720px; margin: 0 auto 10px;
@@ -135,9 +137,9 @@
 <body>
 
   <div class="actions">
-    <button type="button" class="btn btn-print" onclick="window.print()">&#128424;&#65039; Print</button>
+    <button type="button" class="btn btn-print" onclick="window.print()">{{ icon('printer', 15) }}Print</button>
     {% if not shared %}
-    <a class="btn btn-wa" id="wa-btn" href="#" target="_blank" rel="noopener">&#128172; Send on WhatsApp</a>
+    <a class="btn btn-wa" id="wa-btn" href="#" target="_blank" rel="noopener">{{ icon('message', 15) }}Send on WhatsApp</a>
     {% endif %}
   </div>
 
@@ -193,7 +195,7 @@
 
     {% if stitched_garments %}
     <div class="section stitched">
-      <h2>&#9986; Fully stitched this week ({{ totals.garments_stitched }} garment{{ 's' if totals.garments_stitched != 1 }})</h2>
+      <h2>{{ icon('scissors', 15) }}Fully stitched this week ({{ totals.garments_stitched }} garment{{ 's' if totals.garments_stitched != 1 }})</h2>
       <table class="tally">
         <tr><th>Garment</th><th>Stitched</th><th class="ordnos">Order no.</th></tr>
         {% for g in stitched_garments %}
@@ -219,12 +221,12 @@
         <div class="dt">{{ d.date[8:10] }}</div>
         <span class="v {{ 'in' if d.taken else 'zero' }}">&#9660; {{ d.taken }}</span>
         <span class="v {{ 'out' if d.delivered else 'zero' }}">&#9650; {{ d.delivered }}</span>
-        <span class="v {{ 'tr' if d.trials else 'zero' }}">&#128085; {{ d.trials }}</span>
+        <span class="v {{ 'tr' if d.trials else 'zero' }}">&#9679; {{ d.trials }}</span>
       </div>
       {% endfor %}
     </div>
     <div class="order-meta" style="text-align:center;margin-top:4px;">
-      &#9660; taken · &#9650; delivered · &#128085; trials
+      &#9660; taken · &#9650; delivered · &#9679; trials
     </div>
 
     {% macro garment_line(e) %}
@@ -279,7 +281,7 @@
 
     {% if trials %}
     <div class="section trial">
-      <h2>&#128085; Trials this week ({{ totals.trials }})</h2>
+      <h2>{{ icon('suits', 15) }}Trials this week ({{ totals.trials }})</h2>
       {% for e in trials %}
         {% call order_row(e) %}
           Trial {{ e.trial_date | format_date }} ·
@@ -292,7 +294,7 @@
 
     {% if due %}
     <div class="section due">
-      <h2>&#128197; Deliveries promised this week ({{ totals.due_kept }}/{{ totals.due }} done)</h2>
+      <h2>{{ icon('calendar', 15) }}Deliveries promised this week ({{ totals.due_kept }}/{{ totals.due }} done)</h2>
       {% for e in due %}
         {% call order_row(e) %}
           Promised {{ e.delivery_date | format_date }} ·
@@ -310,7 +312,7 @@
 
     {% if garments %}
     <div class="section tally">
-      <h2>&#129525; Garments this week</h2>
+      <h2>{{ icon('grid', 15) }}Garments this week</h2>
       <table class="tally">
         <tr><th>Garment</th><th>Taken in</th><th>Delivered out</th></tr>
         {% for g in garments %}
@@ -330,7 +332,7 @@
     {% endif %}
 
     <div class="section open">
-      <h2>&#128203; Still on the table today ({{ totals.open_orders }})</h2>
+      <h2>{{ icon('list', 15) }}Still on the table today ({{ totals.open_orders }})</h2>
       {% if totals.open_orders %}
       <div class="stage-row">
         {% for stage, n in pending_stages.items() if n %}
@@ -339,7 +341,7 @@
         <div class="stage-chip"><b>{{ totals.pending_garments }}</b> garments left</div>
       </div>
       {% else %}
-      <div class="empty">Nothing open — every order has been delivered. &#127881;</div>
+      <div class="empty">{{ icon('check-circle', 14) }}Nothing open — every order has been delivered.</div>
       {% endif %}
 
       {% if overdue %}

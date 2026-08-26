@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+{% from "_icons.html" import icon %}<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -7,7 +7,7 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-      font-family: 'Segoe UI', Arial, sans-serif; background: #f3f4f6;
+      font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; background: #f3f4f6;
       color: #111827; padding: 16px; font-size: 14px;
     }
     .sheet {
@@ -66,6 +66,8 @@
     .btn-print { background: #111827; color: #fff; }
     .btn-wa { background: #25d366; color: #fff; }
 
+    .btn svg, .section > h2 svg, .all-clear svg { vertical-align: -0.15em; margin-right: 5px; }
+
     @media print {
       body { background: #fff; padding: 0; }
       .sheet { box-shadow: none; border-radius: 0; max-width: none; padding: 0; }
@@ -76,9 +78,9 @@
 <body>
 
   <div class="actions">
-    <button type="button" class="btn btn-print" onclick="window.print()">&#128424;&#65039; Print</button>
+    <button type="button" class="btn btn-print" onclick="window.print()">{{ icon('printer', 15) }}Print</button>
     {% if not shared %}
-    <a class="btn btn-wa" id="wa-btn" href="#" target="_blank" rel="noopener">&#128172; Send on WhatsApp</a>
+    <a class="btn btn-wa" id="wa-btn" href="#" target="_blank" rel="noopener">{{ icon('message', 15) }}Send on WhatsApp</a>
     {% endif %}
   </div>
 
@@ -89,7 +91,7 @@
     </div>
 
     {% if not overdue and not deliveries and not trials %}
-    <div class="all-clear">&#127881; Nothing pending — no overdue work and nothing due tomorrow.</div>
+    <div class="all-clear">{{ icon('check-circle', 18) }}Nothing pending — no overdue work and nothing due tomorrow.</div>
     {% endif %}
 
     {% macro order_block(e, show_late=False) %}
@@ -131,21 +133,21 @@
 
     {% if overdue %}
     <div class="section overdue">
-      <h2>&#128308; Overdue — finish first ({{ overdue | length }})</h2>
+      <h2>{{ icon('alert', 15) }}Overdue — finish first ({{ overdue | length }})</h2>
       {% for e in overdue %}{{ order_block(e, show_late=True) }}{% endfor %}
     </div>
     {% endif %}
 
     {% if deliveries %}
     <div class="section delivery">
-      <h2>&#128230; Delivery tomorrow ({{ deliveries | length }})</h2>
+      <h2>{{ icon('box', 15) }}Delivery tomorrow ({{ deliveries | length }})</h2>
       {% for e in deliveries %}{{ order_block(e) }}{% endfor %}
     </div>
     {% endif %}
 
     {% if trials %}
     <div class="section trial">
-      <h2>&#128085; Trial tomorrow ({{ trials | length }})</h2>
+      <h2>{{ icon('suits', 15) }}Trial tomorrow ({{ trials | length }})</h2>
       {% for e in trials %}{{ order_block(e) }}{% endfor %}
     </div>
     {% endif %}

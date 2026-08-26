@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+{% from "_icons.html" import icon %}<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -8,7 +8,7 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       background: #f3f4f6;
-      font-family: 'Segoe UI', sans-serif;
+      font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
       font-size: 14px;
       color: #111827;
     }
@@ -76,6 +76,7 @@
       background: #b91c1c; color: #fff; border: none; border-radius: 8px;
       padding: 10px 26px; font-size: 15px; font-weight: 600; cursor: pointer;
     }
+    .print-btn svg { vertical-align: -0.15em; margin-right: 6px; }
 
     @media print {
       @page {
@@ -176,7 +177,7 @@
     </div>
 
     <div class="print-bar">
-      <button class="print-btn" onclick="window.print()">&#128424; Print Receipt</button>
+      <button class="print-btn" onclick="window.print()">{{ icon('printer', 15) }}Print Receipt</button>
     </div>
   </div>
 </body>
