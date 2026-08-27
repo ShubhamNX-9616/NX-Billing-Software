@@ -1,3 +1,12 @@
+<!-- design tokens -->
+## CSS: design tokens
+
+Colours, radii and the type scale come from tokens in `static/css/base.css`
+(`:root` for light, the `html[data-theme="dark"]` block for dark). New hex
+belongs in `:root`, the dark token block, or a `@media print` block —
+nowhere else. No `var()` fallbacks (`var(--x, #ccc)`); every screen loads
+`base.css`, so a missing token is not the problem you have.
+
 <!-- code-review-graph MCP tools -->
 ## MCP Tools: code-review-graph
 
