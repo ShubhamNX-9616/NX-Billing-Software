@@ -18,21 +18,16 @@
 }
 
 .customer-found-bar {
-  background: #d1fae5;
-  border: 1px solid #6ee7b7;
+  background: var(--success-bg);
+  border: 1px solid var(--success-border);
   border-radius: var(--radius);
   padding: 8px 12px;
   font-size: 13px;
-  color: #065f46;
+  color: var(--success-fg);
   margin-top: 6px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-}
-html[data-theme="dark"] .customer-found-bar {
-  background: #064e3b;
-  border-color: #065f46;
-  color: #6ee7b7;
 }
 
 /* ---- Items table ---- */
@@ -81,7 +76,7 @@ html[data-theme="dark"] .customer-found-bar {
   width: 100%;
   padding: 6px 7px;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   font-family: var(--font);
   font-size: 13px;
   color: var(--text);
@@ -131,14 +126,14 @@ html[data-theme="dark"] .customer-found-bar {
   cursor: pointer;
   font-size: 16px;
   padding: 4px 6px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   line-height: 1;
   transition: color 0.15s, background 0.15s;
 }
 
 .btn-remove-row:hover {
   color: var(--danger);
-  background: rgba(239, 68, 68, 0.12);
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
 }
 
 /* Add row button row */
@@ -201,7 +196,7 @@ html[data-theme="dark"] .customer-found-bar {
 .payment-mode-tab {
   padding: 6px 14px;
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   background: var(--surface);
   font-size: 13px;
   font-weight: 500;
@@ -316,7 +311,7 @@ html[data-theme="dark"] .customer-found-bar {
   .item-card {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 10px;
+    border-radius: var(--radius);
     padding: 12px;
     margin-bottom: 12px;
     position: relative;
@@ -349,7 +344,7 @@ html[data-theme="dark"] .customer-found-bar {
   .item-card-footer {
     background: var(--bg);
     border-top: 1px solid var(--border);
-    border-radius: 0 0 8px 8px;
+    border-radius: 0 0 var(--radius) var(--radius);
     padding: 8px 12px;
     display: flex;
     justify-content: space-between;
@@ -473,28 +468,25 @@ html[data-theme="dark"] .customer-found-bar {
   }
 }
 
-/* Invoice items — alternating row stripe, dark-mode safe */
-.inv-row-alt { background: #fafafa; }
-html[data-theme="dark"] .inv-row-alt { background: rgba(255, 255, 255, 0.04); }
+/* Invoice items — alternating row stripe (was a hardcoded near-white) */
+.inv-row-alt { background: var(--bg); }
 
 /* ---- Cancelled bill banner ---- */
 .banner-cancelled {
   max-width: 760px;
   margin: 0 auto 12px;
-  background: #fee2e2;
-  border: 2px solid #f87171;
-  border-radius: 8px;
+  background: var(--danger-bg);
+  border: 2px solid var(--danger-border);
+  border-radius: var(--radius);
   padding: 14px 20px;
   text-align: center;
 }
 .banner-cancelled-text {
   font-size: 17px;
   font-weight: 800;
-  color: #9b1c1c;
+  color: var(--danger-fg);
   letter-spacing: 1px;
 }
-html[data-theme="dark"] .banner-cancelled { background: #2d0000; border-color: #991b1b; }
-html[data-theme="dark"] .banner-cancelled-text { color: #fca5a5; }
 
 /* ---- Invoice items table header cells ---- */
 .inv-items-table thead th {
@@ -521,7 +513,7 @@ html[data-theme="dark"] .banner-cancelled-text { color: #fca5a5; }
 .inv-payment-pill {
   background: var(--bg);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   padding: 4px 12px;
   font-size: 13px;
 }
