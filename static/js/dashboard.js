@@ -112,24 +112,40 @@ function setActiveTab(period) {
   setCustomRangeVisibility(period === 'custom');
 }
 
+// Read the chart palette + axis colours from the CSS custom properties so
+// the bars, ticks and grid stay in step with the theme. Re-read on every
+// call — the values change when the user toggles the theme.
+function chartColors() {
+  const css = getComputedStyle(document.documentElement);
+  const pay = n => css.getPropertyValue('--pay-' + n).trim();
+  return {
+    cash: pay('cash'),
+    card: pay('card'),
+    upi:  pay('upi'),
+    tick: css.getPropertyValue('--text-muted').trim(),
+    grid: css.getPropertyValue('--border').trim(),
+  };
+}
+
 function buildChart(labels, cashData, cardData, upiData) {
   const ctx = document.getElementById('sales-chart').getContext('2d');
   if (salesChart) salesChart.destroy();
+  const c = chartColors();
   salesChart = new Chart(ctx, {
     type: 'bar',
     data: {
       labels,
       datasets: [
-        { label: 'Cash', data: cashData, backgroundColor: '#10b981', stack: 'sales' },
-        { label: 'Card', data: cardData, backgroundColor: '#3b82f6', stack: 'sales' },
-        { label: 'UPI',  data: upiData,  backgroundColor: '#8b5cf6', stack: 'sales' },
+        { label: 'Cash', data: cashData, backgroundColor: c.cash, stack: 'sales' },
+        { label: 'Card', data: cardData, backgroundColor: c.card, stack: 'sales' },
+        { label: 'UPI',  data: upiData,  backgroundColor: c.upi,  stack: 'sales' },
       ],
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        legend: { position: 'bottom' },
+        legend: { position: 'bottom', labels: { color: c.tick } },
         tooltip: {
           callbacks: {
             label(item) {
@@ -143,21 +159,42 @@ function buildChart(labels, cashData, cardData, upiData) {
         },
       },
       scales: {
-        x: { stacked: true },
+        x: {
+          stacked: true,
+          ticks: { color: c.tick },
+        },
         y: {
           stacked: true,
           ticks: {
+            color: c.tick,
             callback(value) {
               if (value >= 100000) return '\u20B9' + (value / 100000).toFixed(1) + 'L';
               if (value >= 1000)   return '\u20B9' + (value / 1000).toFixed(0) + 'K';
               return '\u20B9' + value;
             },
           },
+          grid: { color: c.grid },
         },
       },
     },
   });
 }
+
+// Re-theme an existing chart in place when the user toggles the theme.
+function restyleChartForTheme() {
+  if (!salesChart) return;
+  const c = chartColors();
+  salesChart.data.datasets[0].backgroundColor = c.cash;
+  salesChart.data.datasets[1].backgroundColor = c.card;
+  salesChart.data.datasets[2].backgroundColor = c.upi;
+  salesChart.options.plugins.legend.labels.color = c.tick;
+  salesChart.options.scales.x.ticks.color = c.tick;
+  salesChart.options.scales.y.ticks.color = c.tick;
+  salesChart.options.scales.y.grid.color  = c.grid;
+  salesChart.update();
+}
+
+document.addEventListener('snx:themechange', restyleChartForTheme);
 
 function updateChart(labels, cashData, cardData, upiData) {
   if (!salesChart) {
