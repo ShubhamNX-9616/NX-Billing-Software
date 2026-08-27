@@ -23,7 +23,7 @@
   min-width: 700px;
 }
 .inst-items-table th {
-  background: var(--border);
+  background: var(--bg);
   color: var(--text);
   padding: 8px 6px;
   text-align: left;
@@ -163,7 +163,7 @@
 
 .inst-detail-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .inst-detail-table th {
-  background: var(--border);
+  background: var(--table-head-bg);
   color: var(--text);
   padding: 8px 6px;
   text-align: left;

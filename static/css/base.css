@@ -14,11 +14,15 @@
   --bg:            #f9fafb;
   --surface:       #ffffff;
   --border:        #e5e7eb;
+  --border-strong: #d1d5db;   /* one step past --border — control borders, hover fills */
   --brand-navy:    #0f172a;   /* sidebar + login ground — stays dark in light mode by design */
   --table-head-bg: #f1f5f9;
   --text:          #111827;
   --text-muted:    #6b7280;
   --text-light:    #8a9099;   /* icons / decorative marks only — not text */
+
+  --skeleton-base: #ececec;   /* loading-shimmer ramp (base -> hi -> base) */
+  --skeleton-hi:   #d8d8d8;
 
   /* ---- Status color pairs (bg / fg / border) — dark values in the dark block ---- */
   --success-bg:     #d1fae5;
@@ -163,7 +167,7 @@ a:hover {
 .skeleton-val {
   display: inline-block;
   min-width: 90px;
-  background: linear-gradient(90deg, #ececec 25%, #d8d8d8 50%, #ececec 75%);
+  background: linear-gradient(90deg, var(--skeleton-base) 25%, var(--skeleton-hi) 50%, var(--skeleton-base) 75%);
   background-size: 200% 100%;
   animation: skeleton-shimmer 1.4s ease-in-out infinite;
   border-radius: var(--radius-sm);
@@ -177,7 +181,7 @@ a:hover {
   display: block;
   height: 13px;
   border-radius: var(--radius-sm);
-  background: linear-gradient(90deg, #ececec 25%, #d8d8d8 50%, #ececec 75%);
+  background: linear-gradient(90deg, var(--skeleton-base) 25%, var(--skeleton-hi) 50%, var(--skeleton-base) 75%);
   background-size: 200% 100%;
   animation: skeleton-shimmer 1.4s ease-in-out infinite;
 }
@@ -199,7 +203,7 @@ a:hover {
   flex: 1;
   min-width: 0;
   border-radius: var(--radius-sm) var(--radius-sm) 0 0;
-  background: linear-gradient(90deg, #ececec 25%, #d8d8d8 50%, #ececec 75%);
+  background: linear-gradient(90deg, var(--skeleton-base) 25%, var(--skeleton-hi) 50%, var(--skeleton-base) 75%);
   background-size: 200% 100%;
   animation: skeleton-shimmer 1.4s ease-in-out infinite;
 }
@@ -351,10 +355,14 @@ html[data-theme="dark"] {
   --bg:            #111827;
   --surface:       #1f2937;
   --border:        #374151;
+  --border-strong: #4b5563;
   --table-head-bg: #374151;
   --text:       #f9fafb;
   --text-muted: #9ca3af;
   --text-light: #6b7280;   /* ~3.1:1 on --surface — decorative marks only, never text */
+
+  --skeleton-base: var(--border);
+  --skeleton-hi:   var(--border-strong);
 
   --success-bg:     #064e3b;
   --success-fg:     #6ee7b7;
@@ -377,14 +385,6 @@ html[data-theme="dark"] {
   --tier-diamond-bg:  #164e63;  --tier-diamond-fg:  #a5f3fc;
 }
 
-/* Skeleton shimmer */
-html[data-theme="dark"] .skeleton-val,
-html[data-theme="dark"] .skeleton-line,
-html[data-theme="dark"] .skeleton-bar {
-  background: linear-gradient(90deg, #374151 25%, #4b5563 50%, #374151 75%);
-  background-size: 200% 100%;
-}
-
 /* Tables */
 html[data-theme="dark"] .table tbody tr:hover {
   background: rgba(255,255,255,0.04);
@@ -393,29 +393,24 @@ html[data-theme="dark"] .table-striped tbody tr:nth-child(even) {
   background: rgba(255,255,255,0.03);
 }
 
-/* Secondary button */
+/* Secondary button — a touch lighter than --surface so it stands off a dark card */
 html[data-theme="dark"] .btn-secondary {
-  background: #374151;
-  border-color: #4b5563;
-  color: #f9fafb;
+  background: var(--border);
+  border-color: var(--border-strong);
 }
 html[data-theme="dark"] .btn-secondary:hover:not(:disabled) {
-  background: #4b5563;
+  background: var(--border-strong);
 }
 
 /* Neutral badge — not a status pair, so it needs its own dark treatment */
-html[data-theme="dark"] .badge-neutral { background: #374151; color: #9ca3af; border-color: #4b5563; }
+html[data-theme="dark"] .badge-neutral { background: var(--border); border-color: var(--border-strong); }
 
-/* Bill items table cell inputs */
-html[data-theme="dark"] .items-table th { background: #374151; }
-html[data-theme="dark"] .items-table .cell-input {
-  color: #f9fafb;
-}
+/* Bill items table cell inputs — stronger hover/focus fill than the resolved light rule */
 html[data-theme="dark"] .items-table .cell-input:hover {
-  background: #374151;
-  border-color: #4b5563;
+  background: var(--border);
+  border-color: var(--border-strong);
 }
 html[data-theme="dark"] .items-table .cell-input:focus {
-  background: #111827;
-  border-color: #3b82f6;
+  background: var(--bg);
+  border-color: var(--info-border);
 }
