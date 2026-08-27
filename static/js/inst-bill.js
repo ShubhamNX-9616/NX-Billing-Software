@@ -133,7 +133,7 @@ function addInstItem() {
     </td>
     <td class="inst-total-cell" id="inst-total-${id}">₹0.00</td>
     <td>
-      <button class="inst-del-btn" onclick="removeInstItem(${id})" title="Remove" aria-label="Remove item">✕</button>
+      <button class="inst-del-btn" onclick="removeInstItem(${id})" title="Remove" aria-label="Remove item">&#215;</button>
     </td>
   `;
   tbody.appendChild(tr);
@@ -605,7 +605,7 @@ async function populateInstItemForEdit(item) {
     <td><input class="input" type="number" id="inst-pcs-${id}" min="0" step="1" placeholder="0" value="${item.no_of_pcs || ''}" oninput="calcInstRow(${id})" /></td>
     <td><input class="input" type="number" id="inst-stitch-${id}" min="0" step="0.01" placeholder="—" value="${item.stitching_per_unit || ''}" oninput="calcInstRow(${id})" /></td>
     <td class="inst-total-cell" id="inst-total-${id}">₹${Number(item.total || 0).toFixed(2)}</td>
-    <td><button class="inst-del-btn" onclick="removeInstItem(${id})" title="Remove" aria-label="Remove item">✕</button></td>
+    <td><button class="inst-del-btn" onclick="removeInstItem(${id})" title="Remove" aria-label="Remove item">&#215;</button></td>
   `;
   tbody.appendChild(tr);
 
