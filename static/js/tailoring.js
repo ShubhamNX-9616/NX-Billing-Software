@@ -306,7 +306,7 @@ function renderDayDetail() {
 function dashRowHtml(b) {
   const allReady = b.ready_items === b.total_items;
   const readiness = allReady
-    ? '<span class="tl-ready">✓ Ready</span>'
+    ? '<span class="tl-ready"><svg class="ico" aria-hidden="true"><use href="#i-check-circle"/></svg> Ready</span>'
     : `<span class="tl-not-ready">${b.ready_items}/${b.total_items} stitched</span>`;
   const late = b.days_late
     ? ` · <span class="tl-late">${b.days_late} day${b.days_late > 1 ? 's' : ''} late</span>` : '';
@@ -1456,7 +1456,7 @@ function copyTlLink(btn) {
   const link = buildTlShareLink(tlDetailOrder);
   const done = () => {
     const t = btn.textContent;
-    btn.textContent = 'Copied ✓';
+    btn.textContent = 'Copied';
     setTimeout(() => { btn.textContent = t; }, 2000);
   };
   if (navigator.clipboard && window.isSecureContext) {

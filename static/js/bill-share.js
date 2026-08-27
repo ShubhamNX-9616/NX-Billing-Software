@@ -176,7 +176,7 @@ function syncInlineCombo() {
     return;
   }
   const sum = checked.reduce((acc, m) => acc + (parseFloat(document.getElementById(`inline-combo-amt-${m.toLowerCase()}`).value) || 0), 0);
-  status.textContent = Math.abs(sum - total) <= 0.01 ? 'Payment balanced ✓' : `Remaining: ${fmt(total - sum)}`;
+  status.textContent = Math.abs(sum - total) <= 0.01 ? 'Payment balanced' : `Remaining: ${fmt(total - sum)}`;
 }
 
 async function saveInlinePayment() {

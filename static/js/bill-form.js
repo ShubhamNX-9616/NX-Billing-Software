@@ -357,7 +357,7 @@ async function prefillEditForm() {
     advancePaidUserModified = true;
 
     const saveBtn = document.getElementById('btn-save');
-    if (saveBtn) saveBtn.textContent = '✓ Update Bill';
+    if (saveBtn) saveBtn.textContent = 'Update Bill';
 
     updateSummary();
   } catch (err) {
@@ -420,7 +420,7 @@ function saveTargetId() {
 }
 
 function saveButtonLabel() {
-  return saveTargetId() ? '✓ Update Bill' : '✓ Save Bill';
+  return saveTargetId() ? 'Update Bill' : 'Save Bill';
 }
 
 // Error slots in top-to-bottom page order, so a blocked save can point at the
@@ -482,7 +482,7 @@ async function saveBill() {
       const successEl         = document.getElementById('save-success');
       successEl.style.display = 'inline';
       successEl.textContent   = 'Bill updated successfully!';
-      saveBtn.textContent     = '✓ Updated';
+      saveBtn.textContent     = 'Updated';
       // Give the admin time to read the loyalty banner before redirecting
       setTimeout(() => { window.location.href = `/bills/${BILL_ID}`; }, loyaltyUnlocked ? 4000 : 1500);
     } else {
@@ -494,7 +494,7 @@ async function saveBill() {
         ? `Bill ${result.bill_number} updated successfully!`
         : `Bill ${result.bill_number} saved successfully!`;
       document.getElementById('btn-print').disabled = false;
-      saveBtn.textContent = wasUpdate ? '✓ Updated' : '✓ Saved';
+      saveBtn.textContent = wasUpdate ? 'Updated' : 'Saved';
       // Rebuild share/WhatsApp/payment actions from the values just stored,
       // so they never carry the amounts of a superseded version.
       showPostSaveActions(result);
@@ -541,7 +541,7 @@ function markPostSaveDirty() {
   const saveBtn = document.getElementById('btn-save');
   if (saveBtn) {
     saveBtn.disabled    = false;
-    saveBtn.textContent = '✓ Update Bill';
+    saveBtn.textContent = 'Update Bill';
   }
   const successEl = document.getElementById('save-success');
   if (successEl) successEl.style.display = 'none';

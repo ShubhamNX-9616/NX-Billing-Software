@@ -12,7 +12,7 @@ saturated brand fill (`.btn-primary` etc. — white-on-accent isn't a themed
 decision, and a token that can only ever hold one value isn't a token), PIL
 label rendering in `routes/inventory.py`, and documents built as JS strings
 (`static/js/inst-performa.js`). Everything else uses tokens, including the
-public `shared_*`, `tailoring_receipt*`/`tailoring_report*`, and
+public `shared_*`, `tailoring_*report*`, `tailoring_receipt*`, and
 `unauthorized.html` templates — they don't extend `base.html`, but they do
 `<link>` `base.css` directly (no theme-toggle script, so tokens always
 resolve light). Substitute by what the value *means*, not by whichever
@@ -24,13 +24,36 @@ the search and re-run it before trusting the count — a truncated match list
 has under-reported scope three times now.
 
 <!-- glyph rule -->
-## Glyphs: icon sprite vs. emoji
+## Glyphs: icon sprite vs. emoji vs. plain text
 
-UI controls and status indicators use the `_icons.html` sprite
-(`{{ icon('name', size) }}`), not emoji or literal glyphs like `✓`/`✕` —
-those render as a tofu box on the wrong OS/font and don't theme with
-`currentColor`. This applies to anything rendered as on-page UI: buttons,
-badges, status text.
+Applies regardless of encoding — a literal `✓`/`✕` character, the HTML
+entity (`&#10003;`/`&#215;`), and a JS `✓` escape are the same glyph
+and the same problem: they render as a tofu box on the wrong OS/font and
+don't theme with `currentColor`. A search for one encoding is not a search
+for the glyph — check all three before calling a sweep clean.
+
+The fix depends on which layer is rendering the UI:
+
+- **Server-rendered markup** (Jinja templates): use the `_icons.html`
+  sprite, `{{ icon('name', size) }}`.
+- **JS that builds markup via `innerHTML`** (can carry an `<svg>`): use the
+  same sprite through its DOM form, `<svg class="ico" aria-hidden="true">
+  <use href="#i-name"/></svg>` — already the established pattern in
+  `tailoring.js`, `history.js`, `inventory.js`, `customers.js`. One sprite,
+  no second icon set to keep in sync.
+- **JS that sets `.textContent`** on a button/status label (can't carry
+  markup at all): no glyph, no icon — plain text only. "Saved", "Payment
+  balanced", "Copied" already carry the meaning; a checkmark there was
+  decoration on a label that was already changing. Don't add markup-based
+  workarounds to route around `.textContent` — if a spot like this
+  genuinely needs an icon, that's a sign it should become an `.innerHTML`
+  site instead, not an excuse to keep the glyph.
+
+If a template's initial paint and a JS `.textContent` assignment both set
+the same element's label, they must agree on which of the above it is —
+fixing one without the other means the JS repaints the glyph back on the
+next state change (this is exactly what happened to
+`new_institution_bill.html`'s save button between rounds 8 and 9).
 
 Exception: emoji inside a WhatsApp share-text string (the JS that builds
 `wa.me/?text=...`, e.g. `bill_detail.html`, `institution_bill_detail.html`,

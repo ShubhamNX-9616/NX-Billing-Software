@@ -160,7 +160,7 @@ function syncComboAutoFill() {
   const diff   = round2(allSum - total);
 
   if (Math.abs(diff) <= 0.01) {
-    remMsg.textContent = 'Payment balanced ✓';
+    remMsg.textContent = 'Payment balanced';
     remMsg.className   = 'payment-remaining is-ok';
   } else {
     remMsg.textContent = `Remaining: ${fmt(round2(total - allSum))}`;

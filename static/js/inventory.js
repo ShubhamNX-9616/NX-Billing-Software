@@ -1828,7 +1828,7 @@ function _updateScanButtons() {
     // On the last item — hide Next, show Save All
     nextBtn.style.display    = 'none';
     saveAllBtn.style.display = '';
-    saveAllBtn.textContent   = `✓ Save All ${total} Items`;
+    saveAllBtn.textContent   = `Save All ${total} Items`;
   }
 }
 

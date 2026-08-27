@@ -424,7 +424,7 @@ function syncInstComboAutoFill() {
     s + (parseFloat(document.getElementById(`inst-combo-amt-${m}`).value) || 0), 0));
   const diff = r2(allSum - total);
   if (Math.abs(diff) <= 0.01) {
-    remEl.textContent = 'Payment balanced ✓';
+    remEl.textContent = 'Payment balanced';
     remEl.style.color = 'green';
   } else {
     remEl.textContent = `Remaining: ${fmt(r2(total - allSum))}`;
@@ -644,7 +644,7 @@ async function saveInstBill() {
     const result = await res.json();
     if (!res.ok) {
       document.getElementById('inst-save-error').textContent = result.error || 'Failed to save.';
-      btn.disabled = false; btn.textContent = isEdit ? '✓ Update Institution Bill' : '✓ Save Institution Bill';
+      btn.disabled = false; btn.textContent = isEdit ? 'Update Institution Bill' : 'Save Institution Bill';
       return;
     }
     if (isEdit) {
@@ -654,7 +654,7 @@ async function saveInstBill() {
     }
   } catch (err) {
     document.getElementById('inst-save-error').textContent = 'Network error: ' + err.message;
-    btn.disabled = false; btn.textContent = isEdit ? '✓ Update Institution Bill' : '✓ Save Institution Bill';
+    btn.disabled = false; btn.textContent = isEdit ? 'Update Institution Bill' : 'Save Institution Bill';
   }
 }
 
@@ -812,7 +812,7 @@ function resetInstForm() {
   if (waBtn) { waBtn.style.display = 'none'; waBtn.href = '#'; }
   document.getElementById('inst-save-btn').style.display = '';
   document.getElementById('inst-save-btn').disabled = false;
-  document.getElementById('inst-save-btn').textContent = '✓ Save Institution Bill';
+  document.getElementById('inst-save-btn').textContent = 'Save Institution Bill';
   document.getElementById('pr-payments-wrap').style.display = '';
 
   clearInstErrors();

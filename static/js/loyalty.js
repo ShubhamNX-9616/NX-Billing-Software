@@ -177,7 +177,7 @@ async function markGiftGiven(giftId) {
       }, 300);
     }
   } catch (err) {
-    if (btn) { btn.disabled = false; btn.textContent = '✓ Mark as Given'; }
+    if (btn) { btn.disabled = false; btn.textContent = 'Mark as Given'; }
     alert(err.message);
   }
 }
