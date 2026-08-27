@@ -217,7 +217,7 @@ function appendTableRow(id, vals = {}) {
         </select>
         <button type="button" class="btn btn-sm"
                 style="padding:3px 6px;font-size:11px;flex-shrink:0;"
-                onclick="openAddCompanyModal(${id})" title="Add company">+</button>
+                onclick="openAddCompanyModal(${id})" title="Add company" aria-label="Add company">+</button>
       </div>
     </td>
     <td>
@@ -254,7 +254,7 @@ function appendTableRow(id, vals = {}) {
     <td class="item-line-total" id="finalamt-${id}">₹0.00</td>
     <td style="text-align:center;">
       <button type="button" class="btn-remove-row" onclick="removeRow(${id})"
-              title="Remove row">&#215;</button>
+              title="Remove row" aria-label="Remove row">&#215;</button>
     </td>
   `;
 
@@ -281,7 +281,7 @@ function appendCard(id, vals = {}) {
             <option value="">Loading…</option>
           </select>
           <button type="button" class="btn btn-sm btn-secondary"
-                  onclick="openAddCompanyModal(${id})">+</button>
+                  onclick="openAddCompanyModal(${id})" title="Add company" aria-label="Add company">+</button>
         </div>
       </div>`
     : `<div id="company-wrap-${id}" style="display:none;"></div>`;
@@ -296,7 +296,7 @@ function appendCard(id, vals = {}) {
       <span id="card-header-${id}">Item</span>
       <div style="display:flex;align-items:center;gap:6px;">
         <span id="inv-badge-${id}" class="pill pill-info" style="display:none;cursor:pointer;" onclick="clearInventoryLink(${id})" title="Linked to inventory — click to unlink">INV</span>
-        <button type="button" class="btn-remove-row" onclick="removeRow(${id})">&#215;</button>
+        <button type="button" class="btn-remove-row" onclick="removeRow(${id})" title="Remove row" aria-label="Remove row">&#215;</button>
       </div>
     </div>
 

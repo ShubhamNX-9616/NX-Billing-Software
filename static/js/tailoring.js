@@ -452,7 +452,7 @@ function addItemRow(item) {
     <input type="number" class="input tlf-rate" min="0" placeholder="Rate"
            value="${item.rate === '' ? '' : item.rate}" oninput="onRateInput(this)" />
     <span class="tlf-amount">0.00</span>
-    <button type="button" class="btn btn-danger btn-sm" title="Remove"
+    <button type="button" class="btn btn-danger btn-sm" title="Remove" aria-label="Remove garment"
             onclick="this.parentElement.remove(); recalcTotals();">&#215;</button>`;
   wrap.appendChild(row);
   recalcTotals();
@@ -888,7 +888,7 @@ function renderDetail(o) {
     <div class="tl-photo-thumb">
       <img src="/tailoring/photos/${tlEsc(p.filename)}" loading="lazy"
            onclick="openLightbox('/tailoring/photos/${tlEsc(p.filename)}')" />
-      <button type="button" class="tl-photo-del" title="Delete photo"
+      <button type="button" class="tl-photo-del" title="Delete photo" aria-label="Delete photo"
               onclick="deletePhoto(${p.id})">&#215;</button>
       ${control}
     </div>`;
@@ -1111,7 +1111,7 @@ function paymentHistoryHtml(o) {
     <div class="tl-pay-row">
       <span><strong>${tlFmt(p.amount)}</strong>${p.mode ? ' · ' + tlEsc(p.mode) : ''}${p.note ? ' · ' + tlEsc(p.note) : ''}</span>
       <span style="color:var(--text-muted);">${tlFmtDateTime(p.paid_at)}
-        <button type="button" class="tl-pay-del" title="Delete this payment entry"
+        <button type="button" class="tl-pay-del" title="Delete this payment entry" aria-label="Delete payment entry"
                 onclick="deleteTlPayment(${p.id})">&#215;</button>
       </span>
     </div>`).join('');

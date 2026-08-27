@@ -260,7 +260,7 @@ function addCsRow(gid) {
     <td style="padding:3px 4px;"><input type="number" style="${sr}" placeholder="0"    min="0" step="0.01" /></td>
     <td style="padding:3px 4px;"><input type="text"   style="${s}"  placeholder="Optional" /></td>
     <td style="padding:3px 4px;text-align:center;">
-      <button type="button" style="background:none;border:none;cursor:pointer;color:var(--danger);font-size:16px;line-height:1;" onclick="removeCsRow(${gid},${rowId})">&#215;</button>
+      <button type="button" style="background:none;border:none;cursor:pointer;color:var(--danger);font-size:16px;line-height:1;" onclick="removeCsRow(${gid},${rowId})" aria-label="Remove row">&#215;</button>
     </td>
   `;
   tbody.appendChild(tr);
@@ -620,7 +620,7 @@ function addBaRow(gid) {
     <td style="padding:3px 4px;"><input type="number" style="${sr}" value="2"           min="0" step="0.01" /></td>
     <td style="padding:3px 4px;"><input type="text"   style="${s}"  placeholder="Optional" /></td>
     <td style="padding:3px 4px;text-align:center;">
-      <button type="button" style="background:none;border:none;cursor:pointer;color:var(--danger);font-size:16px;line-height:1;" onclick="removeBaRow(${gid},${rowId})">&#215;</button>
+      <button type="button" style="background:none;border:none;cursor:pointer;color:var(--danger);font-size:16px;line-height:1;" onclick="removeBaRow(${gid},${rowId})" aria-label="Remove row">&#215;</button>
     </td>
   `;
   tbody.appendChild(tr);
@@ -907,10 +907,10 @@ function renderSections(items) {
         <td style="text-align:center;white-space:nowrap;">
           <button class="btn btn-sm btn-secondary" onclick="openQrViewModal(${item.id})" title="QR"><svg class="ico" aria-hidden="true"><use href="#i-qrcode"/></svg> QR</button>
           <button class="btn btn-sm btn-secondary" onclick="openAdjustModal(${item.id})" title="Adjust" style="margin-left:4px;">&#8651; Adjust</button>
-          <button class="btn btn-sm btn-secondary" onclick="openTxnModal(${item.id})" title="History" style="margin-left:4px;"><svg class="ico" aria-hidden="true"><use href="#i-file-text"/></svg></button>
-          <button class="btn btn-sm btn-secondary" onclick="openEditItemModal(${item.id})" title="Edit" style="margin-left:4px;"><svg class="ico" aria-hidden="true"><use href="#i-pencil"/></svg></button>
-          <button class="btn btn-sm btn-secondary" onclick="openInfoModal(${item.id})" title="More Info" style="margin-left:4px;">&#8505;</button>
-          <button class="btn btn-sm" style="margin-left:4px;color:var(--danger);" onclick="deleteItem(${item.id})" title="Delete">&#215;</button>
+          <button class="btn btn-sm btn-secondary" onclick="openTxnModal(${item.id})" title="History" aria-label="Transaction history" style="margin-left:4px;"><svg class="ico" aria-hidden="true"><use href="#i-file-text"/></svg></button>
+          <button class="btn btn-sm btn-secondary" onclick="openEditItemModal(${item.id})" title="Edit" aria-label="Edit item" style="margin-left:4px;"><svg class="ico" aria-hidden="true"><use href="#i-pencil"/></svg></button>
+          <button class="btn btn-sm btn-secondary" onclick="openInfoModal(${item.id})" title="More Info" aria-label="More info" style="margin-left:4px;">&#8505;</button>
+          <button class="btn btn-sm" style="margin-left:4px;color:var(--danger);" onclick="deleteItem(${item.id})" title="Delete" aria-label="Delete item">&#215;</button>
         </td>
       </tr>`;
     }).join('');

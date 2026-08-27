@@ -120,7 +120,7 @@ function renderTable(bills, titleText) {
       ${primaryBtns}
       <div class="row-menu-wrap" onclick="event.stopPropagation()">
         <button class="btn btn-secondary btn-sm row-menu-trigger"
-                onclick="toggleRowMenu('menu-${b.id}')">&#8943;</button>
+                onclick="toggleRowMenu('menu-${b.id}')" aria-label="Row actions">&#8943;</button>
         <div class="row-menu" id="menu-${b.id}">
           ${moreItems}
         </div>
@@ -611,7 +611,7 @@ function renderInstTable(bills, titleText) {
       ${primaryBtns}
       <div class="row-menu-wrap" onclick="event.stopPropagation()">
         <button class="btn btn-secondary btn-sm row-menu-trigger"
-                onclick="toggleRowMenu('inst-menu-${b.id}')">&#8943;</button>
+                onclick="toggleRowMenu('inst-menu-${b.id}')" aria-label="Row actions">&#8943;</button>
         <div class="row-menu" id="inst-menu-${b.id}">${moreItems}</div>
       </div>`;
 

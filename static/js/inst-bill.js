@@ -109,7 +109,7 @@ function addInstItem() {
           <option value="">-- Company --</option>
         </select>
         <button type="button" class="btn btn-sm" style="padding:5px 8px;font-size:11px;flex-shrink:0;"
-                onclick="openAddInstCompanyModal(${id})" title="Add company">+</button>
+                onclick="openAddInstCompanyModal(${id})" title="Add company" aria-label="Add company">+</button>
       </div>
     </td>
     <td>
@@ -133,7 +133,7 @@ function addInstItem() {
     </td>
     <td class="inst-total-cell" id="inst-total-${id}">₹0.00</td>
     <td>
-      <button class="inst-del-btn" onclick="removeInstItem(${id})" title="Remove">✕</button>
+      <button class="inst-del-btn" onclick="removeInstItem(${id})" title="Remove" aria-label="Remove item">✕</button>
     </td>
   `;
   tbody.appendChild(tr);
@@ -596,7 +596,7 @@ async function populateInstItemForEdit(item) {
       <div style="display:flex;gap:4px;align-items:center;">
         <select class="input select" id="inst-company-${id}" style="flex:1;min-width:80px;"><option value="">-- Company --</option></select>
         <button type="button" class="btn btn-sm" style="padding:5px 8px;font-size:11px;flex-shrink:0;"
-                onclick="openAddInstCompanyModal(${id})" title="Add company">+</button>
+                onclick="openAddInstCompanyModal(${id})" title="Add company" aria-label="Add company">+</button>
       </div>
     </td>
     <td><input class="input" id="inst-quality-${id}" placeholder="Quality No" value="${item.quality_number || ''}" /></td>
@@ -605,7 +605,7 @@ async function populateInstItemForEdit(item) {
     <td><input class="input" type="number" id="inst-pcs-${id}" min="0" step="1" placeholder="0" value="${item.no_of_pcs || ''}" oninput="calcInstRow(${id})" /></td>
     <td><input class="input" type="number" id="inst-stitch-${id}" min="0" step="0.01" placeholder="—" value="${item.stitching_per_unit || ''}" oninput="calcInstRow(${id})" /></td>
     <td class="inst-total-cell" id="inst-total-${id}">₹${Number(item.total || 0).toFixed(2)}</td>
-    <td><button class="inst-del-btn" onclick="removeInstItem(${id})" title="Remove">✕</button></td>
+    <td><button class="inst-del-btn" onclick="removeInstItem(${id})" title="Remove" aria-label="Remove item">✕</button></td>
   `;
   tbody.appendChild(tr);
 
