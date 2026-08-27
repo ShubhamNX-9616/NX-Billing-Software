@@ -71,11 +71,6 @@
   .dash-tables-grid .table-clickable th:first-child,
   .dash-tables-grid .table-clickable td:first-child { white-space: nowrap; }
 
-  @media (min-width: 1025px) {
-    /* Side by side leaves little room — drop the lowest-priority column */
-    .dash-tables-grid .col-date { display: none; }
-  }
-
   @media (max-width: 1024px) {
     .dash-tables-grid { grid-template-columns: 1fr; }
   }
