@@ -54,7 +54,7 @@
   box-shadow: 0 1px 3px rgba(224, 36, 36, 0.25);
 }
 .btn-danger:hover:not(:disabled) {
-  background: #c81e1e;
+  background: var(--danger-dark);
   box-shadow: 0 3px 8px rgba(224, 36, 36, 0.3);
 }
 
@@ -65,7 +65,7 @@
   box-shadow: 0 1px 3px rgba(5, 122, 85, 0.25);
 }
 .btn-success:hover:not(:disabled) {
-  background: #046c4e;
+  background: var(--success-dark);
   box-shadow: 0 3px 8px rgba(5, 122, 85, 0.3);
 }
 

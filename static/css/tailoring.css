@@ -109,12 +109,10 @@
   border:1px solid var(--border); background:var(--bg); cursor:pointer;
 }
 .tl-day.today { outline:2px solid var(--primary); }
-.tl-day.overdue { border-color:var(--danger); background:#fef2f2; }
+.tl-day.overdue { border-color:var(--danger); background:color-mix(in srgb, var(--danger) 8%, var(--surface)); }
 .tl-day.overdue .tl-day-name { color:var(--danger); font-weight:700; }
-[data-theme="dark"] .tl-day.overdue { background:color-mix(in srgb, var(--danger) 14%, transparent); }
 .tl-day.selected { background:var(--surface); border-color:var(--primary); }
-.tl-day.overdue.selected { background:#fee2e2; border-color:var(--danger); }
-[data-theme="dark"] .tl-day.overdue.selected { background:color-mix(in srgb, var(--danger) 24%, transparent); }
+.tl-day.overdue.selected { background:var(--danger-bg); border-color:var(--danger); }
 .tl-day-name { font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.4px; }
 /* The garment breakdown is what the tailor plans the day around, so it
    carries the type scale here; the order count is the supporting line. */

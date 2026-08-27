@@ -6,12 +6,15 @@
   --primary:       #1a56db;
   --primary-dark:  #1e429f;
   --success:       #057a55;
+  --success-dark:  #046c4e;
   --danger:        #e02424;
+  --danger-dark:   #c81e1e;
   --warning:       #c27803;
   --warning-dark:  #b45309;
   --bg:            #f9fafb;
   --surface:       #ffffff;
   --border:        #e5e7eb;
+  --brand-navy:    #0f172a;   /* sidebar + login ground — stays dark in light mode by design */
   --table-head-bg: #f1f5f9;
   --text:          #111827;
   --text-muted:    #6b7280;
