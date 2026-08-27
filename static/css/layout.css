@@ -33,7 +33,7 @@
   justify-content: center;
   font-size: 12px;
   font-weight: 800;
-  color: #ffffff;
+  color: var(--brand-navy-fg);
   margin-bottom: 10px;
   letter-spacing: 0.3px;
   border: 1px solid rgba(255,255,255,0.12);
@@ -42,7 +42,7 @@
 .sidebar-logo .shop-name {
   font-size: 15px;
   font-weight: 700;
-  color: #ffffff;
+  color: var(--brand-navy-fg);
   letter-spacing: 0.5px;
   line-height: 1.2;
 }
@@ -87,14 +87,14 @@
 
 .nav-link:hover {
   background: rgba(255,255,255,0.09);
-  color: #ffffff;
+  color: var(--brand-navy-fg);
   text-decoration: none;
 }
 
 .nav-link.active {
   background: rgba(255,255,255,0.13);
-  color: #ffffff;
-  border-left-color: #93c5fd;
+  color: var(--brand-navy-fg);
+  border-left-color: var(--brand-navy-accent);
 }
 
 .nav-icon {
@@ -129,7 +129,7 @@
 .sidebar-username {
   font-size: 13px;
   font-weight: 600;
-  color: #ffffff;
+  color: var(--brand-navy-fg);
 }
 
 .role-badge {
@@ -143,7 +143,7 @@
 
 .role-badge--admin {
   background: rgba(147, 197, 253, 0.2);
-  color: #93c5fd;
+  color: var(--brand-navy-accent);
 }
 
 .role-badge--staff {
@@ -160,7 +160,7 @@
 }
 
 .sidebar-profile-link:hover {
-  color: #ffffff;
+  color: var(--brand-navy-fg);
   text-decoration: underline;
 }
 
@@ -171,7 +171,7 @@
 }
 
 .sidebar-logout:hover {
-  color: #fca5a5;
+  color: var(--brand-navy-danger);
   text-decoration: underline;
 }
 
@@ -194,7 +194,7 @@
 }
 .sidebar-theme-toggle:hover {
   background: rgba(255,255,255,0.13);
-  color: #ffffff;
+  color: var(--brand-navy-fg);
 }
 
 /* ---- Topbar user block ---- */

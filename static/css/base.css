@@ -15,8 +15,22 @@
   --surface:       #ffffff;
   --border:        #e5e7eb;
   --border-strong: #d1d5db;   /* one step past --border — control borders, hover fills */
-  --brand-navy:    #0f172a;   /* sidebar + login ground — stays dark in light mode by design */
+  --brand-navy:        #0f172a;   /* sidebar + login ground — stays dark in light mode by design */
+  --brand-navy-fg:      #ffffff;  /* text/icons on the sidebar — a permanently-dark surface, so one value covers both themes */
+  --brand-navy-accent:  #93c5fd;  /* active nav border, admin role badge — on the sidebar */
+  --brand-navy-danger:  #fca5a5;  /* logout hover — on the sidebar */
   --table-head-bg: #f1f5f9;
+
+  /* ---- Tailoring Needs receipt identity — a distinct trade name/colour for
+     the tailoring line of business (see static/js/tailoring.js SHOP), not a
+     status colour. Public/print-only, so no dark override is needed. ---- */
+  --tl-brand:       #b91c1c;
+  --tl-brand-dark:  #7f1d1d;
+  --tl-brand-line:  #fecaca;
+  --tl-brand-line-soft: #fee2e2;
+
+  /* WhatsApp's own brand green — fixed regardless of app theme. */
+  --wa-green: #25d366;
   --text:          #111827;
   --text-muted:    #6b7280;
   --text-light:    #8a9099;   /* icons / decorative marks only — not text */

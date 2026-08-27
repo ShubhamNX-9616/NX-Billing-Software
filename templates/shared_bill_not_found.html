@@ -4,12 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Bill Not Found — SHUBHAM NX</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}?v={{ sv }}" />
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
     body {
-      background: #f3f4f6;
-      font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
       min-height: 100vh;
       display: flex;
       align-items: center;
@@ -18,9 +15,9 @@
     }
 
     .card {
-      background: #ffffff;
-      border-radius: 12px;
-      border: 1px solid #e5e7eb;
+      background: var(--surface);
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border);
       padding: 40px 32px;
       max-width: 400px;
       width: 100%;
@@ -28,47 +25,47 @@
     }
 
     .icon {
-      color: #d1d5db;
+      color: var(--text-light);
       margin-bottom: 20px;
     }
 
     .heading {
       font-size: 22px;
       font-weight: 700;
-      color: #111827;
+      color: var(--text);
       margin-bottom: 10px;
     }
 
     .message {
       font-size: 14px;
-      color: #6b7280;
+      color: var(--text-muted);
       line-height: 1.6;
       margin-bottom: 8px;
     }
 
     .bill-ref {
       font-size: 13px;
-      color: #9ca3af;
+      color: var(--text-muted);
       margin-bottom: 28px;
       font-family: monospace;
     }
 
     .btn-home {
       display: inline-block;
-      background: #1a56db;
-      color: #ffffff;
+      background: var(--primary);
+      color: #fff;
       text-decoration: none;
       padding: 11px 28px;
-      border-radius: 8px;
+      border-radius: var(--radius);
       font-size: 14px;
       font-weight: 500;
     }
-    .btn-home:hover { background: #1648c0; }
+    .btn-home:hover { background: var(--primary-dark); }
 
     .shop-name {
       margin-top: 28px;
       font-size: 12px;
-      color: #9ca3af;
+      color: var(--text-muted);
       letter-spacing: 0.05em;
       text-transform: uppercase;
     }

@@ -1,4 +1,7 @@
 /* inst-performa.js — Invoice / Proforma Invoice print for institution bills */
+/* Colours here are hardcoded, not tokens: this document is built as a JS string
+   and printed straight to a fresh popup window, so it never loads base.css. See
+   the CLAUDE.md token-rule exceptions. */
 
 function _fmtPerformaDate(dateStr) {
   if (!dateStr) return '';

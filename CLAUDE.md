@@ -7,6 +7,15 @@ belongs in `:root`, the dark token block, or a `@media print` block —
 nowhere else. No `var()` fallbacks (`var(--x, #ccc)`); every screen loads
 `base.css`, so a missing token is not the problem you have.
 
+Three exceptions, all of them "this never sees a theme": `color: #fff` on a
+saturated brand fill (`.btn-primary` etc. — white-on-accent isn't a themed
+decision, and a token that can only ever hold one value isn't a token), PIL
+label rendering in `routes/inventory.py`, and documents built as JS strings
+(`static/js/inst-performa.js`). Everything else uses tokens, including the
+public `shared_*` and `tailoring_receipt*`/`tailoring_report` templates —
+they don't extend `base.html`, but they do `<link>` `base.css` directly
+(no theme-toggle script, so tokens always resolve light).
+
 <!-- code-review-graph MCP tools -->
 ## MCP Tools: code-review-graph
 

@@ -4,13 +4,13 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Order not found — Tailoring Needs</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}?v={{ sv }}" />
   <style>
-    body { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; background: #f3f4f6; color: #111827;
-           display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
-    .box { background: #fff; border: 2px solid #b91c1c; border-radius: 10px;
+    body { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+    .box { background: var(--surface); border: 2px solid var(--tl-brand); border-radius: var(--radius-lg);
            padding: 32px 28px; text-align: center; max-width: 360px; }
-    h1 { color: #b91c1c; font-size: 20px; margin: 0 0 8px; }
-    p  { font-size: 14px; color: #6b7280; margin: 0; }
+    h1 { color: var(--tl-brand); font-size: 20px; margin: 0 0 8px; }
+    p  { font-size: 14px; color: var(--text-muted); margin: 0; }
   </style>
 </head>
 <body>
