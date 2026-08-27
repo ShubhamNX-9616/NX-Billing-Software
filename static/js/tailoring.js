@@ -897,9 +897,9 @@ function renderDetail(o) {
   const photoButtons = itemId => `
     <div class="tl-photo-btns">
       <button type="button" class="btn btn-secondary btn-sm"
-              onclick="addPhotoFor(${itemId}, 'camera')">&#128247; Camera</button>
+              onclick="addPhotoFor(${itemId}, 'camera')"><svg class="ico" aria-hidden="true"><use href="#i-camera"/></svg> Camera</button>
       <button type="button" class="btn btn-secondary btn-sm"
-              onclick="addPhotoFor(${itemId}, 'gallery')">&#128444; Gallery</button>
+              onclick="addPhotoFor(${itemId}, 'gallery')"><svg class="ico" aria-hidden="true"><use href="#i-image"/></svg> Gallery</button>
     </div>`;
 
   const splitControl = i => i.qty > 1 ? `
@@ -945,7 +945,7 @@ function renderDetail(o) {
 
     ${o.cloth_balance > 0 ? `
     <div class="notice-box notice-box--danger" style="margin-top:10px;color:var(--danger-fg);font-size:13px;font-weight:600;">
-      &#9888; Includes ${tlFmt(o.cloth_balance)} cloth balance — collect the full balance below at delivery
+      <svg class="ico" aria-hidden="true"><use href="#i-alert"/></svg> Includes ${tlFmt(o.cloth_balance)} cloth balance — collect the full balance below at delivery
     </div>` : ''}
 
     <div style="margin-top:14px;">
@@ -968,7 +968,7 @@ function renderDetail(o) {
     <div style="margin-top:14px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
         <div style="font-weight:600;">Payment Summary</div>
-        <button type="button" class="btn btn-secondary btn-sm" onclick="openPaymentModal()">&#128176; Payment</button>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="openPaymentModal()"><svg class="ico" aria-hidden="true"><use href="#i-card"/></svg> Payment</button>
       </div>
       <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:14px;margin-top:8px;">
         <span>Final Total: <strong>${tlFmt(o.final_total)}</strong></span>
@@ -984,10 +984,10 @@ function renderDetail(o) {
 
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:18px;">
       <a class="btn btn-primary" target="_blank" rel="noopener"
-         href="${buildTlWhatsAppURL(o)}">&#128172; WhatsApp</a>
-      <a class="btn btn-secondary" href="${buildTlPhoneURL(o)}">&#128222; Call</a>
+         href="${buildTlWhatsAppURL(o)}"><svg class="ico" aria-hidden="true"><use href="#i-message"/></svg> WhatsApp</a>
+      <a class="btn btn-secondary" href="${buildTlPhoneURL(o)}"><svg class="ico" aria-hidden="true"><use href="#i-phone"/></svg> Call</a>
       <a class="btn btn-secondary" target="_blank" rel="noopener"
-         href="${buildTlShareLink(o)}">&#128424; Receipt / Print</a>
+         href="${buildTlShareLink(o)}"><svg class="ico" aria-hidden="true"><use href="#i-printer"/></svg> Receipt / Print</a>
       <button type="button" class="btn btn-secondary" onclick="copyTlLink(this)">Copy Link</button>
       <button type="button" class="btn btn-secondary" onclick='openOrderModal(${JSON.stringify(o).replace(/'/g, "&#39;")})'>Edit</button>
       <button type="button" class="btn btn-danger" onclick="deleteOrder(${o.id})">Delete</button>
@@ -1341,9 +1341,9 @@ function showPhotoRecoveryNotice() {
   const div = document.createElement('div');
   div.className = 'notice-box notice-box--warning';
   div.style.cssText = 'margin-bottom:12px;color:var(--warning-fg);font-size:13px;line-height:1.4;';
-  div.innerHTML = '&#9888;&#65039; If the photo you just took is not shown below, ' +
+  div.innerHTML = '<svg class="ico" aria-hidden="true"><use href="#i-alert"/></svg> If the photo you just took is not shown below, ' +
     'the browser reloaded before it could be saved. Please add it again — ' +
-    'on this device the <strong>&#128444; Gallery</strong> button is more reliable ' +
+    'on this device the <strong><svg class="ico" aria-hidden="true"><use href="#i-image"/></svg> Gallery</strong> button is more reliable ' +
     'than Camera (take photos with the camera app first, then attach them here).';
   body.prepend(div);
 }

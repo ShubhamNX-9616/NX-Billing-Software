@@ -80,6 +80,11 @@
   font-size: 14px;
 }
 
+/* ---- Inline icon for JS-rendered markup (references the #i-* sprite) ----
+   currentColor is the point — these theme themselves, which emoji never did. */
+.ico { width:15px; height:15px; fill:none; stroke:currentColor; stroke-width:2;
+       stroke-linecap:round; stroke-linejoin:round; flex-shrink:0; }
+
 /* ---- Inputs ---- */
 .input,
 .select {

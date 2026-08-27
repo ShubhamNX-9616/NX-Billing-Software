@@ -66,7 +66,7 @@
   <div class="inst-detail-action-bar no-print">
     <span class="inst-detail-bill-num" id="d-bill-number"></span>
     <span id="d-cancelled-badge" style="display:none;" class="cancelled-stamp">CANCELLED</span>
-    <a id="d-edit-btn" href="#" class="btn btn-secondary">&#9998; Edit</a>
+    <a id="d-edit-btn" href="#" class="btn btn-secondary">{{ icon('pencil', 14) }} Edit</a>
     <a id="d-whatsapp-btn" href="#" target="_blank" rel="noopener noreferrer"
        class="btn-whatsapp" style="display:none;">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
@@ -203,7 +203,7 @@
     </div>
     <div class="modal-body">
       <div class="notice-box notice-box--danger">
-        <p class="notice-danger-title">&#9888;&#65039; WARNING: This action cannot be undone.</p>
+        <p class="notice-danger-title">{{ icon('alert', 15) }} WARNING: This action cannot be undone.</p>
         <p class="notice-danger-body">
           Bill <strong id="idd-bill-num2"></strong> will be permanently deleted.<br>
           All institution bills after this one (in the same financial year) will be renumbered.

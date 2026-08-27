@@ -85,29 +85,29 @@ function renderTable(bills, titleText) {
     const moreItems = cancelled
       ? `
           <a href="/bills/${b.id}?print=1" class="row-menu-item" target="_blank"
-             onclick="event.stopPropagation()">&#128438; Print</a>
+             onclick="event.stopPropagation()"><svg class="ico" aria-hidden="true"><use href="#i-printer"/></svg> Print</a>
           <button class="row-menu-item" onclick="copyBillShareLink('${b.bill_number}'); closeRowMenu('menu-${b.id}'); event.stopPropagation();">
-            &#128279; Copy Link
+            <svg class="ico" aria-hidden="true"><use href="#i-link"/></svg> Copy Link
           </button>
           <div class="row-menu-divider"></div>
           <button class="row-menu-item" onclick="restoreBill(${b.id}, '${b.bill_number}'); closeRowMenu('menu-${b.id}'); event.stopPropagation();">
             &#10227; Restore Bill
           </button>
           <button class="row-menu-item row-menu-danger" onclick="deleteBill(${b.id}, '${b.bill_number}'); closeRowMenu('menu-${b.id}'); event.stopPropagation();">
-            &#128465; Delete
+            <svg class="ico" aria-hidden="true"><use href="#i-trash"/></svg> Delete
           </button>`
       : `
           <a href="/bills/${b.id}?print=1" class="row-menu-item" target="_blank"
-             onclick="event.stopPropagation()">&#128438; Print</a>
+             onclick="event.stopPropagation()"><svg class="ico" aria-hidden="true"><use href="#i-printer"/></svg> Print</a>
           <button class="row-menu-item" onclick="copyBillShareLink('${b.bill_number}'); closeRowMenu('menu-${b.id}'); event.stopPropagation();">
-            &#128279; Copy Link
+            <svg class="ico" aria-hidden="true"><use href="#i-link"/></svg> Copy Link
           </button>
           <div class="row-menu-divider"></div>
           <button class="row-menu-item row-menu-warn" onclick="cancelBill(${b.id}, '${b.bill_number}'); closeRowMenu('menu-${b.id}'); event.stopPropagation();">
             &#10006; Cancel Bill
           </button>
           <button class="row-menu-item row-menu-danger" onclick="deleteBill(${b.id}, '${b.bill_number}'); closeRowMenu('menu-${b.id}'); event.stopPropagation();">
-            &#128465; Delete
+            <svg class="ico" aria-hidden="true"><use href="#i-trash"/></svg> Delete
           </button>`;
 
     const primaryBtns = cancelled
@@ -591,16 +591,16 @@ function renderInstTable(bills, titleText) {
     const rowClass = cancelled ? 'row-inactive' : '';
 
     const moreItems = cancelled
-      ? `<button class="row-menu-item" onclick="openInstInvoice(${b.id}); closeRowMenu('inst-menu-${b.id}'); event.stopPropagation();">&#128438; Print Invoice</button>
-         <button class="row-menu-item" onclick="openInstPerformaInvoice(${b.id}); closeRowMenu('inst-menu-${b.id}'); event.stopPropagation();">&#128438; Print Performa</button>
+      ? `<button class="row-menu-item" onclick="openInstInvoice(${b.id}); closeRowMenu('inst-menu-${b.id}'); event.stopPropagation();"><svg class="ico" aria-hidden="true"><use href="#i-printer"/></svg> Print Invoice</button>
+         <button class="row-menu-item" onclick="openInstPerformaInvoice(${b.id}); closeRowMenu('inst-menu-${b.id}'); event.stopPropagation();"><svg class="ico" aria-hidden="true"><use href="#i-printer"/></svg> Print Performa</button>
          <div class="row-menu-divider"></div>
          <button class="row-menu-item" onclick="instRestoreBill(${b.id}, '${b.bill_number}'); closeRowMenu('inst-menu-${b.id}'); event.stopPropagation();">&#10227; Restore Bill</button>
-         <button class="row-menu-item row-menu-danger" onclick="instDeleteBill(${b.id}, '${b.bill_number}'); closeRowMenu('inst-menu-${b.id}'); event.stopPropagation();">&#128465; Delete</button>`
-      : `<button class="row-menu-item" onclick="openInstInvoice(${b.id}); closeRowMenu('inst-menu-${b.id}'); event.stopPropagation();">&#128438; Print Invoice</button>
-         <button class="row-menu-item" onclick="openInstPerformaInvoice(${b.id}); closeRowMenu('inst-menu-${b.id}'); event.stopPropagation();">&#128438; Print Performa</button>
+         <button class="row-menu-item row-menu-danger" onclick="instDeleteBill(${b.id}, '${b.bill_number}'); closeRowMenu('inst-menu-${b.id}'); event.stopPropagation();"><svg class="ico" aria-hidden="true"><use href="#i-trash"/></svg> Delete</button>`
+      : `<button class="row-menu-item" onclick="openInstInvoice(${b.id}); closeRowMenu('inst-menu-${b.id}'); event.stopPropagation();"><svg class="ico" aria-hidden="true"><use href="#i-printer"/></svg> Print Invoice</button>
+         <button class="row-menu-item" onclick="openInstPerformaInvoice(${b.id}); closeRowMenu('inst-menu-${b.id}'); event.stopPropagation();"><svg class="ico" aria-hidden="true"><use href="#i-printer"/></svg> Print Performa</button>
          <div class="row-menu-divider"></div>
          <button class="row-menu-item row-menu-warn" onclick="instCancelBill(${b.id}, '${b.bill_number}'); closeRowMenu('inst-menu-${b.id}'); event.stopPropagation();">&#10006; Cancel Bill</button>
-         <button class="row-menu-item row-menu-danger" onclick="instDeleteBill(${b.id}, '${b.bill_number}'); closeRowMenu('inst-menu-${b.id}'); event.stopPropagation();">&#128465; Delete</button>`;
+         <button class="row-menu-item row-menu-danger" onclick="instDeleteBill(${b.id}, '${b.bill_number}'); closeRowMenu('inst-menu-${b.id}'); event.stopPropagation();"><svg class="ico" aria-hidden="true"><use href="#i-trash"/></svg> Delete</button>`;
 
     const primaryBtns = cancelled
       ? `<a href="/institution-bills/${b.id}" class="btn btn-secondary btn-sm" onclick="event.stopPropagation()">View</a>`

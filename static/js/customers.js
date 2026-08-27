@@ -203,7 +203,7 @@ function renderLoyaltySection(loyalty) {
           <span class="badge ${TIER_CSS[g.tier]}">${TIER_LABEL[g.tier]}</span>
           ${g.given_at
             ? `<span style="color:var(--success);font-size:12px;">&#10003; Given on ${g.given_at.slice(0, 10)}</span>`
-            : `<span style="color:var(--warning);font-size:12px;">&#9888; Pending</span>`}
+            : `<span style="color:var(--warning);font-size:12px;"><svg class="ico" aria-hidden="true"><use href="#i-alert"/></svg> Pending</span>`}
         </div>
       `).join('')
     : `<div style="color:var(--text-muted);font-size:12px;">No gifts earned this cycle yet.</div>`;

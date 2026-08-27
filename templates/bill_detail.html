@@ -29,7 +29,7 @@
     </div>
     <div class="invoice-action-buttons">
       <a href="/bill-history" class="btn btn-secondary btn-block-mobile">&#8592; Back</a>
-      <a href="/edit-bill/{{ bill_id }}" class="btn btn-secondary btn-block-mobile">&#9998; Edit Bill</a>
+      <a href="/edit-bill/{{ bill_id }}" class="btn btn-secondary btn-block-mobile">{{ icon('pencil', 14) }} Edit Bill</a>
       <button type="button" id="record-payment-btn" class="btn btn-primary btn-block-mobile no-print"
               style="display:none;" onclick="openRecordPaymentModal()">&#43; Record Payment</button>
       <a id="detail-whatsapp-btn"
@@ -68,7 +68,7 @@
 
   <!-- Cancelled banner — shown only for cancelled bills -->
   <div id="cancelled-banner" class="banner-cancelled" style="display:none;">
-    <span class="banner-cancelled-text">&#9888; THIS BILL HAS BEEN CANCELLED</span>
+    <span class="banner-cancelled-text">{{ icon('alert', 15) }} THIS BILL HAS BEEN CANCELLED</span>
   </div>
 
   <!-- ====== INVOICE (prints) ====== -->
@@ -268,7 +268,7 @@
     <div class="modal-body">
       <div class="notice-box notice-box--danger">
         <p class="notice-danger-title">
-          &#9888;&#65039; WARNING: This action cannot be undone.
+          {{ icon('alert', 15) }} WARNING: This action cannot be undone.
         </p>
         <p class="notice-danger-body">
           This bill will be permanently deleted.<br>

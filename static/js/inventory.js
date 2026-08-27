@@ -905,10 +905,10 @@ function renderSections(items) {
         <td class="text-right" ${stockClass}>${Number(item.current_stock).toFixed(2)}${stockBadge}</td>
         <td class="text-right">${Number(item.min_stock_alert).toFixed(2)}</td>
         <td style="text-align:center;white-space:nowrap;">
-          <button class="btn btn-sm btn-secondary" onclick="openQrViewModal(${item.id})" title="QR">&#128246; QR</button>
+          <button class="btn btn-sm btn-secondary" onclick="openQrViewModal(${item.id})" title="QR"><svg class="ico" aria-hidden="true"><use href="#i-qrcode"/></svg> QR</button>
           <button class="btn btn-sm btn-secondary" onclick="openAdjustModal(${item.id})" title="Adjust" style="margin-left:4px;">&#8651; Adjust</button>
-          <button class="btn btn-sm btn-secondary" onclick="openTxnModal(${item.id})" title="History" style="margin-left:4px;">&#128196;</button>
-          <button class="btn btn-sm btn-secondary" onclick="openEditItemModal(${item.id})" title="Edit" style="margin-left:4px;">&#9998;</button>
+          <button class="btn btn-sm btn-secondary" onclick="openTxnModal(${item.id})" title="History" style="margin-left:4px;"><svg class="ico" aria-hidden="true"><use href="#i-file-text"/></svg></button>
+          <button class="btn btn-sm btn-secondary" onclick="openEditItemModal(${item.id})" title="Edit" style="margin-left:4px;"><svg class="ico" aria-hidden="true"><use href="#i-pencil"/></svg></button>
           <button class="btn btn-sm btn-secondary" onclick="openInfoModal(${item.id})" title="More Info" style="margin-left:4px;">&#8505;</button>
           <button class="btn btn-sm" style="margin-left:4px;color:var(--danger,#ef4444);" onclick="deleteItem(${item.id})" title="Delete">&#215;</button>
         </td>
