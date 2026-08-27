@@ -56,7 +56,7 @@
       </button>
       <span id="detail-link-copied" class="txt-copied" style="display:none;">&#10003; Copied!</span>
       <button type="button" id="action-cancel-btn" class="btn btn-cancel-bill btn-block-mobile no-print"
-              onclick="openDetailCancelModal()">&#10006; Cancel Bill</button>
+              onclick="openDetailCancelModal()">{{ icon('x-circle', 14) }} Cancel Bill</button>
       <button type="button" id="action-restore-btn" class="btn btn-restore btn-block-mobile no-print" style="display:none;"
               onclick="confirmDetailRestore()">&#10227; Restore Bill</button>
       <button type="button" class="btn btn-danger btn-block-mobile no-print"
@@ -197,7 +197,7 @@
 <div class="modal-overlay hidden no-print" id="detail-cancel-modal">
   <div class="modal-box">
     <div class="modal-header modal-header--warning">
-      <h3>&#10006; Cancel Bill &mdash; <span id="detail-cancel-bill-num"></span></h3>
+      <h3>{{ icon('x-circle', 15) }} Cancel Bill &mdash; <span id="detail-cancel-bill-num"></span></h3>
       <button class="modal-close" onclick="closeDetailCancelModal()">&#215;</button>
     </div>
     <div class="modal-body">

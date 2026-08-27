@@ -7,50 +7,7 @@
 {% endblock %}
 
 {% block extra_css %}
-<style>
-#inst-detail-loading { display:flex; align-items:center; gap:10px; padding:40px; color:var(--text-muted); }
-.inst-detail-action-bar {
-  display:flex; flex-wrap:wrap; align-items:center; gap:10px;
-  padding:14px 18px; margin-bottom:18px;
-  background:var(--surface); border:1px solid var(--border);
-  border-radius:var(--radius);
-}
-.inst-detail-bill-num { font-size:18px; font-weight:700; color:var(--primary); margin-right:auto; }
-.cancelled-stamp {
-  display:inline-block; padding:2px 10px; background:#fee2e2; color:#9b1c1c;
-  border-radius:var(--radius-sm); font-weight:700; font-size:13px; letter-spacing:.5px;
-}
-.detail-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:18px; margin-bottom:16px; }
-.detail-section-title { font-size:14px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:.5px; margin-bottom:12px; }
-.detail-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px 24px; }
-@media(max-width:600px){ .detail-grid { grid-template-columns:1fr; } }
-.detail-field label { font-size:11px; color:var(--text-muted); display:block; margin-bottom:2px; text-transform:uppercase; letter-spacing:.3px; }
-.detail-field span  { font-size:14px; font-weight:500; color:var(--text); }
-.inst-detail-table { width:100%; border-collapse:collapse; font-size:13px; }
-.inst-detail-table th { background:var(--border); color:var(--text); padding:8px 6px; text-align:left; font-size:12px; font-weight:600; border-bottom:2px solid var(--border); }
-.inst-detail-table td { padding:8px 6px; border-bottom:1px solid var(--border); }
-.inst-detail-table td.tr { text-align:right; }
-.totals-box { display:flex; justify-content:flex-end; margin-top:8px; }
-.totals-inner { width:260px; font-size:13px; }
-.totals-row { display:flex; justify-content:space-between; padding:3px 0; }
-.totals-row.grand { font-size:15px; font-weight:700; border-top:2px solid var(--border); padding-top:6px; margin-top:4px; }
-
-/* ---- A4 Print ---- */
-@media print {
-  @page { size: A4 portrait; margin: 12mm 15mm; }
-  .sidebar, .topbar, .mobile-bottom-nav, .inst-detail-action-bar, .no-print { display:none !important; }
-  body { background:#fff; color:#000; font-family: Arial, sans-serif; font-size:11px; }
-  .main-content { margin-left:0 !important; }
-  .page-body { padding:0 !important; }
-  #inst-detail-loading, #inst-detail-error { display:none !important; }
-  .detail-card { border:none; padding:0; margin-bottom:10px; break-inside:avoid; }
-  .detail-section-title { font-size:9px; color:#555; }
-  .detail-grid { display:grid; grid-template-columns:1fr 1fr; }
-  .inst-detail-table th { background:#f0f0f0; border:1px solid #999; }
-  .inst-detail-table td { border:1px solid #ccc; }
-  .totals-inner { width:240px; }
-}
-</style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/institution.css') }}?v={{ sv }}" />
 {% endblock %}
 
 {% block content %}
@@ -65,7 +22,7 @@
   <!-- Action bar -->
   <div class="inst-detail-action-bar no-print">
     <span class="inst-detail-bill-num" id="d-bill-number"></span>
-    <span id="d-cancelled-badge" style="display:none;" class="cancelled-stamp">CANCELLED</span>
+    <span id="d-cancelled-badge" style="display:none;" class="badge badge-danger">CANCELLED</span>
     <a id="d-edit-btn" href="#" class="btn btn-secondary">{{ icon('pencil', 14) }} Edit</a>
     <a id="d-whatsapp-btn" href="#" target="_blank" rel="noopener noreferrer"
        class="btn-whatsapp" style="display:none;">
@@ -74,7 +31,7 @@
       </svg>
       Send WhatsApp
     </a>
-    <button type="button" id="d-cancel-btn" class="btn btn-warning" onclick="openInstDetailCancel()">&#10006; Cancel</button>
+    <button type="button" id="d-cancel-btn" class="btn btn-warning" onclick="openInstDetailCancel()">{{ icon('x-circle', 14) }} Cancel</button>
     <button type="button" id="d-restore-btn" class="btn btn-secondary" style="display:none;" onclick="doInstDetailRestore()">&#10227; Restore</button>
     <button type="button" class="btn btn-secondary" onclick="openInstInvoice(INST_BILL_ID)">{{ icon('printer', 14) }} Print Invoice</button>
     <button type="button" class="btn btn-secondary" onclick="openInstPerformaInvoice(INST_BILL_ID)">{{ icon('printer', 14) }} Print Performa</button>
@@ -178,7 +135,7 @@
 <div class="modal-overlay hidden" id="inst-detail-cancel-modal">
   <div class="modal-box">
     <div class="modal-header modal-header--warning">
-      <h3>&#10006; Cancel Bill &mdash; <span id="idc-bill-num"></span></h3>
+      <h3>{{ icon('x-circle', 15) }} Cancel Bill &mdash; <span id="idc-bill-num"></span></h3>
       <button class="modal-close" onclick="closeInstDetailCancel()">&#215;</button>
     </div>
     <div class="modal-body">

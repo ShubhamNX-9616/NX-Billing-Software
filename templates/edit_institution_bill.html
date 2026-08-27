@@ -7,30 +7,7 @@
 {% endblock %}
 
 {% block extra_css %}
-<style>
-.inst-section { margin-bottom: 20px; }
-.inst-grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
-@media (max-width:600px) { .inst-grid-2 { grid-template-columns:1fr; } }
-.inst-items-wrap { overflow-x:auto; }
-.inst-items-table { width:100%; border-collapse:collapse; font-size:13px; min-width:700px; }
-.inst-items-table th { background:var(--border,#e5e7eb); color:var(--text,#111827); padding:8px 6px; text-align:left; font-size:12px; font-weight:600; border-bottom:2px solid var(--border,#ddd); white-space:nowrap; }
-.inst-items-table td { padding:6px 4px; border-bottom:1px solid var(--border-color,#eee); vertical-align:middle; }
-.inst-items-table td input, .inst-items-table td select { width:100%; box-sizing:border-box; padding:5px 6px; font-size:13px; }
-.inst-total-cell { font-weight:600; text-align:right; min-width:80px; }
-.inst-del-btn { background:none; border:none; color:var(--danger,#c0392b); cursor:pointer; font-size:16px; padding:2px 6px; }
-.inst-add-item-btn { margin-top:10px; background:none; border:1px dashed var(--border-color,#bbb); color:var(--primary,#1a3a7a); padding:6px 16px; border-radius:var(--radius-sm); cursor:pointer; font-size:13px; }
-.inst-add-item-btn:hover { background:var(--bg); }
-.inst-payment-tabs { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:14px; }
-.inst-payment-tab { padding:6px 14px; border-radius:var(--radius-sm); border:1px solid var(--border-color,#ddd); background:none; cursor:pointer; font-size:13px; color:var(--text,#333); }
-.inst-payment-tab.active { background:var(--primary); color:#fff; border-color:var(--primary); }
-.inst-combo-row { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
-.inst-combo-row label { min-width:60px; margin:0; font-size:13px; }
-.inst-summary-table { width:100%; font-size:13px; }
-.inst-summary-table td { padding:4px 0; }
-.inst-summary-table td:last-child { text-align:right; font-weight:600; }
-.inst-summary-table tr.inst-grand td { font-size:15px; font-weight:700; border-top:2px solid var(--border-color,#ddd); padding-top:6px; }
-#inst-save-error { color:var(--danger,#c0392b); font-size:13px; min-height:18px; margin-top:6px; }
-</style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/institution.css') }}?v={{ sv }}" />
 {% endblock %}
 
 {% block content %}
@@ -133,7 +110,7 @@
     <div id="inst-combo-remaining" style="font-size:12px;margin-top:4px;"></div>
   </div>
   <div id="err-payment" class="text-danger" style="font-size:12px;min-height:16px;margin-bottom:10px;"></div>
-  <div style="border-top:1px solid var(--border-color,#eee);padding-top:12px;max-width:320px;margin-left:auto;">
+  <div style="border-top:1px solid var(--border);padding-top:12px;max-width:320px;margin-left:auto;">
     <table class="inst-summary-table">
       <tr><td>Total Amount</td><td id="inst-sum-total">₹0.00</td></tr>
       <tr>

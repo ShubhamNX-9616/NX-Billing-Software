@@ -104,7 +104,7 @@ function renderTable(bills, titleText) {
           </button>
           <div class="row-menu-divider"></div>
           <button class="row-menu-item row-menu-warn" onclick="cancelBill(${b.id}, '${b.bill_number}'); closeRowMenu('menu-${b.id}'); event.stopPropagation();">
-            &#10006; Cancel Bill
+            <svg class="ico" aria-hidden="true"><use href="#i-x-circle"/></svg> Cancel Bill
           </button>
           <button class="row-menu-item row-menu-danger" onclick="deleteBill(${b.id}, '${b.bill_number}'); closeRowMenu('menu-${b.id}'); event.stopPropagation();">
             <svg class="ico" aria-hidden="true"><use href="#i-trash"/></svg> Delete
@@ -599,7 +599,7 @@ function renderInstTable(bills, titleText) {
       : `<button class="row-menu-item" onclick="openInstInvoice(${b.id}); closeRowMenu('inst-menu-${b.id}'); event.stopPropagation();"><svg class="ico" aria-hidden="true"><use href="#i-printer"/></svg> Print Invoice</button>
          <button class="row-menu-item" onclick="openInstPerformaInvoice(${b.id}); closeRowMenu('inst-menu-${b.id}'); event.stopPropagation();"><svg class="ico" aria-hidden="true"><use href="#i-printer"/></svg> Print Performa</button>
          <div class="row-menu-divider"></div>
-         <button class="row-menu-item row-menu-warn" onclick="instCancelBill(${b.id}, '${b.bill_number}'); closeRowMenu('inst-menu-${b.id}'); event.stopPropagation();">&#10006; Cancel Bill</button>
+         <button class="row-menu-item row-menu-warn" onclick="instCancelBill(${b.id}, '${b.bill_number}'); closeRowMenu('inst-menu-${b.id}'); event.stopPropagation();"><svg class="ico" aria-hidden="true"><use href="#i-x-circle"/></svg> Cancel Bill</button>
          <button class="row-menu-item row-menu-danger" onclick="instDeleteBill(${b.id}, '${b.bill_number}'); closeRowMenu('inst-menu-${b.id}'); event.stopPropagation();"><svg class="ico" aria-hidden="true"><use href="#i-trash"/></svg> Delete</button>`;
 
     const primaryBtns = cancelled

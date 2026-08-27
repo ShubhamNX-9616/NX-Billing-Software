@@ -185,7 +185,7 @@ function addCsGroup(preCloth, preCompany) {
   div.style.cssText = 'border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:14px;';
 
   const removeBtn = gid > 1
-    ? `<button type="button" class="btn btn-sm" style="color:var(--danger,#ef4444);margin-left:auto;" onclick="removeCsGroup(${gid})">&#215; Remove Group</button>`
+    ? `<button type="button" class="btn btn-sm" style="color:var(--danger);margin-left:auto;" onclick="removeCsGroup(${gid})">&#215; Remove Group</button>`
     : '';
 
   div.innerHTML = `
@@ -260,7 +260,7 @@ function addCsRow(gid) {
     <td style="padding:3px 4px;"><input type="number" style="${sr}" placeholder="0"    min="0" step="0.01" /></td>
     <td style="padding:3px 4px;"><input type="text"   style="${s}"  placeholder="Optional" /></td>
     <td style="padding:3px 4px;text-align:center;">
-      <button type="button" style="background:none;border:none;cursor:pointer;color:var(--danger,#ef4444);font-size:16px;line-height:1;" onclick="removeCsRow(${gid},${rowId})">&#215;</button>
+      <button type="button" style="background:none;border:none;cursor:pointer;color:var(--danger);font-size:16px;line-height:1;" onclick="removeCsRow(${gid},${rowId})">&#215;</button>
     </td>
   `;
   tbody.appendChild(tr);
@@ -541,7 +541,7 @@ function addBaGroup(preCloth, preCompany) {
   div.style.cssText = 'border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:14px;';
 
   const removeBtn = gid > 1
-    ? `<button type="button" class="btn btn-sm" style="color:var(--danger,#ef4444);margin-left:auto;" onclick="removeBaGroup(${gid})">&#215; Remove Group</button>`
+    ? `<button type="button" class="btn btn-sm" style="color:var(--danger);margin-left:auto;" onclick="removeBaGroup(${gid})">&#215; Remove Group</button>`
     : '';
 
   div.innerHTML = `
@@ -620,7 +620,7 @@ function addBaRow(gid) {
     <td style="padding:3px 4px;"><input type="number" style="${sr}" value="2"           min="0" step="0.01" /></td>
     <td style="padding:3px 4px;"><input type="text"   style="${s}"  placeholder="Optional" /></td>
     <td style="padding:3px 4px;text-align:center;">
-      <button type="button" style="background:none;border:none;cursor:pointer;color:var(--danger,#ef4444);font-size:16px;line-height:1;" onclick="removeBaRow(${gid},${rowId})">&#215;</button>
+      <button type="button" style="background:none;border:none;cursor:pointer;color:var(--danger);font-size:16px;line-height:1;" onclick="removeBaRow(${gid},${rowId})">&#215;</button>
     </td>
   `;
   tbody.appendChild(tr);
@@ -879,9 +879,9 @@ function renderSections(items) {
     const rows = sectionItems.map(item => {
       const code = item.item_code || `#${item.id}`;
       const stockClass = item.current_stock < 0
-        ? 'style="color:var(--danger,#ef4444);font-weight:700;"'
+        ? 'style="color:var(--danger);font-weight:700;"'
         : item.current_stock <= item.min_stock_alert
-          ? 'style="color:var(--warning,#f59e0b);font-weight:700;"'
+          ? 'style="color:var(--warning);font-weight:700;"'
           : '';
       const stockBadge = item.current_stock < 0
         ? `<span class="pill pill-danger" style="margin-left:4px;">NEG</span>`
@@ -910,7 +910,7 @@ function renderSections(items) {
           <button class="btn btn-sm btn-secondary" onclick="openTxnModal(${item.id})" title="History" style="margin-left:4px;"><svg class="ico" aria-hidden="true"><use href="#i-file-text"/></svg></button>
           <button class="btn btn-sm btn-secondary" onclick="openEditItemModal(${item.id})" title="Edit" style="margin-left:4px;"><svg class="ico" aria-hidden="true"><use href="#i-pencil"/></svg></button>
           <button class="btn btn-sm btn-secondary" onclick="openInfoModal(${item.id})" title="More Info" style="margin-left:4px;">&#8505;</button>
-          <button class="btn btn-sm" style="margin-left:4px;color:var(--danger,#ef4444);" onclick="deleteItem(${item.id})" title="Delete">&#215;</button>
+          <button class="btn btn-sm" style="margin-left:4px;color:var(--danger);" onclick="deleteItem(${item.id})" title="Delete">&#215;</button>
         </td>
       </tr>`;
     }).join('');
@@ -1278,9 +1278,9 @@ function openInfoModal(id) {
   }
 
   const stockStyle = item.current_stock < 0
-    ? 'color:var(--danger,#ef4444);font-weight:700;'
+    ? 'color:var(--danger);font-weight:700;'
     : item.current_stock <= item.min_stock_alert
-      ? 'color:var(--warning,#f59e0b);font-weight:700;'
+      ? 'color:var(--warning);font-weight:700;'
       : 'font-weight:700;';
 
   const invoiceText = item.invoice_number
@@ -1580,7 +1580,7 @@ function renderMcCompanies(list) {
     row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);';
     row.innerHTML = `
       <span style="flex:1;font-size:14px;">${esc(c.company_name)}</span>
-      <button type="button" class="btn btn-sm" style="color:var(--danger,#ef4444);" onclick="deleteMcCompany(${c.id})">&#215; Delete</button>
+      <button type="button" class="btn btn-sm" style="color:var(--danger);" onclick="deleteMcCompany(${c.id})">&#215; Delete</button>
     `;
     el.appendChild(row);
   });
@@ -1668,8 +1668,8 @@ async function openTxnModal(id) {
       const qty  = Number(t.quantity);
       const sign = qty >= 0 ? '+' : '';
       const col  = qty >= 0
-        ? 'color:var(--success,#22c55e);'
-        : 'color:var(--danger,#ef4444);';
+        ? 'color:var(--success);'
+        : 'color:var(--danger);';
       const label = {
         opening: 'Opening', purchase: 'Purchase',
         sale: 'Sale', sale_reversal: 'Reversal', adjustment: 'Adjustment',
