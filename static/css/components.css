@@ -586,7 +586,7 @@ label {
 .notice-danger-title { font-weight: 700; color: var(--danger-fg); margin-bottom: 8px; font-size: 14px; }
 .notice-danger-body  { color: var(--danger-fg); }
 
-/* ---- Button variants: warning (amber), restore (green), cancel-bill (amber outline) ---- */
+/* ---- Button variants: warning (amber), restore (green), cancel-bill / danger-outline (soft) ---- */
 .btn-warning { background: var(--warning); color: #fff; border-color: var(--warning); }
 .btn-warning:hover:not(:disabled) { background: var(--warning-dark); border-color: var(--warning-dark); }
 
@@ -595,6 +595,10 @@ label {
 
 .btn-cancel-bill { background: var(--warning-bg); color: var(--warning-fg); border-color: var(--warning-border); }
 .btn-cancel-bill:hover:not(:disabled) { background: var(--warning-border); }
+
+/* Soft danger — milder than solid .btn-danger, for reversible actions like "Deactivate". */
+.btn-danger-outline { background: var(--danger-bg); color: var(--danger-fg); border-color: var(--danger-border); }
+.btn-danger-outline:hover:not(:disabled) { background: var(--danger-border); }
 
 /* ---- Dashboard stat value typography + colours ---- */
 .stat-val    { font-size: 28px; font-weight: 700; line-height: 1.1; }
