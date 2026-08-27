@@ -95,9 +95,9 @@ async function doMobileSearch() {
     if (data.found) {
       nameEl.value = data.customer.name;
       nameEl.style.transition = 'background 0.15s';
-      nameEl.style.background = '#fef9c3';
+      nameEl.classList.add('field-flash');
       setTimeout(() => {
-        nameEl.style.background = '';
+        nameEl.classList.remove('field-flash');
         setTimeout(() => { nameEl.style.transition = ''; }, 300);
       }, 700);
       statusEl.innerHTML = '<span class="badge badge-success">&#10003; Existing Customer</span>';

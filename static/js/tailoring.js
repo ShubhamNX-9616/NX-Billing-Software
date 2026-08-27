@@ -577,9 +577,9 @@ function tlSetCustomerStatus(found) {
 
 function tlFlashField(el) {
   el.style.transition = 'background 0.15s';
-  el.style.background = '#fef9c3';
+  el.classList.add('field-flash');
   setTimeout(() => {
-    el.style.background = '';
+    el.classList.remove('field-flash');
     setTimeout(() => { el.style.transition = ''; }, 300);
   }, 600);
 }
@@ -973,7 +973,7 @@ function renderDetail(o) {
       <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:14px;margin-top:8px;">
         <span>Final Total: <strong>${tlFmt(o.final_total)}</strong></span>
         <span>Paid: <strong>${tlFmt(o.advance)}</strong></span>
-        <span>Balance: <strong style="color:${o.balance > 0 ? '#dc2626' : '#057a55'};">${tlFmt(o.balance)}</strong>
+        <span>Balance: <strong class="${o.balance > 0 ? 'text-danger' : 'text-success'}">${tlFmt(o.balance)}</strong>
           ${o.cloth_balance > 0
             ? `<span style="color:var(--text-muted);font-size:12px;"> (incl. cloth ${tlFmt(o.cloth_balance)})</span>`
             : ''}
@@ -1010,7 +1010,7 @@ function renderPaymentModal(o) {
       <span>Total (stitching): <strong>${tlFmt(o.total)}</strong></span>
       <span>Final Total: <strong>${tlFmt(o.final_total)}</strong></span>
       <span>Paid: <strong>${tlFmt(o.advance)}</strong></span>
-      <span>Balance: <strong style="color:${o.balance > 0 ? '#dc2626' : '#057a55'};">${tlFmt(o.balance)}</strong></span>
+      <span>Balance: <strong class="${o.balance > 0 ? 'text-danger' : 'text-success'}">${tlFmt(o.balance)}</strong></span>
     </div>
     <div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap;">
       <span style="font-size:14px;">Cloth Balance:</span>

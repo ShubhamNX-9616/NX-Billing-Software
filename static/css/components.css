@@ -114,6 +114,10 @@
   border-color: var(--danger);
 }
 
+/* Transient highlight on a field the JS just auto-filled. !important
+   overrides .input's own background for the ~0.7s the class is applied. */
+.field-flash { background: var(--warning-bg) !important; }
+
 .input-group {
   display: flex;
   gap: 8px;

@@ -456,8 +456,8 @@ function showToast(msg, isError) {
                        'border-radius:8px;font-size:14px;display:flex;align-items:center;';
     document.body.appendChild(el);
   }
-  el.style.background = isError ? '#fee2e2' : '#d1fae5';
-  el.style.color      = isError ? '#9b1c1c' : '#065f46';
+  el.classList.remove('alert-danger', 'alert-success');
+  el.classList.add(isError ? 'alert-danger' : 'alert-success');
   el.textContent      = msg;
   el.style.display    = 'flex';
   el.style.opacity    = '1';
