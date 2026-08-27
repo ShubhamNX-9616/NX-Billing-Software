@@ -12,9 +12,31 @@ saturated brand fill (`.btn-primary` etc. — white-on-accent isn't a themed
 decision, and a token that can only ever hold one value isn't a token), PIL
 label rendering in `routes/inventory.py`, and documents built as JS strings
 (`static/js/inst-performa.js`). Everything else uses tokens, including the
-public `shared_*` and `tailoring_receipt*`/`tailoring_report` templates —
-they don't extend `base.html`, but they do `<link>` `base.css` directly
-(no theme-toggle script, so tokens always resolve light).
+public `shared_*`, `tailoring_receipt*`/`tailoring_report*`, and
+`unauthorized.html` templates — they don't extend `base.html`, but they do
+`<link>` `base.css` directly (no theme-toggle script, so tokens always
+resolve light). Substitute by what the value *means*, not by whichever
+token is nearest in hex — `#f3f4f6` sits between `--bg` and `--border`, and
+only one of those is a line colour.
+
+When a hex/glyph search on a directory returns a capped result set, narrow
+the search and re-run it before trusting the count — a truncated match list
+has under-reported scope three times now.
+
+<!-- glyph rule -->
+## Glyphs: icon sprite vs. emoji
+
+UI controls and status indicators use the `_icons.html` sprite
+(`{{ icon('name', size) }}`), not emoji or literal glyphs like `✓`/`✕` —
+those render as a tofu box on the wrong OS/font and don't theme with
+`currentColor`. This applies to anything rendered as on-page UI: buttons,
+badges, status text.
+
+Exception: emoji inside a WhatsApp share-text string (the JS that builds
+`wa.me/?text=...`, e.g. `bill_detail.html`, `institution_bill_detail.html`,
+`tailoring_report.html`'s `waText()`) is chat text going into another app,
+not a control in this UI — the icon sprite can't reach it anyway. Leave
+those alone.
 
 <!-- code-review-graph MCP tools -->
 ## MCP Tools: code-review-graph

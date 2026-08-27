@@ -30,7 +30,8 @@
   --tl-brand-line-soft: #fee2e2;
 
   /* WhatsApp's own brand green — fixed regardless of app theme. */
-  --wa-green: #25d366;
+  --wa-green:      #25d366;
+  --wa-green-dark: #1ebe57;
   --text:          #111827;
   --text-muted:    #6b7280;
   --text-light:    #8a9099;   /* icons / decorative marks only — not text */
@@ -55,6 +56,12 @@
   /* Non-semantic categorical accent (e.g. tailoring "Alteration" stage) */
   --neutral-alt-bg: #ede9fe;
   --neutral-alt-fg: #5b21b6;
+
+  /* A second, distinct categorical accent — "fully stitched" is a completed
+     milestone, not the same thing as the "Alteration" stage above, so it
+     keeps its own purple instead of sharing --neutral-alt-*. */
+  --stitched-bg: #f3e8ff;
+  --stitched-fg: #6b21a8;
 
   /* ---- Loyalty tier badges — ordered categorical scale, own colours ---- */
   --tier-silver-bg:   #e5e7eb;  --tier-silver-fg:   #4b5563;
@@ -392,6 +399,8 @@ html[data-theme="dark"] {
   --info-border:    #3b82f6;
   --neutral-alt-bg: #4c1d95;
   --neutral-alt-fg: #ddd6fe;
+  --stitched-bg:    #581c87;
+  --stitched-fg:    #e9d5ff;
 
   --tier-silver-bg:   #374151;  --tier-silver-fg:   #d1d5db;
   --tier-gold-bg:     #78350f;  --tier-gold-fg:     #fde68a;

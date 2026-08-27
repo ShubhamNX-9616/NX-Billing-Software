@@ -243,6 +243,8 @@ label {
 .pill-danger  { background: var(--danger-bg);  color: var(--danger-fg); }
 .pill-warning { background: var(--warning-bg); color: var(--warning-fg); }
 .pill-info    { background: var(--info-bg);    color: var(--info-fg); }
+.pill-success { background: var(--success-bg); color: var(--success-fg); }
+.pill-neutral { background: var(--bg); color: var(--text-muted); border: 1px solid var(--border); }
 
 /* ---- Inactive / cancelled table row (theme-aware — was a hardcoded near-white) ---- */
 .row-inactive { background: var(--bg); opacity: .72; }
@@ -477,7 +479,7 @@ label {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  background: #25d366;
+  background: var(--wa-green);
   color: #ffffff;
   text-decoration: none;
   padding: 10px 20px;
@@ -490,7 +492,7 @@ label {
   transition: background 0.15s;
 }
 .btn-whatsapp:hover {
-  background: #1ebe57;
+  background: var(--wa-green-dark);
   color: #ffffff;
 }
 
@@ -519,6 +521,7 @@ label {
   font-weight: 500;
   display: inline-flex;
   align-items: center;
+  gap: 6px;
   padding: 4px 0;
 }
 
