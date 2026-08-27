@@ -70,7 +70,7 @@ function renderTable(bills, titleText) {
       ? `<span class="pill pill-danger">CANCELLED</span>`
       : (remaining > 0
           ? `<span class="pill pill-danger">Due: ${fmt(remaining)}</span>`
-          : `<span class="badge badge-success" style="font-size:10px;">Paid</span>`);
+          : `<span class="badge badge-success">Paid</span>`);
 
     const rowClass = cancelled ? 'row-inactive' : '';
 
@@ -580,7 +580,7 @@ function renderInstTable(bills, titleText) {
       ? `<span class="pill pill-danger">CANCELLED</span>`
       : (remaining > 0
           ? `<span class="pill pill-danger">Due: ${fmt(remaining)}</span>`
-          : `<span class="badge badge-success" style="font-size:10px;">Paid</span>`);
+          : `<span class="badge badge-success">Paid</span>`);
 
     const payBadge = `<span class="badge ${instPayBadgeMap[b.payment_mode_type] || 'badge-neutral'}">${b.payment_mode_type}</span>`;
 
