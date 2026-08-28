@@ -285,8 +285,8 @@ function validateBillData(data) {
       if (item.quantity <= 0) {
         setError('items-error', `Item ${i+1}: Quantity must be > 0.`); valid = false; break;
       }
-      if (item.mrp < 0) {
-        setError('items-error', `Item ${i+1}: MRP cannot be negative.`); valid = false; break;
+      if (item.mrp <= 0) {
+        setError('items-error', `Item ${i+1}: MRP must be greater than 0.`); valid = false; break;
       }
       if (item.discount_percent < 0 || item.discount_percent > 100) {
         setError('items-error', `Item ${i+1}: Discount must be 0–100.`); valid = false; break;

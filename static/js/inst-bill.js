@@ -492,6 +492,17 @@ function validateInstData(data) {
   }
   if (!data.items.length || data.items.every(i => i.no_of_pcs === 0)) {
     document.getElementById('err-items').textContent = 'Add at least one item with quantities.'; valid = false;
+  } else {
+    for (let i = 0; i < data.items.length; i++) {
+      const item = data.items[i];
+      if (item.no_of_pcs <= 0) continue;
+      const total = r2((item.quantity_per_pc * item.rate_per_m * item.no_of_pcs) + (item.no_of_pcs * item.stitching_per_unit));
+      if (total <= 0) {
+        document.getElementById('err-items').textContent = `Item ${i+1}: amount cannot be 0 — set a rate or stitching charge.`;
+        valid = false;
+        break;
+      }
+    }
   }
 
   const total = r2(instActiveIds.reduce((s, id) => s + (instDataStore[id]?.total || 0), 0));

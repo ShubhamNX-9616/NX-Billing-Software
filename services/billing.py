@@ -41,8 +41,8 @@ def validate_and_calculate_items(db, items):
             raise ValueError(f"{prefix}: invalid cloth_type '{cloth_type}'")
         if quantity <= 0:
             raise ValueError(f"{prefix}: quantity must be > 0")
-        if mrp < 0:
-            raise ValueError(f"{prefix}: mrp cannot be negative")
+        if mrp <= 0:
+            raise ValueError(f"{prefix}: mrp must be greater than 0")
         if not (0 <= discount_percent <= 100):
             raise ValueError(f"{prefix}: discount_percent must be 0–100")
 
@@ -206,6 +206,8 @@ def calculate_inst_items(items):
             raise ValueError(f"{prefix}: stitching_per_unit must be a number")
 
         total = r2((qty_per_pc * rate_per_m * no_of_pcs) + (no_of_pcs * stitching_per_unit))
+        if no_of_pcs > 0 and total <= 0:
+            raise ValueError(f"{prefix}: amount cannot be 0 — set a rate or stitching charge")
         subtotal += total
         calc_items.append({
             "cloth_type":         (item.get("cloth_type")     or "").strip(),

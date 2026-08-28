@@ -184,6 +184,23 @@ class TestCalculateInstItems:
         with pytest.raises(ValueError, match="no_of_pcs"):
             calculate_inst_items([item])
 
+    def test_zero_amount_with_pcs_raises(self):
+        item = self._item(rate_per_m=0.0, stitching=0.0)
+        with pytest.raises(ValueError, match="amount cannot be 0"):
+            calculate_inst_items([item])
+
+    def test_zero_pcs_blank_row_allowed(self):
+        # A row with no pieces entered is a blank/unfilled row, not a real item.
+        item = self._item(rate_per_m=0.0, stitching=0.0, no_of_pcs=0)
+        calc, subtotal = calculate_inst_items([item])
+        assert subtotal == 0.0
+
+    def test_stitching_only_item_allowed(self):
+        # Rate can be 0 as long as the stitching charge makes the item non-zero.
+        item = self._item(rate_per_m=0.0, stitching=50.0, no_of_pcs=2)
+        calc, subtotal = calculate_inst_items([item])
+        assert subtotal == 100.0
+
 
 # ---------------------------------------------------------------------------
 # validate_and_calculate_items  (needs db fixture)
@@ -237,8 +254,12 @@ class TestValidateAndCalculateItems:
             validate_and_calculate_items(db, [self._item(qty=-1)])
 
     def test_negative_mrp_raises(self, db):
-        with pytest.raises(ValueError, match="mrp cannot be negative"):
+        with pytest.raises(ValueError, match="mrp must be greater than 0"):
             validate_and_calculate_items(db, [self._item(mrp=-1)])
+
+    def test_zero_mrp_raises(self, db):
+        with pytest.raises(ValueError, match="mrp must be greater than 0"):
+            validate_and_calculate_items(db, [self._item(mrp=0)])
 
     def test_discount_above_100_raises(self, db):
         with pytest.raises(ValueError, match="discount_percent"):
