@@ -198,9 +198,16 @@ function addCsGroup(preCloth, preCompany) {
       </div>
       <div style="flex:1;min-width:140px;">
         <label style="font-size:12px;font-weight:600;">Company</label>
-        <select id="cs-company-${gid}" class="input select" style="margin-top:4px;">
+        <select id="cs-company-${gid}" class="input select" style="margin-top:4px;" onchange="onCsCompanyChange(${gid})">
           <option value="">— Select cloth type first —</option>
         </select>
+        <div id="cs-company-add-row-${gid}" style="display:none;margin-top:6px;">
+          <div style="display:flex;gap:6px;align-items:center;">
+            <input type="text" id="cs-company-new-${gid}" class="input" placeholder="New company name" style="flex:1;" />
+            <button type="button" class="btn btn-sm btn-primary" onclick="saveCsNewCompany(${gid})">Add</button>
+            <button type="button" class="btn btn-sm btn-secondary" onclick="cancelCsCompanyAdd(${gid})" title="Cancel" aria-label="Cancel"><svg class="ico" aria-hidden="true"><use href="#i-x"/></svg></button>
+          </div>
+        </div>
       </div>
       <div style="min-width:70px;">
         <label style="font-size:12px;font-weight:600;">Unit</label>
@@ -280,11 +287,52 @@ async function onCsGroupClothChange(gid) {
   } else if (clothType && clothType !== '__add__') {
     unitSel.value = 'pcs';
   }
+  cancelCsCompanyAdd(gid);
   if (!clothType || clothType === '__add__') {
     document.getElementById(`cs-company-${gid}`).innerHTML = '<option value="">— Select cloth type first —</option>';
     return;
   }
   await populateCompanySelect(`cs-company-${gid}`, clothType, '');
+}
+
+function onCsCompanyChange(gid) {
+  const sel    = document.getElementById(`cs-company-${gid}`);
+  const addRow = document.getElementById(`cs-company-add-row-${gid}`);
+  if (sel.value === '__add__') {
+    addRow.style.display = '';
+    document.getElementById(`cs-company-new-${gid}`).focus();
+  } else {
+    addRow.style.display = 'none';
+  }
+}
+
+async function saveCsNewCompany(gid) {
+  const cloth = document.getElementById(`cs-cloth-${gid}`).value;
+  const input = document.getElementById(`cs-company-new-${gid}`);
+  const name  = input.value.trim();
+  if (!cloth || cloth === '__add__') { alert('Select a cloth type first.'); return; }
+  if (!name) { input.focus(); return; }
+  try {
+    const res  = await fetch('/api/companies', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cloth_type: cloth, company_name: name }),
+    });
+    const data = await res.json();
+    if (!res.ok) { alert(data.error || 'Failed to add company.'); return; }
+    input.value = '';
+    document.getElementById(`cs-company-add-row-${gid}`).style.display = 'none';
+    await populateCompanySelect(`cs-company-${gid}`, cloth, data.company_name);
+  } catch (e) { alert('Network error: ' + e.message); }
+}
+
+function cancelCsCompanyAdd(gid) {
+  const input  = document.getElementById(`cs-company-new-${gid}`);
+  const addRow = document.getElementById(`cs-company-add-row-${gid}`);
+  if (input)  input.value = '';
+  if (addRow) addRow.style.display = 'none';
+  const sel = document.getElementById(`cs-company-${gid}`);
+  if (sel && sel.value === '__add__') sel.value = '';
 }
 
 // ----------------------------------------------------------------
@@ -554,9 +602,16 @@ function addBaGroup(preCloth, preCompany) {
       </div>
       <div style="flex:1;min-width:140px;">
         <label style="font-size:12px;font-weight:600;">Company <span class="text-danger">*</span></label>
-        <select id="ba-company-${gid}" class="input select" style="margin-top:4px;">
+        <select id="ba-company-${gid}" class="input select" style="margin-top:4px;" onchange="onBaCompanyChange(${gid})">
           <option value="">— Select cloth type first —</option>
         </select>
+        <div id="ba-company-add-row-${gid}" style="display:none;margin-top:6px;">
+          <div style="display:flex;gap:6px;align-items:center;">
+            <input type="text" id="ba-company-new-${gid}" class="input" placeholder="New company name" style="flex:1;" />
+            <button type="button" class="btn btn-sm btn-primary" onclick="saveBaNewCompany(${gid})">Add</button>
+            <button type="button" class="btn btn-sm btn-secondary" onclick="cancelBaCompanyAdd(${gid})" title="Cancel" aria-label="Cancel"><svg class="ico" aria-hidden="true"><use href="#i-x"/></svg></button>
+          </div>
+        </div>
       </div>
       <div style="min-width:70px;">
         <label style="font-size:12px;font-weight:600;">Unit</label>
@@ -640,7 +695,48 @@ async function onBaClothChange(gid) {
   } else if (clothType) {
     unitSel.value = 'pcs';
   }
+  cancelBaCompanyAdd(gid);
   await populateCompanySelect(`ba-company-${gid}`, clothType, '');
+}
+
+function onBaCompanyChange(gid) {
+  const sel    = document.getElementById(`ba-company-${gid}`);
+  const addRow = document.getElementById(`ba-company-add-row-${gid}`);
+  if (sel.value === '__add__') {
+    addRow.style.display = '';
+    document.getElementById(`ba-company-new-${gid}`).focus();
+  } else {
+    addRow.style.display = 'none';
+  }
+}
+
+async function saveBaNewCompany(gid) {
+  const cloth = document.getElementById(`ba-cloth-${gid}`).value;
+  const input = document.getElementById(`ba-company-new-${gid}`);
+  const name  = input.value.trim();
+  if (!cloth || cloth === '__add__') { alert('Select a cloth type first.'); return; }
+  if (!name) { input.focus(); return; }
+  try {
+    const res  = await fetch('/api/companies', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cloth_type: cloth, company_name: name }),
+    });
+    const data = await res.json();
+    if (!res.ok) { alert(data.error || 'Failed to add company.'); return; }
+    input.value = '';
+    document.getElementById(`ba-company-add-row-${gid}`).style.display = 'none';
+    await populateCompanySelect(`ba-company-${gid}`, cloth, data.company_name);
+  } catch (e) { alert('Network error: ' + e.message); }
+}
+
+function cancelBaCompanyAdd(gid) {
+  const input  = document.getElementById(`ba-company-new-${gid}`);
+  const addRow = document.getElementById(`ba-company-add-row-${gid}`);
+  if (input)  input.value = '';
+  if (addRow) addRow.style.display = 'none';
+  const sel = document.getElementById(`ba-company-${gid}`);
+  if (sel && sel.value === '__add__') sel.value = '';
 }
 
 async function saveBatch() {
