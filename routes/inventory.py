@@ -326,7 +326,7 @@ def update_inventory_item(item_id):
 
         mrp             = float(body.get("mrp",             item["mrp"]))
         cost_price      = float(body.get("cost_price", item["cost_price"] or 0))
-        quality_number  = (body.get("quality_number") or "").strip() or None
+        quality_number  = (body.get("quality_number") or "").strip()
         supplier_id_raw = body.get("supplier_id")
         supplier_id     = int(supplier_id_raw) if supplier_id_raw else None
         min_stock_alert = float(body.get("min_stock_alert", item["min_stock_alert"]))
