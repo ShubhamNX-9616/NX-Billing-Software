@@ -64,8 +64,9 @@
 .tl-photo-del {
   position:absolute; top:-6px; right:-6px; width:20px; height:20px;
   border-radius:50%; border:none; background:var(--danger); color:#fff;
-  font-size:12px; line-height:1; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; cursor:pointer;
 }
+.tl-photo-del .ico { width:12px; height:12px; }
 .tl-photo-move {
   display:block; width:84px; font-size:10px; padding:2px 4px;
   margin-top:2px; max-width:100%;
@@ -86,8 +87,8 @@
   font-size:13px; padding:4px 0; border-bottom:1px dashed var(--border);
 }
 .tl-pay-del {
-  border:none; background:none; color:var(--danger); font-size:14px;
-  line-height:1; cursor:pointer; padding:0 2px;
+  border:none; background:none; color:var(--danger);
+  display:inline-flex; align-items:center; cursor:pointer; padding:0 2px;
 }
 
 /* The edit dialog and the photo-save confirmation are both opened from

@@ -100,7 +100,7 @@ async function doMobileSearch() {
         nameEl.classList.remove('field-flash');
         setTimeout(() => { nameEl.style.transition = ''; }, 300);
       }, 700);
-      statusEl.innerHTML = '<span class="badge badge-success">&#10003; Existing Customer</span>';
+      statusEl.innerHTML = '<span class="badge badge-success"><svg class="ico" aria-hidden="true"><use href="#i-check-circle"/></svg> Existing Customer</span>';
       fetchAndShowCustomerSummary(norm);
     } else {
       nameEl.value = '';
@@ -193,7 +193,7 @@ async function doNameSuggest() {
         document.getElementById('customer-name').value   = c.name;
         document.getElementById('customer-mobile').value = c.mobile || '';
         document.getElementById('customer-status').innerHTML =
-          '<span class="badge badge-success">&#10003; Existing Customer</span>';
+          '<span class="badge badge-success"><svg class="ico" aria-hidden="true"><use href="#i-check-circle"/></svg> Existing Customer</span>';
         hideNameSuggestions();
         fetchAndShowCustomerSummary(c.mobile);
       });

@@ -453,7 +453,7 @@ function addItemRow(item) {
            value="${item.rate === '' ? '' : item.rate}" oninput="onRateInput(this)" />
     <span class="tlf-amount">0.00</span>
     <button type="button" class="btn btn-danger btn-sm" title="Remove" aria-label="Remove garment"
-            onclick="this.parentElement.remove(); recalcTotals();">&#215;</button>`;
+            onclick="this.parentElement.remove(); recalcTotals();"><svg class="ico" aria-hidden="true"><use href="#i-x"/></svg></button>`;
   wrap.appendChild(row);
   recalcTotals();
 }
@@ -572,7 +572,7 @@ function tlDebounced(fn, ms) {
 function tlSetCustomerStatus(found) {
   const el = document.getElementById('tlf-cust-status');
   if (el) el.innerHTML = found
-    ? '<span class="badge badge-success">&#10003; Existing Customer</span>' : '';
+    ? '<span class="badge badge-success"><svg class="ico" aria-hidden="true"><use href="#i-check-circle"/></svg> Existing Customer</span>' : '';
 }
 
 function tlFlashField(el) {
@@ -889,7 +889,7 @@ function renderDetail(o) {
       <img src="/tailoring/photos/${tlEsc(p.filename)}" loading="lazy"
            onclick="openLightbox('/tailoring/photos/${tlEsc(p.filename)}')" />
       <button type="button" class="tl-photo-del" title="Delete photo" aria-label="Delete photo"
-              onclick="deletePhoto(${p.id})">&#215;</button>
+              onclick="deletePhoto(${p.id})"><svg class="ico" aria-hidden="true"><use href="#i-x"/></svg></button>
       ${control}
     </div>`;
   };
@@ -953,7 +953,7 @@ function renderDetail(o) {
       ${itemsHtml}
       <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
         <button type="button" class="btn btn-secondary btn-sm"
-                onclick="setWholeOrderStage('Delivered')">&#10003; Mark all Delivered</button>
+                onclick="setWholeOrderStage('Delivered')"><svg class="ico" aria-hidden="true"><use href="#i-check-circle"/></svg> Mark all Delivered</button>
       </div>
     </div>
 
@@ -1112,7 +1112,7 @@ function paymentHistoryHtml(o) {
       <span><strong>${tlFmt(p.amount)}</strong>${p.mode ? ' · ' + tlEsc(p.mode) : ''}${p.note ? ' · ' + tlEsc(p.note) : ''}</span>
       <span style="color:var(--text-muted);">${tlFmtDateTime(p.paid_at)}
         <button type="button" class="tl-pay-del" title="Delete this payment entry" aria-label="Delete payment entry"
-                onclick="deleteTlPayment(${p.id})">&#215;</button>
+                onclick="deleteTlPayment(${p.id})"><svg class="ico" aria-hidden="true"><use href="#i-x"/></svg></button>
       </span>
     </div>`).join('');
   return legacy || rows ? `<div style="margin-top:6px;">${legacy}${rows}</div>` : '';

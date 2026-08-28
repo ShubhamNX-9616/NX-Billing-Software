@@ -185,7 +185,7 @@ function addCsGroup(preCloth, preCompany) {
   div.style.cssText = 'border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:14px;';
 
   const removeBtn = gid > 1
-    ? `<button type="button" class="btn btn-sm" style="color:var(--danger);margin-left:auto;" onclick="removeCsGroup(${gid})">&#215; Remove Group</button>`
+    ? `<button type="button" class="btn btn-sm" style="color:var(--danger);margin-left:auto;" onclick="removeCsGroup(${gid})">Remove Group</button>`
     : '';
 
   div.innerHTML = `
@@ -260,7 +260,7 @@ function addCsRow(gid) {
     <td style="padding:3px 4px;"><input type="number" style="${sr}" placeholder="0"    min="0" step="0.01" /></td>
     <td style="padding:3px 4px;"><input type="text"   style="${s}"  placeholder="Optional" /></td>
     <td style="padding:3px 4px;text-align:center;">
-      <button type="button" style="background:none;border:none;cursor:pointer;color:var(--danger);font-size:16px;line-height:1;" onclick="removeCsRow(${gid},${rowId})" aria-label="Remove row">&#215;</button>
+      <button type="button" style="background:none;border:none;cursor:pointer;color:var(--danger);display:inline-flex;align-items:center;" onclick="removeCsRow(${gid},${rowId})" aria-label="Remove row"><svg class="ico" aria-hidden="true"><use href="#i-x"/></svg></button>
     </td>
   `;
   tbody.appendChild(tr);
@@ -541,7 +541,7 @@ function addBaGroup(preCloth, preCompany) {
   div.style.cssText = 'border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:14px;';
 
   const removeBtn = gid > 1
-    ? `<button type="button" class="btn btn-sm" style="color:var(--danger);margin-left:auto;" onclick="removeBaGroup(${gid})">&#215; Remove Group</button>`
+    ? `<button type="button" class="btn btn-sm" style="color:var(--danger);margin-left:auto;" onclick="removeBaGroup(${gid})">Remove Group</button>`
     : '';
 
   div.innerHTML = `
@@ -620,7 +620,7 @@ function addBaRow(gid) {
     <td style="padding:3px 4px;"><input type="number" style="${sr}" value="2"           min="0" step="0.01" /></td>
     <td style="padding:3px 4px;"><input type="text"   style="${s}"  placeholder="Optional" /></td>
     <td style="padding:3px 4px;text-align:center;">
-      <button type="button" style="background:none;border:none;cursor:pointer;color:var(--danger);font-size:16px;line-height:1;" onclick="removeBaRow(${gid},${rowId})" aria-label="Remove row">&#215;</button>
+      <button type="button" style="background:none;border:none;cursor:pointer;color:var(--danger);display:inline-flex;align-items:center;" onclick="removeBaRow(${gid},${rowId})" aria-label="Remove row"><svg class="ico" aria-hidden="true"><use href="#i-x"/></svg></button>
     </td>
   `;
   tbody.appendChild(tr);
@@ -910,7 +910,7 @@ function renderSections(items) {
           <button class="btn btn-sm btn-secondary" onclick="openTxnModal(${item.id})" title="History" aria-label="Transaction history" style="margin-left:4px;"><svg class="ico" aria-hidden="true"><use href="#i-file-text"/></svg></button>
           <button class="btn btn-sm btn-secondary" onclick="openEditItemModal(${item.id})" title="Edit" aria-label="Edit item" style="margin-left:4px;"><svg class="ico" aria-hidden="true"><use href="#i-pencil"/></svg></button>
           <button class="btn btn-sm btn-secondary" onclick="openInfoModal(${item.id})" title="More Info" aria-label="More info" style="margin-left:4px;"><svg class="ico" aria-hidden="true"><use href="#i-info"/></svg></button>
-          <button class="btn btn-sm" style="margin-left:4px;color:var(--danger);" onclick="deleteItem(${item.id})" title="Delete" aria-label="Delete item">&#215;</button>
+          <button class="btn btn-sm" style="margin-left:4px;color:var(--danger);" onclick="deleteItem(${item.id})" title="Delete" aria-label="Delete item"><svg class="ico" aria-hidden="true"><use href="#i-x"/></svg></button>
         </td>
       </tr>`;
     }).join('');
@@ -1580,7 +1580,7 @@ function renderMcCompanies(list) {
     row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);';
     row.innerHTML = `
       <span style="flex:1;font-size:14px;">${esc(c.company_name)}</span>
-      <button type="button" class="btn btn-sm" style="color:var(--danger);" onclick="deleteMcCompany(${c.id})">&#215; Delete</button>
+      <button type="button" class="btn btn-sm" style="color:var(--danger);" onclick="deleteMcCompany(${c.id})">Delete</button>
     `;
     el.appendChild(row);
   });

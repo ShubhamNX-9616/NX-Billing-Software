@@ -146,7 +146,7 @@ function renderPendingGifts(gifts) {
       <td>${(g.created_at || '').slice(0, 10)}</td>
       <td style="text-align:center;">
         <button type="button" class="btn btn-primary btn-sm" onclick="markGiftGiven(${g.id})">
-          &#10003; Mark as Given
+          Mark as Given
         </button>
       </td>
     </tr>

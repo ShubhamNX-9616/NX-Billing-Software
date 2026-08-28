@@ -21,7 +21,12 @@ only one of those is a line colour.
 
 When a hex/glyph search on a directory returns a capped result set, narrow
 the search and re-run it before trusting the count — a truncated match list
-has under-reported scope three times now.
+has under-reported scope three times now. The same failure shows up
+uncapped, too: a round-9 sweep of `templates/` ran one search with eleven
+glyph alternations in it, came back with 5 matches, and was wrong by 33 —
+nothing was capped, the multi-alternation pattern just silently
+under-matched. Search one glyph encoding at a time, full stop; "narrow it
+when capped" isn't the whole rule.
 
 <!-- glyph rule -->
 ## Glyphs: icon sprite vs. emoji vs. plain text
@@ -60,6 +65,23 @@ Exception: emoji inside a WhatsApp share-text string (the JS that builds
 `tailoring_report.html`'s `waText()`) is chat text going into another app,
 not a control in this UI — the icon sprite can't reach it anyway. Leave
 those alone.
+
+### Icon-only controls need an accessible name
+
+A button whose entire visible content is an icon or a glyph — no text
+label next to it — needs `aria-label` (and `title` where a tooltip helps
+sighted users too). The glyph swap above fixes how the icon renders; it
+doesn't give a screen reader anything to announce unless the label is
+there as well. The `static/js` remove/delete buttons got this right from
+the start (`title="Remove row" aria-label="Remove row"` etc. in
+`bill-items.js`, `inst-bill.js`, `inventory.js`) — copy that pattern
+rather than inventing a new one. `.modal-close` is the counter-example:
+plain `&#215;`/`&times;`, no label, on 37 buttons across every template
+that opens a modal — and `base.html`'s modal-open code focuses that
+button first, so it was the very first thing a screen reader announced on
+every modal. Fixed in round 10 (`aria-label="Close"` on all of them, glyph
+now the sprite's `x`). A button with a visible text label next to the
+glyph doesn't need this — the word is already the accessible name.
 
 <!-- code-review-graph MCP tools -->
 ## MCP Tools: code-review-graph

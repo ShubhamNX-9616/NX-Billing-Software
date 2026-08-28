@@ -198,7 +198,7 @@
   <div class="modal-box">
     <div class="modal-header modal-header--warning">
       <h3>{{ icon('x-circle', 15) }} Cancel Bill &mdash; <span id="detail-cancel-bill-num"></span></h3>
-      <button class="modal-close" onclick="closeDetailCancelModal()">&#215;</button>
+      <button class="modal-close" onclick="closeDetailCancelModal()" aria-label="Close">{{ icon('x', 18) }}</button>
     </div>
     <div class="modal-body">
       <div class="notice-box notice-box--warning">
@@ -226,7 +226,7 @@
   <div class="modal-box">
     <div class="modal-header">
       <h3>&#43; Record Payment</h3>
-      <button class="modal-close" onclick="closeRecordPaymentModal()">&#215;</button>
+      <button class="modal-close" onclick="closeRecordPaymentModal()" aria-label="Close">{{ icon('x', 18) }}</button>
     </div>
     <div class="modal-body">
       <p style="margin-bottom:12px;font-size:14px;">
@@ -263,7 +263,7 @@
   <div class="modal-box">
     <div class="modal-header modal-header--danger">
       <h3>{{ icon('trash', 15) }} Delete Bill &mdash; <span id="detail-delete-bill-num"></span></h3>
-      <button class="modal-close" onclick="closeDetailDeleteModal()">&#215;</button>
+      <button class="modal-close" onclick="closeDetailDeleteModal()" aria-label="Close">{{ icon('x', 18) }}</button>
     </div>
     <div class="modal-body">
       <div class="notice-box notice-box--danger">

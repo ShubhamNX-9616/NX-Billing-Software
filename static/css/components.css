@@ -296,12 +296,13 @@ label {
 .modal-close {
   background: none;
   border: none;
-  font-size: 20px;
   cursor: pointer;
   color: var(--text-muted);
   padding: 2px 6px;
   border-radius: var(--radius-sm);
-  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .modal-close:hover {

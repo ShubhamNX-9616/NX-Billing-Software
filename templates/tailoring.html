@@ -100,7 +100,7 @@
   <div class="modal-box" style="max-width:680px;width:95vw;">
     <div class="modal-header">
       <h3 id="tl-order-modal-title">New Tailoring Order</h3>
-      <button class="modal-close" onclick="closeOrderModal()">&#215;</button>
+      <button class="modal-close" onclick="closeOrderModal()" aria-label="Close">{{ icon('x', 18) }}</button>
     </div>
     <div class="modal-body">
       <div class="tlf-grid">
@@ -215,7 +215,7 @@
   <div class="modal-box" style="max-width:640px;width:95vw;">
     <div class="modal-header">
       <h3 id="tl-detail-title">Order</h3>
-      <button class="modal-close" onclick="closeDetailModal()">&#215;</button>
+      <button class="modal-close" onclick="closeDetailModal()" aria-label="Close">{{ icon('x', 18) }}</button>
     </div>
     <div class="modal-body" id="tl-detail-body"></div>
   </div>
@@ -229,7 +229,7 @@
 
 <!-- Photo lightbox -->
 <div class="modal-overlay hidden" id="tl-lightbox" onclick="this.classList.add('hidden')">
-  <img id="tl-lightbox-img" style="max-width:92vw;max-height:88vh;border-radius:var(--radius-lg);" />
+  <img id="tl-lightbox-img" alt="Cloth sample photo" style="max-width:92vw;max-height:88vh;border-radius:var(--radius-lg);" />
 </div>
 
 <!-- Photo save confirmation — shown after picking from camera/gallery, before uploading -->
@@ -237,7 +237,7 @@
   <div class="modal-box" style="max-width:420px;width:92vw;">
     <div class="modal-header">
       <h3 id="tl-photo-preview-title">Save this photo?</h3>
-      <button class="modal-close" onclick="cancelPhotoPreview()">&#215;</button>
+      <button class="modal-close" onclick="cancelPhotoPreview()" aria-label="Close">{{ icon('x', 18) }}</button>
     </div>
     <div class="modal-body">
       <div id="tl-photo-preview-grid" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;"></div>
@@ -255,7 +255,7 @@
   <div class="modal-box" style="max-width:480px;width:94vw;">
     <div class="modal-header">
       <h3 id="tl-payment-title">Payment</h3>
-      <button class="modal-close" onclick="closePaymentModal()">&#215;</button>
+      <button class="modal-close" onclick="closePaymentModal()" aria-label="Close">{{ icon('x', 18) }}</button>
     </div>
     <div class="modal-body" id="tl-payment-body"></div>
   </div>

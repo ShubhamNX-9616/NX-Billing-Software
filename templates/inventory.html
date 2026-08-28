@@ -60,7 +60,7 @@
   <div class="modal-box">
     <div class="modal-header">
       <h3>New Invoice</h3>
-      <button class="modal-close" onclick="closeNewInvoiceModal()">&#215;</button>
+      <button class="modal-close" onclick="closeNewInvoiceModal()" aria-label="Close">{{ icon('x', 18) }}</button>
     </div>
     <div class="modal-body" style="display:grid;gap:12px;">
       <div>
@@ -102,7 +102,7 @@
   <div class="modal-box" style="max-width:960px;width:95vw;">
     <div class="modal-header">
       <h3>Add Items to Invoice</h3>
-      <button class="modal-close" onclick="closeBatchModal()">&#215;</button>
+      <button class="modal-close" onclick="closeBatchModal()" aria-label="Close">{{ icon('x', 18) }}</button>
     </div>
     <div class="modal-body">
 
@@ -153,7 +153,7 @@
         </button>
         <input type="file" id="scan-invoice-input" accept="image/*" capture="environment"
                style="display:none;" onchange="scanInvoiceImage(this)">
-        <button class="modal-close" onclick="closeAddItemModal()">&#215;</button>
+        <button class="modal-close" onclick="closeAddItemModal()" aria-label="Close">{{ icon('x', 18) }}</button>
       </div>
     </div>
     <div class="modal-body" style="display:grid;gap:12px;">
@@ -293,7 +293,7 @@
   <div class="modal-box">
     <div class="modal-header">
       <h3 id="edit-item-title">Edit Item</h3>
-      <button class="modal-close" onclick="closeEditItemModal()">&#215;</button>
+      <button class="modal-close" onclick="closeEditItemModal()" aria-label="Close">{{ icon('x', 18) }}</button>
     </div>
     <div class="modal-body" style="display:grid;gap:12px;">
       <input type="hidden" id="ei-id" />
@@ -363,7 +363,7 @@
   <div class="modal-box" style="max-width:480px;">
     <div class="modal-header">
       <h3 id="info-title">Item Details</h3>
-      <button class="modal-close" onclick="closeInfoModal()">&#215;</button>
+      <button class="modal-close" onclick="closeInfoModal()" aria-label="Close">{{ icon('x', 18) }}</button>
     </div>
     <div class="modal-body" id="info-body" style="display:grid;gap:10px;"></div>
     <div class="modal-footer">
@@ -377,7 +377,7 @@
   <div class="modal-box">
     <div class="modal-header">
       <h3 id="adjust-title">Adjust Stock</h3>
-      <button class="modal-close" onclick="closeAdjustModal()">&#215;</button>
+      <button class="modal-close" onclick="closeAdjustModal()" aria-label="Close">{{ icon('x', 18) }}</button>
     </div>
     <div class="modal-body" style="display:grid;gap:12px;">
       <input type="hidden" id="adj-id" />
@@ -406,7 +406,7 @@
   <div class="modal-box" style="max-width:520px;text-align:center;">
     <div class="modal-header">
       <h3 id="qr-view-title">Item Label</h3>
-      <button class="modal-close" onclick="closeQrViewModal()">&#215;</button>
+      <button class="modal-close" onclick="closeQrViewModal()" aria-label="Close">{{ icon('x', 18) }}</button>
     </div>
     <div class="modal-body">
       <img id="qr-view-img" src="" alt="Item Label"
@@ -427,7 +427,7 @@
   <div class="modal-box" style="max-width:960px;width:95vw;">
     <div class="modal-header">
       <h3>Generate Current Stock QR</h3>
-      <button class="modal-close" onclick="closeCsQrModal()">&#215;</button>
+      <button class="modal-close" onclick="closeCsQrModal()" aria-label="Close">{{ icon('x', 18) }}</button>
     </div>
     <div class="modal-body">
       <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">
@@ -462,7 +462,7 @@
   <div class="modal-box" style="max-width:480px;">
     <div class="modal-header">
       <h3>Manage Companies</h3>
-      <button class="modal-close" onclick="closeManageCompaniesModal()">&#215;</button>
+      <button class="modal-close" onclick="closeManageCompaniesModal()" aria-label="Close">{{ icon('x', 18) }}</button>
     </div>
     <div class="modal-body" style="display:grid;gap:14px;">
       <div>
@@ -491,7 +491,7 @@
   <div class="modal-box" style="max-width:600px;">
     <div class="modal-header">
       <h3 id="txn-title">Stock History</h3>
-      <button class="modal-close" onclick="closeTxnModal()">&#215;</button>
+      <button class="modal-close" onclick="closeTxnModal()" aria-label="Close">{{ icon('x', 18) }}</button>
     </div>
     <div class="modal-body">
       <div id="txn-loading" style="text-align:center;padding:20px;"><div class="spinner"></div></div>
