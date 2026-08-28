@@ -40,12 +40,18 @@ for the glyph — check all three before calling a sweep clean.
 The fix depends on which layer is rendering the UI:
 
 - **Server-rendered markup** (Jinja templates): use the `_icons.html`
-  sprite, `{{ icon('name', size) }}`.
+  sprite, `{{ icon('name', size) }}` — `size` is whatever the caller
+  passes, no implicit default across call sites.
 - **JS that builds markup via `innerHTML`** (can carry an `<svg>`): use the
   same sprite through its DOM form, `<svg class="ico" aria-hidden="true">
   <use href="#i-name"/></svg>` — already the established pattern in
   `tailoring.js`, `history.js`, `inventory.js`, `customers.js`. One sprite,
-  no second icon set to keep in sync.
+  no second icon set to keep in sync. `.ico` is a fixed 16px; the two
+  paths don't match sizes on their own just because they share the sprite
+  — when the same icon needs to read as one weight in both forms (e.g.
+  `.modal-close`'s `icon('x', 18)` next to a JS-drawn `.ico` at 16px), add
+  a CSS override rather than letting them drift (`.modal-close svg` in
+  `components.css` is the existing example).
 - **JS that sets `.textContent`** on a button/status label (can't carry
   markup at all): no glyph, no icon — plain text only. "Saved", "Payment
   balanced", "Copied" already carry the meaning; a checkmark there was
@@ -76,7 +82,7 @@ there as well. The `static/js` remove/delete buttons got this right from
 the start (`title="Remove row" aria-label="Remove row"` etc. in
 `bill-items.js`, `inst-bill.js`, `inventory.js`) — copy that pattern
 rather than inventing a new one. `.modal-close` is the counter-example:
-plain `&#215;`/`&times;`, no label, on 37 buttons across every template
+plain `&#215;`/`&times;`, no label, on 38 buttons across every template
 that opens a modal — and `base.html`'s modal-open code focuses that
 button first, so it was the very first thing a screen reader announced on
 every modal. Fixed in round 10 (`aria-label="Close"` on all of them, glyph

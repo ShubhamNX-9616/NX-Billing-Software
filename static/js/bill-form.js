@@ -339,7 +339,7 @@ async function prefillEditForm() {
     document.getElementById('customer-mobile').value = bill.customer_mobile_snapshot;
     document.getElementById('customer-name').value   = bill.customer_name_snapshot;
     const statusEl = document.getElementById('customer-status');
-    if (statusEl) statusEl.innerHTML = '<span class="badge badge-success">Existing Customer</span>';
+    if (statusEl) statusEl.innerHTML = '<span class="badge badge-success"><svg class="ico" aria-hidden="true"><use href="#i-check-circle"/></svg> Existing Customer</span>';
 
     for (const item of bill.items) {
       addItemRow();

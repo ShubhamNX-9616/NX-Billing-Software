@@ -82,7 +82,7 @@
 
 /* ---- Inline icon for JS-rendered markup (references the #i-* sprite) ----
    currentColor is the point — these theme themselves, which emoji never did. */
-.ico { width:15px; height:15px; fill:none; stroke:currentColor; stroke-width:2;
+.ico { width:16px; height:16px; fill:none; stroke:currentColor; stroke-width:2;
        stroke-linecap:round; stroke-linejoin:round; flex-shrink:0; }
 
 /* ---- Inputs ---- */
@@ -298,11 +298,21 @@ label {
   border: none;
   cursor: pointer;
   color: var(--text-muted);
-  padding: 2px 6px;
+  padding: 6px;
+  min-width: 32px;
+  min-height: 32px;
   border-radius: var(--radius-sm);
   display: inline-flex;
   align-items: center;
   justify-content: center;
+}
+
+/* Match the 16px JS sprite icons (.ico) — the macro renders width/height
+   attributes on the <svg> itself, so a CSS override is needed to keep the
+   two paths the same visual weight. */
+.modal-close svg {
+  width: 16px;
+  height: 16px;
 }
 
 .modal-close:hover {
@@ -425,6 +435,12 @@ label {
 
   .btn-block-mobile {
     width: 100%;
+  }
+
+  .modal-close {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0;
   }
 
   input,
