@@ -8,6 +8,7 @@
   <button type="button" class="btn btn-secondary" style="margin-left:8px;" onclick="openBatchModal()">&#43; Add Items (Batch)</button>
   <button type="button" class="btn btn-secondary" style="margin-left:8px;" onclick="openCurrentStockQrModal()">{{ icon('qrcode', 14) }} Current Stock QR</button>
   <button type="button" class="btn btn-secondary" style="margin-left:8px;" onclick="openManageCompaniesModal()">{{ icon('settings', 14) }} Manage Companies</button>
+  <button type="button" class="btn btn-secondary" id="btn-select-toggle" style="margin-left:8px;" onclick="toggleSelectMode()">{{ icon('check-circle', 14) }} <span id="select-toggle-label">Select</span></button>
 {% endblock %}
 
 {% block content %}
@@ -67,6 +68,19 @@
   No inventory items yet. Click <strong>+ Add Item</strong> to get started.
 </div>
 <div id="sections-container"></div>
+
+<!-- ====== Label selection bar (shown in Select mode) ====== -->
+<div id="label-select-bar"
+     style="position:sticky;bottom:0;z-index:20;display:none;align-items:center;gap:12px;flex-wrap:wrap;
+            margin-top:16px;padding:12px 16px;background:var(--surface);border:1px solid var(--border);
+            border-radius:var(--radius);box-shadow:0 -2px 8px rgba(0,0,0,0.08);">
+  <span id="lsb-count" style="font-weight:600;">0 selected</span>
+  <span style="flex:1;"></span>
+  <button type="button" class="btn btn-sm btn-secondary" onclick="clearLabelSelection()">Clear</button>
+  <button type="button" class="btn btn-sm btn-primary" id="lsb-print" onclick="printSelectedLabels()" disabled>
+    {{ icon('printer', 14) }} Print Labels
+  </button>
+</div>
 
 <!-- ====== New Invoice Modal ====== -->
 <div class="modal-overlay hidden" id="new-invoice-modal">
@@ -156,12 +170,8 @@
     <div class="modal-header">
       <h3>Add Inventory Item</h3>
       <div style="display:flex;gap:8px;align-items:center;">
-        <button type="button" class="btn btn-secondary btn-sm" id="btn-scan-prev"
-                style="display:none;" onclick="handlePrevScanItem()">
-          &#8592; Prev
-        </button>
         <button type="button" class="btn btn-secondary btn-sm" id="btn-scan-invoice"
-                onclick="handleScanBtnClick()">
+                onclick="startInvoiceScan()">
           {{ icon('camera', 14) }} Scan Invoice
         </button>
         <input type="file" id="scan-invoice-input" accept="image/*" capture="environment"
@@ -291,6 +301,16 @@
         <input type="text" id="ai-notes" class="input" placeholder="Optional" />
       </div>
       <div id="ai-error" class="text-danger" style="font-size:13px;"></div>
+
+      <!-- Scan flow: step between the invoice's items (shown only after a scan) -->
+      <div id="scan-nav" style="display:none;align-items:center;gap:10px;
+           border-top:1px solid var(--border);padding-top:12px;">
+        <button type="button" class="btn btn-secondary btn-sm" id="btn-scan-prev"
+                style="display:none;" onclick="handlePrevScanItem()">&#8592; Prev</button>
+        <span id="scan-nav-counter" style="flex:1;font-size:13px;color:var(--text-muted);"></span>
+        <button type="button" class="btn btn-primary btn-sm" id="btn-scan-next"
+                onclick="handleNextScanItem()">Next &#8594;</button>
+      </div>
     </div>
     <div class="modal-footer">
       <button type="button" class="btn btn-secondary" onclick="closeAddItemModal()">Cancel</button>

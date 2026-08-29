@@ -1,0 +1,238 @@
+{% from "_icons.html" import icon %}<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Print Inventory Labels — SHUBHAM NX</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}?v={{ sv }}" />
+  <style>
+    :root {
+      --lw: 64mm;   --lh: 34mm;
+      --cgap: 3mm;  --rgap: 1.5mm;
+      --mtop: 12mm; --mleft: 9mm;
+    }
+
+    body { background: var(--bg); color: var(--text); }
+
+    .controls {
+      position: sticky; top: 0; z-index: 10;
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      padding: 12px 16px;
+      display: flex; flex-wrap: wrap; align-items: flex-end; gap: 14px 18px;
+    }
+    .controls h1 { font-size: 16px; margin: 0 12px 0 0; align-self: center; }
+    .ctl { display: flex; flex-direction: column; gap: 3px; }
+    .ctl label { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .4px; }
+    .ctl input { width: 92px; padding: 5px 7px; font-size: 13px;
+      border: 1px solid var(--border); border-radius: var(--radius-sm);
+      background: var(--surface); color: var(--text); }
+    .controls .status { font-size: 13px; color: var(--text-muted); align-self: center; }
+    .controls .spacer { flex: 1; }
+
+    details.adv { width: 100%; font-size: 13px; }
+    details.adv summary { cursor: pointer; color: var(--primary); font-weight: 600; padding: 4px 0; }
+    details.adv .adv-grid { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 8px; }
+
+    .print-btn {
+      background: var(--primary); color: #fff; border: none; border-radius: var(--radius);
+      padding: 9px 22px; font-size: 14px; font-weight: 600; cursor: pointer;
+      display: inline-flex; align-items: center; gap: 7px;
+    }
+    .print-btn:disabled { opacity: .5; cursor: default; }
+
+    .mini-btn {
+      background: var(--surface); color: var(--text);
+      border: 1px solid var(--border); border-radius: var(--radius-sm);
+      padding: 6px 12px; font-size: 12px; cursor: pointer;
+    }
+
+    .sheets { padding: 20px; display: flex; flex-direction: column; align-items: center; gap: 20px; }
+
+    .sheet {
+      width: 210mm; height: 296mm; overflow: hidden; box-sizing: border-box;
+      padding: var(--mtop) 0 0 var(--mleft);
+      background: var(--surface);
+      display: grid;
+      grid-template-columns: repeat(3, var(--lw));
+      grid-auto-rows: var(--lh);
+      column-gap: var(--cgap);
+      row-gap: var(--rgap);
+      align-content: start;
+      box-shadow: 0 1px 6px rgba(0,0,0,0.15);
+    }
+
+    .cell { width: var(--lw); height: var(--lh); overflow: hidden; }
+    .cell img { width: 100%; height: 100%; object-fit: contain; display: block; }
+    .cell.blank { visibility: hidden; }
+
+    .empty-msg { padding: 60px 20px; text-align: center; color: var(--text-muted); }
+
+    @media print {
+      @page { size: A4 portrait; margin: 0; }
+      body { background: #fff; }
+      .no-print { display: none !important; }
+      .sheets { padding: 0; gap: 0; }
+      .sheet { background: #fff; box-shadow: none; break-after: page; }
+      .sheet:last-child { break-after: auto; }
+    }
+  </style>
+</head>
+<body>
+  <div class="controls no-print">
+    <h1>Print Labels</h1>
+
+    <div class="ctl">
+      <label for="copies">Copies / item</label>
+      <input type="number" id="copies" min="1" max="50" value="1" />
+    </div>
+    <div class="ctl">
+      <label for="startpos">Start at label #</label>
+      <input type="number" id="startpos" min="1" max="24" value="1" />
+    </div>
+
+    <span class="status" id="status">Loading…</span>
+    <span class="spacer"></span>
+    <button class="print-btn" id="print-btn" onclick="window.print()" disabled>
+      {{ icon('printer', 15) }} Print
+    </button>
+
+    <p class="tip no-print" style="width:100%;margin:0;font-size:12px;color:var(--text-muted);">
+      In the print dialog set <strong>Margins: None</strong>, <strong>Scale: 100%</strong> (not “Fit to page”),
+      and turn off headers &amp; footers. Print one sheet on plain paper first and hold it against the label
+      sheet to check alignment; adjust below if needed.
+    </p>
+
+    <details class="adv">
+      <summary>Sheet alignment (calibrate once for your printer)</summary>
+      <div class="adv-grid">
+        <div class="ctl"><label>Label width (mm)</label><input type="number" id="lw" step="0.1" /></div>
+        <div class="ctl"><label>Label height (mm)</label><input type="number" id="lh" step="0.1" /></div>
+        <div class="ctl"><label>Column gap (mm)</label><input type="number" id="cgap" step="0.1" /></div>
+        <div class="ctl"><label>Row gap (mm)</label><input type="number" id="rgap" step="0.1" /></div>
+        <div class="ctl"><label>Top margin (mm)</label><input type="number" id="mtop" step="0.1" /></div>
+        <div class="ctl"><label>Left margin (mm)</label><input type="number" id="mleft" step="0.1" /></div>
+        <div class="ctl" style="align-self:flex-end;"><button type="button" class="mini-btn" onclick="resetGeometry()">Reset to defaults</button></div>
+      </div>
+    </details>
+  </div>
+
+  <div class="sheets" id="sheets"></div>
+
+  <script>
+    const PER_SHEET = 24;
+    const DEFAULTS = { lw: 64, lh: 34, cgap: 3, rgap: 1.5, mtop: 12, mleft: 9 };
+    const GEO_KEYS = Object.keys(DEFAULTS);
+    const STORE_KEY = 'inv-label-geometry';
+
+    function loadGeometry() {
+      let saved = {};
+      try { saved = JSON.parse(localStorage.getItem(STORE_KEY)) || {}; } catch (_) {}
+      GEO_KEYS.forEach(k => {
+        const v = (saved[k] != null && !isNaN(saved[k])) ? saved[k] : DEFAULTS[k];
+        document.getElementById(k).value = v;
+      });
+    }
+
+    function applyGeometry() {
+      const g = {};
+      GEO_KEYS.forEach(k => {
+        let v = parseFloat(document.getElementById(k).value);
+        if (isNaN(v) || v < 0) v = DEFAULTS[k];
+        g[k] = v;
+        document.documentElement.style.setProperty('--' + k, v + 'mm');
+      });
+      try { localStorage.setItem(STORE_KEY, JSON.stringify(g)); } catch (_) {}
+    }
+
+    function resetGeometry() {
+      GEO_KEYS.forEach(k => { document.getElementById(k).value = DEFAULTS[k]; });
+      applyGeometry();
+    }
+
+    GEO_KEYS.forEach(k => document.getElementById(k).addEventListener('input', applyGeometry));
+    document.getElementById('copies').addEventListener('input', render);
+    document.getElementById('startpos').addEventListener('input', render);
+
+    function getIds() {
+      const raw = new URLSearchParams(location.search).get('ids') || '';
+      return raw.split(',').map(s => parseInt(s.trim())).filter(n => Number.isInteger(n) && n > 0);
+    }
+
+    let itemsById = {};
+
+    function render() {
+      const ids = getIds();
+      const copies = Math.max(1, Math.min(50, parseInt(document.getElementById('copies').value) || 1));
+      const start  = Math.max(1, Math.min(PER_SHEET, parseInt(document.getElementById('startpos').value) || 1));
+
+      const sheetsEl = document.getElementById('sheets');
+      sheetsEl.innerHTML = '';
+
+      if (!ids.length) {
+        sheetsEl.innerHTML = '<div class="empty-msg">No items to print. Go back to Inventory, turn on <strong>Select</strong>, tick some items and choose <strong>Print Labels</strong>.</div>';
+        document.getElementById('status').textContent = '0 labels';
+        document.getElementById('print-btn').disabled = true;
+        return;
+      }
+
+      // Expanded list of label slots (each id repeated `copies` times)
+      const slots = [];
+      ids.forEach(id => { for (let c = 0; c < copies; c++) slots.push(id); });
+
+      // Leading blanks so the first sticker lands on position `start`
+      const cells = [];
+      for (let i = 0; i < start - 1; i++) cells.push(null);
+      slots.forEach(id => cells.push(id));
+
+      const totalImgs = slots.length;
+      let loaded = 0, failed = 0;
+      const markDone = () => {
+        if (loaded + failed >= totalImgs) {
+          document.getElementById('print-btn').disabled = false;
+          document.getElementById('status').textContent =
+            `${totalImgs} label${totalImgs !== 1 ? 's' : ''} · ${Math.ceil(cells.length / PER_SHEET)} page${Math.ceil(cells.length / PER_SHEET) > 1 ? 's' : ''}` +
+            (failed ? ` · ${failed} failed` : ' · ready');
+        }
+      };
+
+      document.getElementById('status').textContent = `Building ${totalImgs} labels…`;
+      document.getElementById('print-btn').disabled = true;
+
+      for (let p = 0; p * PER_SHEET < cells.length; p++) {
+        const sheet = document.createElement('div');
+        sheet.className = 'sheet';
+        const pageCells = cells.slice(p * PER_SHEET, (p + 1) * PER_SHEET);
+        pageCells.forEach(id => {
+          const cell = document.createElement('div');
+          cell.className = 'cell' + (id === null ? ' blank' : '');
+          if (id !== null) {
+            const img = document.createElement('img');
+            img.alt = itemsById[id] ? itemsById[id].item_code || ('#' + id) : ('#' + id);
+            img.addEventListener('load', () => { loaded++; markDone(); });
+            img.addEventListener('error', () => { failed++; markDone(); });
+            img.src = `/api/inventory/${id}/qr`;
+            cell.appendChild(img);
+          }
+          sheet.appendChild(cell);
+        });
+        sheetsEl.appendChild(sheet);
+      }
+
+      if (totalImgs === 0) markDone();
+    }
+
+    async function init() {
+      loadGeometry();
+      applyGeometry();
+      try {
+        const res = await fetch('/api/inventory');
+        const list = await res.json();
+        list.forEach(it => { itemsById[it.id] = it; });
+      } catch (_) {}
+      render();
+    }
+
+    init();
+  </script>
+</body>
+</html>

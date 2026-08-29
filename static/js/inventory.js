@@ -3,6 +3,8 @@
    ============================================================ */
 
 let allItems = [];
+let selectMode = false;
+const selectedIds = new Set();
 let baGroupCounter = 0;
 let baRowCounters  = {};
 let csGroupCounter = 0;
@@ -949,6 +951,7 @@ function renderSections(items) {
 
   if (!items.length) {
     emptyEl.style.display = '';
+    syncSectionHeaderChecks();
     return;
   }
   emptyEl.style.display = 'none';
@@ -975,6 +978,9 @@ function renderSections(items) {
 
     const rows = sectionItems.map(item => {
       const code = item.item_code || `#${item.id}`;
+      const selectCell = selectMode
+        ? `<td style="text-align:center;"><input type="checkbox" class="row-select" data-id="${item.id}" onchange="onRowSelect(${item.id}, this.checked)" ${selectedIds.has(item.id) ? 'checked' : ''} aria-label="Select for label printing" /></td>`
+        : '';
       const stockClass = item.current_stock < 0
         ? 'style="color:var(--danger);font-weight:700;"'
         : item.current_stock <= item.min_stock_alert
@@ -990,6 +996,7 @@ function renderSections(items) {
         ? `<td style="font-size:12px;"><span style="font-weight:600;">${esc(item.invoice_number)}</span><br><span style="color:var(--text-muted);">${esc(item.invoice_date || '')}</span></td>`
         : `<td style="color:var(--text-muted);font-size:12px;">—</td>`;
       return `<tr data-id="${item.id}">
+        ${selectCell}
         <td style="text-align:center;font-weight:700;color:var(--text-muted);font-size:12px;white-space:nowrap;">${esc(code)}</td>
         ${clothCol}
         <td>${esc(item.company_name)}</td>
@@ -1026,6 +1033,7 @@ function renderSections(items) {
         <table class="items-table">
           <thead>
             <tr>
+              ${selectMode ? `<th style="width:34px;text-align:center;"><input type="checkbox" id="sec-check-${sid}" onchange="onSectionSelectAll('${sid}', this.checked)" title="Select all in this section" aria-label="Select all in ${esc(section)}" /></th>` : ''}
               <th style="width:80px;text-align:center;">ID</th>
               ${isOthers ? '<th>Cloth Type</th>' : ''}
               <th>Company</th>
@@ -1046,6 +1054,8 @@ function renderSections(items) {
     `;
     container.appendChild(card);
   });
+
+  syncSectionHeaderChecks();
 }
 
 function toggleSection(sid) {
@@ -1144,6 +1154,69 @@ function filterItems() {
   }
 
   renderSections(filtered);
+}
+
+// ----------------------------------------------------------------
+// Select mode — pick items, print their QR labels on an A4 sheet
+// ----------------------------------------------------------------
+function toggleSelectMode() {
+  selectMode = !selectMode;
+  if (!selectMode) selectedIds.clear();
+
+  document.getElementById('select-toggle-label').textContent = selectMode ? 'Done' : 'Select';
+  document.getElementById('btn-select-toggle').classList.toggle('btn-primary', selectMode);
+  document.getElementById('btn-select-toggle').classList.toggle('btn-secondary', !selectMode);
+  document.getElementById('label-select-bar').style.display = selectMode ? 'flex' : 'none';
+
+  filterItems();
+  updateLabelBar();
+}
+
+function onRowSelect(id, checked) {
+  if (checked) selectedIds.add(id);
+  else selectedIds.delete(id);
+  syncSectionHeaderChecks();
+  updateLabelBar();
+}
+
+function onSectionSelectAll(sid, checked) {
+  document.querySelectorAll(`#body-${sid} input.row-select`).forEach(cb => {
+    cb.checked = checked;
+    const id = parseInt(cb.dataset.id);
+    if (checked) selectedIds.add(id);
+    else selectedIds.delete(id);
+  });
+  updateLabelBar();
+}
+
+function syncSectionHeaderChecks() {
+  document.querySelectorAll('[id^="sec-check-"]').forEach(hdr => {
+    const boxes = hdr.closest('table').querySelectorAll('input.row-select');
+    if (!boxes.length) { hdr.checked = false; hdr.indeterminate = false; return; }
+    const checkedCount = [...boxes].filter(b => b.checked).length;
+    hdr.checked = checkedCount === boxes.length;
+    hdr.indeterminate = checkedCount > 0 && checkedCount < boxes.length;
+  });
+}
+
+function updateLabelBar() {
+  const n = selectedIds.size;
+  document.getElementById('lsb-count').textContent =
+    `${n} selected`;
+  document.getElementById('lsb-print').disabled = n === 0;
+}
+
+function clearLabelSelection() {
+  selectedIds.clear();
+  document.querySelectorAll('input.row-select').forEach(cb => { cb.checked = false; });
+  syncSectionHeaderChecks();
+  updateLabelBar();
+}
+
+function printSelectedLabels() {
+  const ids = [...selectedIds];
+  if (!ids.length) return;
+  window.open(`/inventory/labels?ids=${ids.join(',')}`, '_blank');
 }
 
 // ----------------------------------------------------------------
@@ -1941,50 +2014,45 @@ function _renderItem(item) {
 }
 
 function _updateScanButtons() {
-  const nextBtn    = document.getElementById('btn-scan-invoice');
+  const nav        = document.getElementById('scan-nav');
   const prevBtn    = document.getElementById('btn-scan-prev');
+  const nextBtn    = document.getElementById('btn-scan-next');
+  const counter    = document.getElementById('scan-nav-counter');
   const saveAllBtn = document.getElementById('btn-ai-save-all');
   const saveBtn    = document.getElementById('btn-ai-save');
   const total      = _scanItems.length;
 
   if (total === 0) {
-    nextBtn.textContent      = 'Scan Invoice';
-    nextBtn.style.display    = '';
-    prevBtn.style.display    = 'none';
+    nav.style.display       = 'none';
     saveAllBtn.style.display = 'none';
     saveBtn.style.display    = '';
     return;
   }
 
-  // Hide single-save during scan flow
+  // Scan flow: bottom nav replaces the single Save Item button
+  nav.style.display    = 'flex';
   saveBtn.style.display = 'none';
+  counter.textContent  = `Item ${_scanIndex + 1} of ${total}`;
   prevBtn.style.display = _scanIndex > 0 ? '' : 'none';
 
-  if (_scanIndex < total - 1) {
-    // More items to review
-    nextBtn.textContent      = `Next → (${_scanIndex + 2}/${total})`;
-    nextBtn.style.display    = '';
-    saveAllBtn.style.display = 'none';
-  } else {
-    // On the last item — hide Next, show Save All
-    nextBtn.style.display    = 'none';
-    saveAllBtn.style.display = '';
-    saveAllBtn.textContent   = `Save All ${total} Items`;
-  }
+  const isLast = _scanIndex >= total - 1;
+  nextBtn.style.display    = isLast ? 'none' : '';
+  saveAllBtn.style.display = isLast ? '' : 'none';
+  if (isLast) saveAllBtn.textContent = `Save All ${total} Items`;
 }
 
-// Next button clicked
-function handleScanBtnClick() {
-  if (!_scanItems.length) {
-    document.getElementById('scan-invoice-input').click();
-    return;
-  }
-  if (_scanIndex < _scanItems.length - 1) {
-    _saveCurrentItemEdits();
-    _scanIndex++;
-    _renderItem(_scanItems[_scanIndex]);
-    _updateScanButtons();
-  }
+// Header "Scan Invoice" button — opens the file picker
+function startInvoiceScan() {
+  document.getElementById('scan-invoice-input').click();
+}
+
+// Next button clicked (bottom of the form)
+function handleNextScanItem() {
+  if (_scanIndex >= _scanItems.length - 1) return;
+  _saveCurrentItemEdits();
+  _scanIndex++;
+  _renderItem(_scanItems[_scanIndex]);
+  _updateScanButtons();
 }
 
 // Prev button clicked
@@ -2000,19 +2068,18 @@ function resetScanState() {
   _scanItems = [];
   _scanIndex = 0;
   _scanMeta  = {};
-  const nextBtn    = document.getElementById('btn-scan-invoice');
-  const prevBtn    = document.getElementById('btn-scan-prev');
+  const nav        = document.getElementById('scan-nav');
   const saveAllBtn = document.getElementById('btn-ai-save-all');
   const saveBtn    = document.getElementById('btn-ai-save');
-  if (nextBtn)    { nextBtn.textContent = 'Scan Invoice'; nextBtn.style.display = ''; }
-  if (prevBtn)      prevBtn.style.display    = 'none';
-  if (saveAllBtn)   saveAllBtn.style.display = 'none';
-  if (saveBtn)      saveBtn.style.display    = '';
+  if (nav)        nav.style.display = 'none';
+  if (saveAllBtn) saveAllBtn.style.display = 'none';
+  if (saveBtn)    saveBtn.style.display    = '';
 }
 
 async function scanInvoiceImage(input) {
   if (!input.files || !input.files[0]) return;
   const btn = document.getElementById('btn-scan-invoice');
+  const btnHtml = btn.innerHTML;
   btn.disabled    = true;
   btn.textContent = 'Scanning…';
   try {
@@ -2035,7 +2102,8 @@ async function scanInvoiceImage(input) {
   } catch (e) {
     alert('Network error: ' + e.message);
   } finally {
-    input.value  = '';
-    btn.disabled = false;
+    input.value   = '';
+    btn.disabled  = false;
+    btn.innerHTML = btnHtml;
   }
 }
