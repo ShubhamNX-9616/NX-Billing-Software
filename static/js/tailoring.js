@@ -430,7 +430,7 @@ function garmentOptions(selected) {
   return opts.join('');
 }
 
-function addItemRow(item) {
+function addItemRow(item, focus) {
   item = item || { garment_type: '', qty: 1, rate: '', id: null };
   const wrap = document.getElementById('tlf-items');
   const row = document.createElement('div');
@@ -456,6 +456,14 @@ function addItemRow(item) {
             onclick="this.parentElement.remove(); recalcTotals();"><svg class="ico" aria-hidden="true"><use href="#i-x"/></svg></button>`;
   wrap.appendChild(row);
   recalcTotals();
+  // When the user clicks "+ Add Item", drop the cursor straight into the new
+  // row's garment field. Load paths (edit/new-order) pass no flag and keep
+  // focus where openOrderModal put it.
+  if (focus) {
+    const g = row.querySelector('.tlf-garment');
+    g.focus();
+    row.scrollIntoView({ block: 'nearest' });
+  }
 }
 
 // Fills the rate field with that garment's last-used rate — but only while
