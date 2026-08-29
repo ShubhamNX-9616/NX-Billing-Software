@@ -6,10 +6,12 @@
   <title>Print Inventory Labels — SHUBHAM NX</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}?v={{ sv }}" />
   <style>
+    /* Defaults match Labels.docx (24-per-A4 sheet): A4, 12.5mm top / 6mm
+       left margin, 64x34mm labels, 3mm column gap, rows flush (0 gap). */
     :root {
-      --lw: 64mm;   --lh: 34mm;
-      --cgap: 3mm;  --rgap: 1.5mm;
-      --mtop: 12mm; --mleft: 9mm;
+      --lw: 64mm;    --lh: 34mm;
+      --cgap: 3mm;   --rgap: 0mm;
+      --mtop: 12.5mm; --mleft: 6mm;
     }
 
     body { background: var(--bg); color: var(--text); }
@@ -98,12 +100,12 @@
 
     <p class="tip no-print" style="width:100%;margin:0;font-size:12px;color:var(--text-muted);">
       In the print dialog set <strong>Margins: None</strong>, <strong>Scale: 100%</strong> (not “Fit to page”),
-      and turn off headers &amp; footers. Print one sheet on plain paper first and hold it against the label
-      sheet to check alignment; adjust below if needed.
+      and turn off headers &amp; footers. Layout matches the 24-per-sheet
+      <strong>Labels.docx</strong> template; only adjust below if your printer drifts.
     </p>
 
     <details class="adv">
-      <summary>Sheet alignment (calibrate once for your printer)</summary>
+      <summary>Sheet alignment (only if your printer drifts)</summary>
       <div class="adv-grid">
         <div class="ctl"><label>Label width (mm)</label><input type="number" id="lw" step="0.1" /></div>
         <div class="ctl"><label>Label height (mm)</label><input type="number" id="lh" step="0.1" /></div>
@@ -120,20 +122,23 @@
 
   <script>
     const PER_SHEET = 24;
-    const DEFAULTS = { lw: 64, lh: 34, cgap: 3, rgap: 1.5, mtop: 12, mleft: 9 };
+    const DEFAULTS = { lw: 64, lh: 34, cgap: 3, rgap: 0, mtop: 12.5, mleft: 6 };
     const GEO_KEYS = Object.keys(DEFAULTS);
     const STORE_KEY = 'inv-label-geometry';
 
     function loadGeometry() {
+      // Only a deliberate edit (saved via saveGeometry) overrides the
+      // Labels.docx defaults — a stale auto-save from an older version of
+      // this page must not stick.
       let saved = {};
       try { saved = JSON.parse(localStorage.getItem(STORE_KEY)) || {}; } catch (_) {}
       GEO_KEYS.forEach(k => {
-        const v = (saved[k] != null && !isNaN(saved[k])) ? saved[k] : DEFAULTS[k];
+        const v = (saved[k] != null && !isNaN(saved[k]) && saved[k] >= 0) ? saved[k] : DEFAULTS[k];
         document.getElementById(k).value = v;
       });
     }
 
-    function applyGeometry() {
+    function applyGeometry(save) {
       const g = {};
       GEO_KEYS.forEach(k => {
         let v = parseFloat(document.getElementById(k).value);
@@ -141,15 +146,18 @@
         g[k] = v;
         document.documentElement.style.setProperty('--' + k, v + 'mm');
       });
-      try { localStorage.setItem(STORE_KEY, JSON.stringify(g)); } catch (_) {}
+      if (save) {
+        try { localStorage.setItem(STORE_KEY, JSON.stringify(g)); } catch (_) {}
+      }
     }
 
     function resetGeometry() {
       GEO_KEYS.forEach(k => { document.getElementById(k).value = DEFAULTS[k]; });
-      applyGeometry();
+      applyGeometry(false);
+      try { localStorage.removeItem(STORE_KEY); } catch (_) {}
     }
 
-    GEO_KEYS.forEach(k => document.getElementById(k).addEventListener('input', applyGeometry));
+    GEO_KEYS.forEach(k => document.getElementById(k).addEventListener('input', () => applyGeometry(true)));
     document.getElementById('copies').addEventListener('input', render);
     document.getElementById('startpos').addEventListener('input', render);
 
@@ -223,7 +231,7 @@
 
     async function init() {
       loadGeometry();
-      applyGeometry();
+      applyGeometry(false);
       try {
         const res = await fetch('/api/inventory');
         const list = await res.json();
