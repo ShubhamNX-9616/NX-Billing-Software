@@ -29,7 +29,8 @@ async function loadInventory() {
   try {
     const res = await fetch('/api/inventory');
     allItems = await res.json();
-    renderSections(allItems);
+    populateFilterOptions();
+    filterItems();
     renderStats(allItems);
   } catch (e) {
     showError('Failed to load inventory: ' + e.message);
@@ -1076,9 +1077,41 @@ function showError(msg) {
 // ----------------------------------------------------------------
 // Filter
 // ----------------------------------------------------------------
+function populateFilterOptions() {
+  const distinct = key => [...new Set(allItems.map(i => i[key]).filter(Boolean))]
+    .sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true }));
+
+  const fill = (id, values, allLabel) => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    const cur = sel.value;
+    sel.innerHTML = '';
+    const o0 = document.createElement('option');
+    o0.value = '';
+    o0.textContent = allLabel;
+    sel.appendChild(o0);
+    values.forEach(v => {
+      const o = document.createElement('option');
+      o.value = v;
+      o.textContent = v;
+      sel.appendChild(o);
+    });
+    sel.value = values.includes(cur) ? cur : '';
+  };
+
+  fill('filter-cloth',    distinct('cloth_type'),     'All cloth types');
+  fill('filter-company',  distinct('company_name'),   'All companies');
+  fill('filter-supplier', distinct('supplier_name'),  'All suppliers');
+  fill('filter-invoice',  distinct('invoice_number'), 'All invoices');
+}
+
 function filterItems() {
-  const q      = document.getElementById('filter-input').value.toLowerCase();
-  const status = document.getElementById('filter-status').value;
+  const q        = document.getElementById('filter-input').value.toLowerCase();
+  const status   = document.getElementById('filter-status').value;
+  const cloth    = document.getElementById('filter-cloth').value;
+  const company  = document.getElementById('filter-company').value;
+  const supplier = document.getElementById('filter-supplier').value;
+  const invoice  = document.getElementById('filter-invoice').value;
 
   const filtered = allItems.filter(item => {
     const matchText = !q ||
@@ -1095,8 +1128,20 @@ function filterItems() {
     else if (status === 'low')  matchStatus = item.current_stock >= 0 && item.current_stock <= item.min_stock_alert;
     else if (status === 'ok')   matchStatus = item.current_stock > item.min_stock_alert;
 
-    return matchText && matchStatus;
+    const matchCloth    = !cloth    || item.cloth_type     === cloth;
+    const matchCompany  = !company  || item.company_name   === company;
+    const matchSupplier = !supplier || item.supplier_name  === supplier;
+    const matchInvoice  = !invoice  || item.invoice_number === invoice;
+
+    return matchText && matchStatus && matchCloth && matchCompany && matchSupplier && matchInvoice;
   });
+
+  const countEl = document.getElementById('filter-count');
+  if (countEl) {
+    countEl.textContent = filtered.length === allItems.length
+      ? `${allItems.length} item${allItems.length !== 1 ? 's' : ''}`
+      : `${filtered.length} of ${allItems.length} items`;
+  }
 
   renderSections(filtered);
 }

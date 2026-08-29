@@ -37,12 +37,25 @@
   <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
     <input type="text" id="filter-input" class="input" placeholder="Search cloth type, company, quality…"
            style="flex:1;min-width:200px;" oninput="filterItems()" />
-    <select id="filter-status" class="input select" style="width:160px;" onchange="filterItems()">
-      <option value="">All</option>
+    <select id="filter-status" class="input select" style="width:150px;" onchange="filterItems()">
+      <option value="">All stock</option>
       <option value="negative">Negative Stock</option>
       <option value="low">Low Stock</option>
       <option value="ok">OK</option>
     </select>
+    <select id="filter-cloth" class="input select" style="width:150px;" onchange="filterItems()">
+      <option value="">All cloth types</option>
+    </select>
+    <select id="filter-company" class="input select" style="width:150px;" onchange="filterItems()">
+      <option value="">All companies</option>
+    </select>
+    <select id="filter-supplier" class="input select" style="width:150px;" onchange="filterItems()">
+      <option value="">All suppliers</option>
+    </select>
+    <select id="filter-invoice" class="input select" style="width:150px;" onchange="filterItems()">
+      <option value="">All invoices</option>
+    </select>
+    <span id="filter-count" style="font-size:13px;color:var(--text-muted);white-space:nowrap;"></span>
   </div>
 </div>
 
