@@ -2,34 +2,6 @@
    BILL.CSS — New bill page specific styles
    ============================================================ */
 
-/* ---- Bill form layout ---- */
-.bill-form-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
-  margin-bottom: 20px;
-}
-
-/* ---- Customer lookup section ---- */
-.customer-lookup {
-  display: flex;
-  gap: 8px;
-  align-items: flex-end;
-}
-
-.customer-found-bar {
-  background: var(--success-bg);
-  border: 1px solid var(--success-border);
-  border-radius: var(--radius);
-  padding: 8px 12px;
-  font-size: 13px;
-  color: var(--success-fg);
-  margin-top: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
 /* ---- Items table ---- */
 .items-section {
   margin-bottom: 20px;
@@ -137,12 +109,6 @@
   background: color-mix(in srgb, var(--danger) 12%, transparent);
 }
 
-/* Add row button row */
-.add-row-row td {
-  padding: 6px 8px;
-  border-bottom: none;
-}
-
 /* ---- Bill summary box ---- */
 .bill-summary-box {
   display: flex;
@@ -232,18 +198,6 @@
   max-width: 500px;
 }
 
-.payment-combo-item {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.payment-combo-item label {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-muted);
-}
-
 .payment-remaining {
   font-size: 12.5px;
   color: var(--text-muted);
@@ -289,11 +243,6 @@
   gap: 8px;
   flex-wrap: wrap;
   justify-content: flex-end;
-}
-
-.invoice-hint {
-  font-size: 12.5px;
-  color: var(--text-muted);
 }
 
 #items-cards-wrapper {
@@ -362,22 +311,6 @@
     gap: 8px;
   }
 
-  .bill-form-grid {
-    grid-template-columns: 1fr;
-    gap: 12px;
-  }
-
-  .customer-lookup {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .customer-lookup .input,
-  .customer-lookup .select,
-  .customer-lookup input,
-  .customer-lookup select {
-    width: 100%;
-  }
 
   .bill-summary-box {
     justify-content: stretch;
@@ -435,10 +368,6 @@
   .invoice-action-buttons .btn {
     width: 100%;
     min-height: 44px;
-  }
-
-  .invoice-hint {
-    display: none;
   }
 
   /* Invoice meta: single column on mobile */

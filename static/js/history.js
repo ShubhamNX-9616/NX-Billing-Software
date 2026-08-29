@@ -469,9 +469,6 @@ function showToast(msg, isError) {
   }, 2800);
 }
 
-// legacy alias used by share helpers
-function showDeleteToast(msg) { showToast(msg); }
-
 // ----------------------------------------------------------------
 // Share link helpers
 // ----------------------------------------------------------------

@@ -72,13 +72,6 @@ function round2(n) {
   return Math.round((n + Number.EPSILON) * 100) / 100;
 }
 
-function getRoundedTotals(amount) {
-  const grossFinal = round2(amount);
-  const netPayable = Math.floor(grossFinal);
-  const roundOff = round2(grossFinal - netPayable);
-  return { grossFinal, roundOff, netPayable };
-}
-
 function todayISO() {
   return istToday();  // IST calendar day, independent of operator timezone
 }

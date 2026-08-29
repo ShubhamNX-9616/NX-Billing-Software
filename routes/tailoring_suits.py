@@ -12,8 +12,6 @@ a straight parallel of routes/tailoring.py, kept as its own module rather
 than a shared abstraction so the two books can evolve independently without
 risking each other.
 """
-import hashlib
-import hmac
 import io
 import os
 import sqlite3

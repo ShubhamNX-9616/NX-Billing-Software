@@ -1,5 +1,11 @@
 # SHUBHAM NX — Billing App
 
+> **Looking for the full feature guide or technical reference?** See
+> [`APPLICATION_GUIDE.md`](APPLICATION_GUIDE.md) — it covers every module
+> (retail + institution billing, inventory, loyalty, tailoring), the
+> database schema, all API and page routes, and deployment. This README is
+> the plain-language setup and day-to-day usage guide.
+
 ## What is this app?
 
 This is a billing and invoice management app for **SHUBHAM NX**, a cloth shop located at Krishna Chowk, New Sangvi, Pune.

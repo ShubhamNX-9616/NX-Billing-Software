@@ -58,26 +58,10 @@
   box-shadow: 0 3px 8px rgba(224, 36, 36, 0.3);
 }
 
-.btn-success {
-  background: var(--success);
-  color: #fff;
-  border-color: var(--success);
-  box-shadow: 0 1px 3px rgba(5, 122, 85, 0.25);
-}
-.btn-success:hover:not(:disabled) {
-  background: var(--success-dark);
-  box-shadow: 0 3px 8px rgba(5, 122, 85, 0.3);
-}
-
 .btn-sm {
   padding: 4px 10px;
   font-size: 12px;
   border-radius: var(--radius);
-}
-
-.btn-icon {
-  padding: 6px 8px;
-  font-size: 14px;
 }
 
 /* ---- Inline icon for JS-rendered markup (references the #i-* sprite) ----
@@ -117,21 +101,6 @@
 /* Transient highlight on a field the JS just auto-filled. !important
    overrides .input's own background for the ~0.7s the class is applied. */
 .field-flash { background: var(--warning-bg) !important; }
-
-.input-group {
-  display: flex;
-  gap: 8px;
-  align-items: flex-start;
-}
-
-.form-row {
-  display: grid;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
-.form-row.cols-2 { grid-template-columns: 1fr 1fr; }
-.form-row.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
 
 label {
   display: block;
@@ -198,10 +167,6 @@ label {
 
 .table tbody tr:hover {
   background: rgba(26, 86, 219, 0.04);
-}
-
-.table-striped tbody tr:nth-child(even) {
-  background: var(--bg);
 }
 
 .table-clickable tbody tr {
@@ -274,10 +239,6 @@ label {
   display: flex;
   flex-direction: column;
   box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-}
-
-.modal-box.modal-lg {
-  max-width: 680px;
 }
 
 .modal-header {
@@ -564,24 +525,6 @@ label {
   }
 }
 
-/* ---- Share icon button (bill history table) ---- */
-.btn-share-icon {
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 4px 7px;
-  cursor: pointer;
-  color: var(--text-muted);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-.btn-share-icon:hover {
-  background: var(--info-bg);
-  color: var(--info-fg);
-  border-color: var(--info-border);
-}
-
 /* ---- Modal header colour variants ---- */
 .modal-header { border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
 
@@ -623,13 +566,9 @@ label {
 /* ---- Dashboard stat value typography + colours ---- */
 .stat-val    { font-size: 28px; font-weight: 700; line-height: 1.1; }
 .stat-val-lg { font-size: 40px; }
-.stat-val-md { font-size: 22px; }
 .stat-val-sm { font-size: 20px; }
 
 .stat-val-primary { color: var(--primary); }
-.stat-val-success { color: var(--success); }
-.stat-val-warning { color: var(--warning); }
-.stat-val-danger  { color: var(--danger); }
 
 /* ---- Payment method colour palette (categorical legend, not status) ---- */
 .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }

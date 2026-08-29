@@ -884,7 +884,21 @@ All rounding uses `ROUND_HALF_UP` to 2 decimal places (matches JS
 ### Item Codes
 Auto-generated from the cloth type when an item is created:
 `SHT-001` (Shirting, first item), `SUT-003` (Suiting, third item),
-`OTH-001` (Stitching or any other type). Sequential per prefix.
+`OTH-001` (Stitching or any other type). Sequential per prefix, stored as
+a `UNIQUE` column.
+
+### Inventory Sections (UI)
+The inventory page is split into collapsible sections, each with its own
+table:
+
+| Section | Shows items with cloth_type |
+|---|---|
+| Shirting | Shirting |
+| Suiting | Suiting |
+| Readymade | Readymade |
+| Gift Sets | Gift Sets |
+| Accessories | Accessories |
+| Others | Anything else (Stitching, custom, etc.) |
 
 ### Stock Operations
 | Operation | When | Transaction Type |
@@ -1233,6 +1247,17 @@ Setup, in the [Cloudflare dashboard](https://dash.cloudflare.com/):
 Photos already on local disk keep working after this is turned on — only
 new uploads go to R2. Deleting a photo removes it from wherever it's
 actually stored.
+
+**Shrinking oversized archived photos** — the Drive-archive import
+(`scripts/import_drive_measurements.py`) renders PDF scans straight to
+JPEG with no size/quality cap, unlike a normal in-app upload (longest side
+capped at 1400px, JPEG quality 82 — see `MAX_PHOTO_DIM` /
+`PHOTO_JPEG_QUALITY` in `routes/tailoring.py`). `scripts/shrink_r2_photos.py`
+re-applies that resize/re-encode to any DB-referenced photo still ≥500KB on
+R2, overwriting it in place under the same filename (no DB rows change).
+Dry run: `python scripts/shrink_r2_photos.py`; apply: add `--apply`. Safe
+to re-run any number of times — each run only touches objects currently
+≥500KB, so it resumes where it left off with no state to track.
 
 ## 24. Deployment (PythonAnywhere)
 
