@@ -44,3 +44,15 @@ function istToday() {
 /* Loyalty tier display maps — mirror TIERS in services/loyalty.py */
 const TIER_CSS   = { silver: 'tier-silver', gold: 'tier-gold', platinum: 'tier-platinum', diamond: 'tier-diamond' };
 const TIER_LABEL = { silver: 'Silver', gold: 'Gold', platinum: 'Platinum', diamond: 'Diamond' };
+
+/* Chrome/Edge/Firefox silently step a focused <input type="number">'s value on
+   mouse-wheel scroll (MRP, cost price, qty, etc.) — an operator just scrolling
+   the page past the field corrupts it. Blur the field on wheel so the browser's
+   default step action, which only applies while focused, doesn't fire; not
+   calling preventDefault() means the page still scrolls normally. */
+document.addEventListener('wheel', function (e) {
+  const el = e.target;
+  if (el.tagName === 'INPUT' && el.type === 'number' && document.activeElement === el) {
+    el.blur();
+  }
+}, { passive: true });
