@@ -5,6 +5,7 @@
 let allItems = [];
 let selectMode = false;
 const selectedIds = new Set();
+let lastSelectedId = null;
 let baGroupCounter = 0;
 let baRowCounters  = {};
 let csGroupCounter = 0;
@@ -979,7 +980,7 @@ function renderSections(items) {
     const rows = sectionItems.map(item => {
       const code = item.item_code || `#${item.id}`;
       const selectCell = selectMode
-        ? `<td style="text-align:center;"><input type="checkbox" class="row-select" data-id="${item.id}" onchange="onRowSelect(${item.id}, this.checked)" ${selectedIds.has(item.id) ? 'checked' : ''} aria-label="Select for label printing" /></td>`
+        ? `<td style="text-align:center;"><input type="checkbox" class="row-select" data-id="${item.id}" onclick="onRowSelectClick(event, ${item.id})" ${selectedIds.has(item.id) ? 'checked' : ''} aria-label="Select for label printing" /></td>`
         : '';
       const stockClass = item.current_stock < 0
         ? 'style="color:var(--danger);font-weight:700;"'
@@ -1161,6 +1162,7 @@ function filterItems() {
 // ----------------------------------------------------------------
 function toggleSelectMode() {
   selectMode = !selectMode;
+  lastSelectedId = null;
   if (!selectMode) selectedIds.clear();
 
   document.getElementById('select-toggle-label').textContent = selectMode ? 'Done' : 'Select';
@@ -1172,9 +1174,30 @@ function toggleSelectMode() {
   updateLabelBar();
 }
 
-function onRowSelect(id, checked) {
-  if (checked) selectedIds.add(id);
-  else selectedIds.delete(id);
+function onRowSelectClick(evt, id) {
+  const checked = evt.target.checked;
+
+  // Shift-click selects/deselects every row between the last clicked
+  // checkbox and this one, in on-screen order (spans section boundaries).
+  if (evt.shiftKey && lastSelectedId !== null) {
+    const boxes   = [...document.querySelectorAll('input.row-select')];
+    const ids     = boxes.map(cb => parseInt(cb.dataset.id));
+    const lastIdx = ids.indexOf(lastSelectedId);
+    const curIdx  = ids.indexOf(id);
+    if (lastIdx !== -1 && curIdx !== -1) {
+      const [start, end] = lastIdx < curIdx ? [lastIdx, curIdx] : [curIdx, lastIdx];
+      for (let i = start; i <= end; i++) {
+        boxes[i].checked = checked;
+        if (checked) selectedIds.add(ids[i]);
+        else selectedIds.delete(ids[i]);
+      }
+    }
+  } else {
+    if (checked) selectedIds.add(id);
+    else selectedIds.delete(id);
+  }
+
+  lastSelectedId = id;
   syncSectionHeaderChecks();
   updateLabelBar();
 }
@@ -1208,6 +1231,7 @@ function updateLabelBar() {
 
 function clearLabelSelection() {
   selectedIds.clear();
+  lastSelectedId = null;
   document.querySelectorAll('input.row-select').forEach(cb => { cb.checked = false; });
   syncSectionHeaderChecks();
   updateLabelBar();
