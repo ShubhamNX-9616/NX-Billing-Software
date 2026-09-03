@@ -40,8 +40,8 @@ def _generate_label_png(item):
     try:
         font_lbl     = ImageFont.truetype(regular, 20) if regular else ImageFont.load_default()
         font_val     = ImageFont.truetype(bold,    28) if bold    else ImageFont.load_default()
-        font_lbl_big = ImageFont.truetype(regular, 24) if regular else ImageFont.load_default()
-        font_val_big = ImageFont.truetype(bold,    40) if bold    else ImageFont.load_default()
+        font_lbl_big = ImageFont.truetype(regular, 26) if regular else ImageFont.load_default()
+        font_val_big = ImageFont.truetype(bold,    44) if bold    else ImageFont.load_default()
     except Exception:
         font_lbl = font_val = font_lbl_big = font_val_big = ImageFont.load_default()
 
@@ -101,14 +101,14 @@ def _generate_label_png(item):
 
     tx    = div_x + PAD
     avail = H - 2 * M
-    weights     = [1.5 if emph else 1.0 for _, _, emph in fields]
+    weights     = [1.65 if emph else 1.0 for _, _, emph in fields]
     unit_h      = avail / sum(weights)
     row_heights = [round(w * unit_h) for w in weights]
     row_heights[-1] += avail - sum(row_heights)
 
     y = M
     for (lbl, val, emph), rh in zip(fields, row_heights):
-        lf, vf, voff = (font_lbl_big, font_val_big, 28) if emph else (font_lbl, font_val, 22)
+        lf, vf, voff = (font_lbl_big, font_val_big, 30) if emph else (font_lbl, font_val, 22)
         draw.text((tx, y + 2),        lbl + ":", font=lf, fill="#999999")
         draw.text((tx, y + 2 + voff), val,       font=vf, fill="#111111")
         y += rh
@@ -152,8 +152,8 @@ def _generate_cs_label_png(qr_text, cloth_type, company_name, quality_number,
     try:
         font_lbl     = ImageFont.truetype(regular, 20) if regular else ImageFont.load_default()
         font_val     = ImageFont.truetype(bold,    28) if bold    else ImageFont.load_default()
-        font_lbl_big = ImageFont.truetype(regular, 24) if regular else ImageFont.load_default()
-        font_val_big = ImageFont.truetype(bold,    40) if bold    else ImageFont.load_default()
+        font_lbl_big = ImageFont.truetype(regular, 26) if regular else ImageFont.load_default()
+        font_val_big = ImageFont.truetype(bold,    44) if bold    else ImageFont.load_default()
     except Exception:
         font_lbl = font_val = font_lbl_big = font_val_big = ImageFont.load_default()
 
@@ -187,14 +187,14 @@ def _generate_cs_label_png(qr_text, cloth_type, company_name, quality_number,
 
     tx    = div_x + PAD
     avail = H - 2 * M
-    weights     = [1.5 if emph else 1.0 for _, _, emph in fields]
+    weights     = [1.65 if emph else 1.0 for _, _, emph in fields]
     unit_h      = avail / sum(weights)
     row_heights = [round(w * unit_h) for w in weights]
     row_heights[-1] += avail - sum(row_heights)
 
     y = M
     for (lbl, val, emph), rh in zip(fields, row_heights):
-        lf, vf, voff = (font_lbl_big, font_val_big, 28) if emph else (font_lbl, font_val, 22)
+        lf, vf, voff = (font_lbl_big, font_val_big, 30) if emph else (font_lbl, font_val, 22)
         draw.text((tx, y + 2),        lbl + ":", font=lf, fill="#999999")
         draw.text((tx, y + 2 + voff), val,       font=vf, fill="#111111")
         y += rh
