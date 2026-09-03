@@ -38,10 +38,12 @@ def _generate_label_png(item):
         "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf",
     )
     try:
-        font_lbl = ImageFont.truetype(regular, 20) if regular else ImageFont.load_default()
-        font_val = ImageFont.truetype(bold,    28) if bold    else ImageFont.load_default()
+        font_lbl     = ImageFont.truetype(regular, 20) if regular else ImageFont.load_default()
+        font_val     = ImageFont.truetype(bold,    28) if bold    else ImageFont.load_default()
+        font_lbl_big = ImageFont.truetype(regular, 24) if regular else ImageFont.load_default()
+        font_val_big = ImageFont.truetype(bold,    40) if bold    else ImageFont.load_default()
     except Exception:
-        font_lbl = font_val = ImageFont.load_default()
+        font_lbl = font_val = font_lbl_big = font_val_big = ImageFont.load_default()
 
     code_text    = item["item_code"] or f"#{item['id']}"
     special_code = (item.get("special_code") or "").strip()
@@ -86,21 +88,30 @@ def _generate_label_png(item):
     unit  = item["unit_label"] or "m"
     rupee = "Rs." if not regular or "segoe" not in regular.lower() else "₹"
 
+    # (label, value, emphasized) — ID and MRP get bigger text; the label's
+    # own 64x34mm size never changes, only how its fixed height is split.
     fields = [
-        ("ID",      code_text),
-        ("Item",    item["item_name"] or "—"),
-        ("Company", item["company_name"] or "—"),
-        ("Quality/Shade", "/".join(filter(None, [item.get("quality_number") or None, item.get("shade_number") or None])) or "—"),
-        ("MRP",     f"{rupee}{float(mrp):.2f} / {unit}"),
-        ("Length",  f"{float(stock):.2f} {unit}"),
+        ("ID",      code_text, True),
+        ("Item",    item["item_name"] or "—", False),
+        ("Company", item["company_name"] or "—", False),
+        ("Quality/Shade", "/".join(filter(None, [item.get("quality_number") or None, item.get("shade_number") or None])) or "—", False),
+        ("MRP",     f"{rupee}{float(mrp):.2f} / {unit}", True),
+        ("Length",  f"{float(stock):.2f} {unit}", False),
     ]
 
-    tx     = div_x + PAD
-    line_h = (H - 2 * M) // len(fields)
-    for idx, (lbl, val) in enumerate(fields):
-        y = M + idx * line_h
-        draw.text((tx, y + 2),      lbl + ":", font=font_lbl, fill="#999999")
-        draw.text((tx, y + 2 + 22), val,       font=font_val, fill="#111111")
+    tx    = div_x + PAD
+    avail = H - 2 * M
+    weights     = [1.5 if emph else 1.0 for _, _, emph in fields]
+    unit_h      = avail / sum(weights)
+    row_heights = [round(w * unit_h) for w in weights]
+    row_heights[-1] += avail - sum(row_heights)
+
+    y = M
+    for (lbl, val, emph), rh in zip(fields, row_heights):
+        lf, vf, voff = (font_lbl_big, font_val_big, 28) if emph else (font_lbl, font_val, 22)
+        draw.text((tx, y + 2),        lbl + ":", font=lf, fill="#999999")
+        draw.text((tx, y + 2 + voff), val,       font=vf, fill="#111111")
+        y += rh
 
     buf = io.BytesIO()
     label.save(buf, format="PNG", dpi=(DPI, DPI))
@@ -139,10 +150,12 @@ def _generate_cs_label_png(qr_text, cloth_type, company_name, quality_number,
         "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf",
     )
     try:
-        font_lbl = ImageFont.truetype(regular, 20) if regular else ImageFont.load_default()
-        font_val = ImageFont.truetype(bold,    28) if bold    else ImageFont.load_default()
+        font_lbl     = ImageFont.truetype(regular, 20) if regular else ImageFont.load_default()
+        font_val     = ImageFont.truetype(bold,    28) if bold    else ImageFont.load_default()
+        font_lbl_big = ImageFont.truetype(regular, 24) if regular else ImageFont.load_default()
+        font_val_big = ImageFont.truetype(bold,    40) if bold    else ImageFont.load_default()
     except Exception:
-        font_lbl = font_val = ImageFont.load_default()
+        font_lbl = font_val = font_lbl_big = font_val_big = ImageFont.load_default()
 
     qr = qrcode.QRCode(error_correction=qrcode.constants.ERROR_CORRECT_M, border=1)
     qr.add_data(qr_text)
@@ -161,21 +174,30 @@ def _generate_cs_label_png(qr_text, cloth_type, company_name, quality_number,
 
     rupee = "Rs." if not regular or "segoe" not in regular.lower() else "₹"
 
+    # (label, value, emphasized) — MRP gets bigger text; the label's own
+    # 64x34mm size never changes, only how its fixed height is split.
     fields = [
-        ("Cloth",   cloth_type or "—"),
-        ("Company", company_name or "—"),
-        ("Item",    item_name or "—"),
-        ("Quality", quality_number or "—"),
-        ("Shade",   shade_number or "—"),
-        ("MRP",     f"{rupee}{float(mrp):.2f} / {unit_label or 'm'}"),
+        ("Cloth",   cloth_type or "—", False),
+        ("Company", company_name or "—", False),
+        ("Item",    item_name or "—", False),
+        ("Quality", quality_number or "—", False),
+        ("Shade",   shade_number or "—", False),
+        ("MRP",     f"{rupee}{float(mrp):.2f} / {unit_label or 'm'}", True),
     ]
 
-    tx     = div_x + PAD
-    line_h = (H - 2 * M) // len(fields)
-    for idx, (lbl, val) in enumerate(fields):
-        y = M + idx * line_h
-        draw.text((tx, y + 2),      lbl + ":", font=font_lbl, fill="#999999")
-        draw.text((tx, y + 2 + 22), val,       font=font_val, fill="#111111")
+    tx    = div_x + PAD
+    avail = H - 2 * M
+    weights     = [1.5 if emph else 1.0 for _, _, emph in fields]
+    unit_h      = avail / sum(weights)
+    row_heights = [round(w * unit_h) for w in weights]
+    row_heights[-1] += avail - sum(row_heights)
+
+    y = M
+    for (lbl, val, emph), rh in zip(fields, row_heights):
+        lf, vf, voff = (font_lbl_big, font_val_big, 28) if emph else (font_lbl, font_val, 22)
+        draw.text((tx, y + 2),        lbl + ":", font=lf, fill="#999999")
+        draw.text((tx, y + 2 + voff), val,       font=vf, fill="#111111")
+        y += rh
 
     buf = io.BytesIO()
     label.save(buf, format="PNG", dpi=(DPI, DPI))
