@@ -89,6 +89,7 @@ function setupPaymentTabs() {
       btn.classList.add('active');
       currentMode = btn.dataset.mode;
       onPaymentModeChange(currentMode);
+      markPostSaveDirty();
     });
   });
 }
