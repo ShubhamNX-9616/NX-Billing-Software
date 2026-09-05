@@ -525,8 +525,8 @@ function armPostSaveEditing() {
 
   ['input', 'change'].forEach(evt => {
     document.addEventListener(evt, e => {
-      // Modals (payment update, add company/cloth type) and the action bar
-      // manage their own saving — typing there is not a bill edit.
+      // Modals (add company/cloth type, etc.) and the action bar manage
+      // their own saving — typing there is not a bill edit.
       if (!e.target || !e.target.closest) return;
       if (e.target.closest('.modal-overlay, .bill-submit-bar')) return;
       markPostSaveDirty();

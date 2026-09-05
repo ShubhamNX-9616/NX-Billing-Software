@@ -533,64 +533,6 @@ def update_bill(bill_id):
         return jsonify({"error": str(e)}), 500
 
 
-# ---------------------------------------------------------------------------
-# PATCH /api/bills/<id>/payment
-# ---------------------------------------------------------------------------
-@bills_bp.route("/bills/<int:bill_id>/payment", methods=["PATCH"])
-@api_admin_required
-def update_bill_payment(bill_id):
-    db = None
-    try:
-        body = request.get_json(force=True, silent=True) or {}
-        payment_mode_type = (body.get("payment_mode_type") or "").strip()
-        payments = body.get("payments", [])
-
-        if payment_mode_type not in VALID_PAYMENT_MODES:
-            return jsonify({"error": f"payment_mode_type must be one of {sorted(VALID_PAYMENT_MODES)}"}), 400
-        if not payments or not isinstance(payments, list):
-            return jsonify({"error": "payments array cannot be empty"}), 400
-
-        db = get_db()
-        bill = db.execute("SELECT * FROM bills WHERE id = ?", (bill_id,)).fetchone()
-        if not bill:
-            return jsonify({"error": "Bill not found"}), 404
-
-        advance_paid = float(bill["advance_paid"] or 0)
-        final_total  = float(bill["final_total"]  or 0)
-        payment_total = advance_paid if advance_paid > 0 else final_total
-        validate_payments(payments, payment_total)
-
-        db.execute("DELETE FROM bill_payments WHERE bill_id = ?", (bill_id,))
-        db.executemany(
-            "INSERT INTO bill_payments (bill_id, payment_method, amount) VALUES (?, ?, ?)",
-            [(bill_id, p["payment_method"], float(p["amount"])) for p in payments],
-        )
-        db.execute(
-            f"""
-            UPDATE bills SET
-                payment_mode_type = ?,
-                updated_at = {IST_NOW}
-            WHERE id = ?
-            """,
-            (payment_mode_type, bill_id),
-        )
-        db.commit()
-        return jsonify({
-            "id": bill_id,
-            "payment_mode_type": payment_mode_type,
-            "payments": payments,
-        }), 200
-    except ValueError as e:
-        return jsonify({"error": str(e)}), 400
-    except Exception as e:
-        if db:
-            try:
-                db.rollback()
-            except Exception:
-                pass
-        return jsonify({"error": str(e)}), 500
-
-
 def _renumber_bills_after_delete(db, deleted_num, bill_fy):
     """Shift bill numbers down by 1 for all bills in the same FY above the deleted sequence number."""
     if bill_fy:
