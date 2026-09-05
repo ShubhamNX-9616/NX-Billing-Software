@@ -66,6 +66,12 @@ async function onClothChange(id) {
     return;
   }
 
+  // Take over the generation counter so a still-in-flight onClothChangeRestoring
+  // call (e.g. the auto-load for the row's default cloth type) can't clobber
+  // this selection once its fetch resolves.
+  clothChangeGen[id] = (clothChangeGen[id] || 0) + 1;
+  const myGen = clothChangeGen[id];
+
   sel.dataset.prev = clothType;
 
   const ct       = clothTypes.find(t => t.type_name === clothType);
@@ -93,6 +99,10 @@ async function onClothChange(id) {
 
   compSel.innerHTML = '<option value="">Loading…</option>';
   const list = await fetchCompanies(clothType);
+
+  // Bail if a newer call has taken over for this row (prevents stale results overwriting the correct company)
+  if (clothChangeGen[id] !== myGen) return;
+
   rebuildCompanySelect(compSel, list, '');
   recalcRow(id);
 }
