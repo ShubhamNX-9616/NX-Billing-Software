@@ -1191,9 +1191,13 @@ def build_suit_report_entries(today, tomorrow_s):
         return e
 
     overdue = [entry(o, "overdue") for o in open_orders if _is_overdue(o, today_s)]
+    deliveries_today = [entry(o, "delivery") for o in open_orders
+                        if o["delivery_date"] == today_s
+                        and o["stage"] not in ("Full Stitched",)]
     deliveries = [entry(o, "delivery") for o in open_orders
                   if o["delivery_date"] == tomorrow_s
                   and o["stage"] not in ("Full Stitched",)]
     trials = [entry(o, "trial") for o in open_orders if o["trial_date"] == tomorrow_s]
 
-    return {"overdue": overdue, "deliveries": deliveries, "trials": trials}
+    return {"overdue": overdue, "deliveries_today": deliveries_today,
+            "deliveries": deliveries, "trials": trials}

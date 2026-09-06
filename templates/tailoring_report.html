@@ -21,9 +21,10 @@
       font-size: 14px; text-transform: uppercase; letter-spacing: .05em;
       padding: 6px 10px; border-radius: var(--radius-sm); margin-bottom: 8px;
     }
-    .section.overdue > h2   { background: var(--danger-bg); color: var(--danger-fg); }
-    .section.delivery > h2  { background: var(--info-bg); color: var(--info-fg); }
-    .section.trial > h2     { background: var(--warning-bg); color: var(--warning-fg); }
+    .section.overdue > h2        { background: var(--danger-bg); color: var(--danger-fg); }
+    .section.delivery-today > h2 { background: var(--success-bg); color: var(--success-fg); }
+    .section.delivery > h2       { background: var(--info-bg); color: var(--info-fg); }
+    .section.trial > h2          { background: var(--warning-bg); color: var(--warning-fg); }
 
     .order { padding: 8px 4px 10px; border-bottom: 1px dashed var(--border-strong); }
     .order:last-child { border-bottom: none; }
@@ -89,8 +90,8 @@
       <div class="sub">For <b>{{ tomorrow | format_date }}</b> · prepared {{ today | format_date }}</div>
     </div>
 
-    {% if not overdue and not deliveries and not trials %}
-    <div class="all-clear">{{ icon('check-circle', 18) }}Nothing pending — no overdue work and nothing due tomorrow.</div>
+    {% if not overdue and not deliveries_today and not deliveries and not trials %}
+    <div class="all-clear">{{ icon('check-circle', 18) }}Nothing pending — no overdue work and nothing due today or tomorrow.</div>
     {% endif %}
 
     {% macro order_block(e, show_late=False) %}
@@ -137,6 +138,13 @@
     </div>
     {% endif %}
 
+    {% if deliveries_today %}
+    <div class="section delivery-today">
+      <h2>{{ icon('box', 15) }}Delivery today ({{ deliveries_today | length }})</h2>
+      {% for e in deliveries_today %}{{ order_block(e) }}{% endfor %}
+    </div>
+    {% endif %}
+
     {% if deliveries %}
     <div class="section delivery">
       <h2>{{ icon('box', 15) }}Delivery tomorrow ({{ deliveries | length }})</h2>
@@ -159,6 +167,7 @@
     const SHARE_BASE_URL = {{ (share_base_url or '') | tojson }};
     const COUNTS = {
       overdue: {{ overdue | length }},
+      deliveries_today: {{ deliveries_today | length }},
       deliveries: {{ deliveries | length }},
       trials: {{ trials | length }},
     };
@@ -166,10 +175,11 @@
     function waText() {
       const L = ['*Tailor Work Report* — for ' + TOMORROW, ''];
       if (COUNTS.overdue) L.push('🔴 Overdue: ' + COUNTS.overdue);
+      if (COUNTS.deliveries_today) L.push('📦 Delivery today: ' + COUNTS.deliveries_today);
       if (COUNTS.deliveries) L.push('📦 Delivery tomorrow: ' + COUNTS.deliveries);
       if (COUNTS.trials) L.push('👕 Trial tomorrow: ' + COUNTS.trials);
-      if (!COUNTS.overdue && !COUNTS.deliveries && !COUNTS.trials) {
-        L.push('Nothing pending — no overdue work and nothing due tomorrow. 🎉');
+      if (!COUNTS.overdue && !COUNTS.deliveries_today && !COUNTS.deliveries && !COUNTS.trials) {
+        L.push('Nothing pending — no overdue work and nothing due today or tomorrow. 🎉');
       } else {
         L.push('');
         L.push('Open the full report (with photos):');

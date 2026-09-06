@@ -1253,6 +1253,9 @@ def _build_report_data():
         return e
 
     overdue = [entry(o, "overdue") for o in open_orders if _is_overdue(o, today_s)]
+    deliveries_today = [entry(o, "delivery") for o in open_orders
+                        if o["delivery_date"] == today_s
+                        and o["stage"] not in ("Full Stitched",)]
     deliveries = [entry(o, "delivery") for o in open_orders
                   if o["delivery_date"] == tomorrow_s
                   and o["stage"] not in ("Full Stitched",)]
@@ -1263,11 +1266,12 @@ def _build_report_data():
     # book — fold its overdue/tomorrow work in here rather than as its own page.
     suit_data = build_suit_report_entries(today, tomorrow_s)
     overdue = sorted(overdue + suit_data["overdue"], key=lambda e: e["delivery_date"])
+    deliveries_today = deliveries_today + suit_data["deliveries_today"]
     deliveries = deliveries + suit_data["deliveries"]
     trials = trials + suit_data["trials"]
 
-    return {"overdue": overdue, "deliveries": deliveries, "trials": trials,
-            "today": today_s, "tomorrow": tomorrow_s}
+    return {"overdue": overdue, "deliveries_today": deliveries_today, "deliveries": deliveries,
+            "trials": trials, "today": today_s, "tomorrow": tomorrow_s}
 
 
 @tailoring_pages_bp.route("/tailoring/report")
