@@ -41,6 +41,22 @@ function istToday() {
   return `${ist.getFullYear()}-${String(ist.getMonth() + 1).padStart(2, '0')}-${String(ist.getDate()).padStart(2, '0')}`;
 }
 
+/* istToday() trusts the operator's own PC clock, which can be wrong (a dead
+   CMOS battery is a classic cause — it freezes the date at whatever it read
+   when the machine was last powered off, until Windows resyncs over the
+   network). That shows up as the first bill of the day carrying yesterday's
+   date. Call this right after seeding a date field from istToday() so it
+   gets corrected against the server's own clock when the two disagree;
+   fails silently, leaving the client-computed value in place, if the
+   request errors. */
+async function refreshDateFromServer(inputId) {
+  try {
+    const res  = await fetch('/api/server-date');
+    const data = await res.json();
+    if (data.date) document.getElementById(inputId).value = data.date;
+  } catch (_) { /* keep the client-computed default */ }
+}
+
 /* Loyalty tier display maps — mirror TIERS in services/loyalty.py */
 const TIER_CSS   = { silver: 'tier-silver', gold: 'tier-gold', platinum: 'tier-platinum', diamond: 'tier-diamond' };
 const TIER_LABEL = { silver: 'Silver', gold: 'Gold', platinum: 'Platinum', diamond: 'Diamond' };

@@ -28,6 +28,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     await loadInstBillForEdit(window.INST_BILL_ID);
   } else {
     document.getElementById('inst-bill-date').value = istToday();
+    refreshDateFromServer('inst-bill-date');
     addInstItem();
     updateInstSummary();
   }
@@ -792,6 +793,7 @@ function resetInstForm() {
   const salSel = document.getElementById('inst-salesperson');
   salSel.value = instSalespersons.some(s => s.name === 'Self') ? 'Self' : '';
   document.getElementById('inst-bill-date').value = istToday();
+  refreshDateFromServer('inst-bill-date');
   document.getElementById('inst-advance-paid').value = '';
   document.getElementById('inst-payment-amount').value = '';
 

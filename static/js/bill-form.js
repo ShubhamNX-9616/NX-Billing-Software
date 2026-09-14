@@ -611,7 +611,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     await prefillEditForm();
   } else {
     document.getElementById('bill-date').value = todayISO();
-    await Promise.all([loadNextBillNumber(), loadClothTypes(), loadSalespersons()]);
+    await Promise.all([loadNextBillNumber(), loadClothTypes(), loadSalespersons(), refreshDateFromServer('bill-date')]);
     addItemRow();
   }
   setupMobileSearch();

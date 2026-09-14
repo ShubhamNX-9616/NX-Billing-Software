@@ -60,6 +60,21 @@ def get_next_bill_number():
         return jsonify({"error": str(e)}), 500
 
 
+# The new-bill form defaults its date field from the operator's own PC clock
+# (see istToday() in common.js) so it works with no network round trip. That
+# clock can be wrong — a dead CMOS battery is a classic cause, freezing the
+# date at whatever it read last time the machine was powered off — and it's
+# always the first bill of the day that shows it, since a later save on the
+# same page carries the date forward correctly. This endpoint hands back the
+# server's own IST calendar day so the client can self-correct against it.
+@bills_bp.route("/server-date", methods=["GET"])
+@api_login_required
+def get_server_date():
+    from datetime import datetime, timezone, timedelta
+    today = datetime.now(timezone(timedelta(hours=5, minutes=30))).strftime("%Y-%m-%d")
+    return jsonify({"date": today})
+
+
 @bills_bp.route("/bills", methods=["GET"])
 @api_admin_required
 def get_bills():
