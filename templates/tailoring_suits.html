@@ -189,6 +189,7 @@
             <option value="">— select —</option>
             <option value="Phone Pay">Phone Pay</option>
             <option value="Cash">Cash</option>
+            <option value="Card">Card</option>
             <option value="Combination">Combination</option>
           </select>
         </div>
@@ -270,6 +271,7 @@
     apiBase: '/api/tailoring/suits',
     sharePath: '/tailoring/suits/share',
     hasBookNo: true,
+    hasCardPayment: true,
   };
 </script>
 <script src="{{ url_for('static', filename='js/tailoring.js') }}?v={{ sv }}"></script>

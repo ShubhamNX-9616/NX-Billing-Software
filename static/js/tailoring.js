@@ -10,6 +10,7 @@ const TL_CFG = window.TL_CONFIG || {};
 const TL_API = TL_CFG.apiBase || '/api/tailoring';
 const TL_SHARE_PATH = TL_CFG.sharePath || '/tailoring/share';
 const TL_HAS_BOOK_NO = !!TL_CFG.hasBookNo;
+const TL_HAS_CARD_PAYMENT = !!TL_CFG.hasCardPayment;
 
 let TL_STAGES = [];
 let TL_GARMENTS = [];
@@ -1034,6 +1035,7 @@ function renderPaymentModal(o) {
         <option value="" ${!o.payment_mode ? 'selected' : ''}>— mode —</option>
         <option value="Phone Pay" ${o.payment_mode === 'Phone Pay' ? 'selected' : ''}>Phone Pay</option>
         <option value="Cash" ${o.payment_mode === 'Cash' ? 'selected' : ''}>Cash</option>
+        ${TL_HAS_CARD_PAYMENT ? `<option value="Card" ${o.payment_mode === 'Card' ? 'selected' : ''}>Card</option>` : ''}
         <option value="Combination" ${o.payment_mode === 'Combination' ? 'selected' : ''}>Combination</option>
       </select>
       <span id="tl-pay-single" style="display:${o.payment_mode === 'Combination' ? 'none' : 'inline-flex'};">
