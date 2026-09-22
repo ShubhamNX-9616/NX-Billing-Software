@@ -1046,6 +1046,9 @@ function renderPaymentModal(o) {
         <input type="number" class="input" id="tl-pay-cash" placeholder="Cash amount" style="max-width:130px;" min="0" />
         <input type="number" class="input" id="tl-pay-upi" placeholder="UPI (Phone Pay) amount" style="max-width:160px;" min="0" />
       </span>
+      <span style="font-size:14px;">Date:</span>
+      <input type="date" class="input" id="tl-pay-date" style="max-width:150px;"
+             value="${new Date().toLocaleDateString('en-CA')}" aria-label="Payment date" />
       <button type="button" class="btn btn-secondary btn-sm" onclick="recordPayment()">Save Payment</button>
     </div>` : ''}`;
 }
@@ -1137,6 +1140,7 @@ function onPayModeChange() {
 async function recordPayment() {
   if (!tlDetailOrderId) return;
   const mode = document.getElementById('tl-pay-mode').value;
+  const paid_at = document.getElementById('tl-pay-date').value;
 
   if (mode === 'Combination') {
     const cash = parseFloat(document.getElementById('tl-pay-cash').value) || 0;
@@ -1151,14 +1155,14 @@ async function recordPayment() {
         o = await tlFetch(`${TL_API}/orders/${tlDetailOrderId}/payments`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ amount: cash, mode: 'Cash' }),
+          body: JSON.stringify({ amount: cash, mode: 'Cash', paid_at }),
         });
       }
       if (upi > 0) {
         o = await tlFetch(`${TL_API}/orders/${tlDetailOrderId}/payments`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ amount: upi, mode: 'Phone Pay' }),
+          body: JSON.stringify({ amount: upi, mode: 'Phone Pay', paid_at }),
         });
       }
       // Both legs recorded under their real mode (for an accurate history);
@@ -1184,7 +1188,7 @@ async function recordPayment() {
     const o = await tlFetch(`${TL_API}/orders/${tlDetailOrderId}/payments`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ amount, mode }),
+      body: JSON.stringify({ amount, mode, paid_at }),
     });
     renderDetail(o);
     loadOrders();

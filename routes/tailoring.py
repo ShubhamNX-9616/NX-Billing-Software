@@ -962,6 +962,7 @@ def record_payment(order_id):
         if amount <= 0:
             return jsonify({"error": "Amount must be greater than zero"}), 400
         mode = (body.get("mode") or "").strip() or None
+        paid_at = (body.get("paid_at") or "").strip() or _today_ist()
 
         final_total = _final_total(row["total"], row["cloth_balance"])
         new_advance = round(row["advance"] + amount, 2)
@@ -971,8 +972,8 @@ def record_payment(order_id):
                 f"more than the order total ₹{final_total:.2f}"}), 400
 
         db.execute(
-            "INSERT INTO tailoring_payments (order_id, amount, mode) VALUES (?, ?, ?)",
-            (order_id, amount, mode),
+            "INSERT INTO tailoring_payments (order_id, amount, mode, paid_at) VALUES (?, ?, ?, ?)",
+            (order_id, amount, mode, paid_at),
         )
         db.execute(
             f"""UPDATE tailoring_orders
