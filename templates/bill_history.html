@@ -294,6 +294,23 @@
 .row-menu-warn  { color: var(--warning-fg); }
 .row-menu-danger { color: var(--danger); }
 .row-menu-divider { height: 1px; background: var(--border); margin: 4px 0; }
+
+/* Edit-in-menu entry: only needed on mobile, where the row's primary
+   View/Edit buttons are hidden (see .row-actions-primary below) — kept
+   out of the desktop dropdown since Edit is already an inline button there. */
+.row-menu-edit-mobile { display: none; }
+
+.row-actions-primary { display: inline-flex; gap: 6px; }
+
+@media (max-width: 768px) {
+  /* View/Edit as separate buttons don't fit next to the "..." trigger in
+     the narrow Actions column and wrap onto extra lines, ballooning every
+     row's height (vertical-align: middle then centres the whole row on
+     that inflated height). The row is already tap-to-view, so drop these
+     two and surface Edit through the "..." menu instead. */
+  .row-actions-primary { display: none; }
+  .row-menu-edit-mobile { display: block; }
+}
 </style>
 {% endblock %}
 

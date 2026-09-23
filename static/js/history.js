@@ -97,6 +97,12 @@ function renderTable(bills, titleText) {
             <svg class="ico" aria-hidden="true"><use href="#i-trash"/></svg> Delete
           </button>`
       : `
+          <div class="row-menu-edit-mobile">
+            <a href="/edit-bill/${b.id}" class="row-menu-item" onclick="closeRowMenu('menu-${b.id}'); event.stopPropagation();">
+              <svg class="ico" aria-hidden="true"><use href="#i-pencil"/></svg> Edit
+            </a>
+            <div class="row-menu-divider"></div>
+          </div>
           <a href="/bills/${b.id}?print=1" class="row-menu-item" target="_blank"
              onclick="event.stopPropagation()"><svg class="ico" aria-hidden="true"><use href="#i-printer"/></svg> Print</a>
           <button class="row-menu-item" onclick="copyBillShareLink('${b.bill_number}'); closeRowMenu('menu-${b.id}'); event.stopPropagation();">
@@ -117,7 +123,7 @@ function renderTable(bills, titleText) {
             onclick="event.stopPropagation()">Edit</a>`;
 
     const actionBtns = `
-      ${primaryBtns}
+      <span class="row-actions-primary">${primaryBtns}</span>
       <div class="row-menu-wrap" onclick="event.stopPropagation()">
         <button class="btn btn-secondary btn-sm row-menu-trigger"
                 onclick="toggleRowMenu('menu-${b.id}')" aria-label="Row actions">&#8943;</button>
@@ -593,7 +599,13 @@ function renderInstTable(bills, titleText) {
          <div class="row-menu-divider"></div>
          <button class="row-menu-item" onclick="instRestoreBill(${b.id}, '${b.bill_number}'); closeRowMenu('inst-menu-${b.id}'); event.stopPropagation();">&#10227; Restore Bill</button>
          <button class="row-menu-item row-menu-danger" onclick="instDeleteBill(${b.id}, '${b.bill_number}'); closeRowMenu('inst-menu-${b.id}'); event.stopPropagation();"><svg class="ico" aria-hidden="true"><use href="#i-trash"/></svg> Delete</button>`
-      : `<button class="row-menu-item" onclick="openInstInvoice(${b.id}); closeRowMenu('inst-menu-${b.id}'); event.stopPropagation();"><svg class="ico" aria-hidden="true"><use href="#i-printer"/></svg> Print Invoice</button>
+      : `<div class="row-menu-edit-mobile">
+           <a href="/edit-institution-bill/${b.id}" class="row-menu-item" onclick="closeRowMenu('inst-menu-${b.id}'); event.stopPropagation();">
+             <svg class="ico" aria-hidden="true"><use href="#i-pencil"/></svg> Edit
+           </a>
+           <div class="row-menu-divider"></div>
+         </div>
+         <button class="row-menu-item" onclick="openInstInvoice(${b.id}); closeRowMenu('inst-menu-${b.id}'); event.stopPropagation();"><svg class="ico" aria-hidden="true"><use href="#i-printer"/></svg> Print Invoice</button>
          <button class="row-menu-item" onclick="openInstPerformaInvoice(${b.id}); closeRowMenu('inst-menu-${b.id}'); event.stopPropagation();"><svg class="ico" aria-hidden="true"><use href="#i-printer"/></svg> Print Performa</button>
          <div class="row-menu-divider"></div>
          <button class="row-menu-item row-menu-warn" onclick="instCancelBill(${b.id}, '${b.bill_number}'); closeRowMenu('inst-menu-${b.id}'); event.stopPropagation();"><svg class="ico" aria-hidden="true"><use href="#i-x-circle"/></svg> Cancel Bill</button>
@@ -605,7 +617,7 @@ function renderInstTable(bills, titleText) {
          <a href="/edit-institution-bill/${b.id}" class="btn btn-secondary btn-sm" onclick="event.stopPropagation()">Edit</a>`;
 
     const actionBtns = `
-      ${primaryBtns}
+      <span class="row-actions-primary">${primaryBtns}</span>
       <div class="row-menu-wrap" onclick="event.stopPropagation()">
         <button class="btn btn-secondary btn-sm row-menu-trigger"
                 onclick="toggleRowMenu('inst-menu-${b.id}')" aria-label="Row actions">&#8943;</button>
