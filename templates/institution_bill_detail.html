@@ -202,23 +202,21 @@ function buildInstWhatsAppMessage(bill) {
   const remaining   = bill.remaining > 0    ? fmt(bill.remaining)    : null;
   const shareLink   = (window.SHARE_BASE_URL || window.location.origin) + '/institution-bill/share/' + bill.bill_number;
 
+  let amountLine = 'Amount: ' + total;
+  if (advance)   amountLine += '  |  Advance: ' + advance;
+  if (remaining) amountLine += '  |  Balance: ' + remaining + ' (pending)';
+
   const lines = [];
   lines.push('Dear ' + (bill.contact_person_name || bill.company_name) + ',');
   lines.push('');
   lines.push('Thank you for your business with *SHUBHAM NX*! 🙏');
   lines.push('');
-  lines.push('*Bill Details:*');
-  lines.push('Bill No : ' + bill.bill_number);
-  lines.push('Date    : ' + dateStr);
-  lines.push('Amount  : ' + total);
-  if (advance)   lines.push('Advance : ' + advance);
-  if (remaining) lines.push('Balance : ' + remaining + ' (pending)');
+  lines.push('Bill No: ' + bill.bill_number + '  |  ' + dateStr);
+  lines.push(amountLine);
   lines.push('');
-  lines.push('📄 View your bill here:');
-  lines.push(shareLink);
+  lines.push('📄 Bill: ' + shareLink);
   lines.push('');
-  lines.push('📍 ' + shopAddress);
-  lines.push('📞 ' + shopPhone);
+  lines.push('📍 ' + shopAddress + '  |  📞 ' + shopPhone);
   lines.push('');
   lines.push('We look forward to serving you again!');
   return lines.join('\n');

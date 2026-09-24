@@ -348,28 +348,25 @@
     const remaining = bill.remaining     > 0 ? fmt(bill.remaining)   : null;
     const shareLink = (window.SHARE_BASE_URL || window.location.origin) + '/bill/share/' + bill.bill_number;
 
+    let amountLine = 'Amount: ' + total;
+    if (advance)   amountLine += '  |  Advance: ' + advance;
+    if (remaining) amountLine += '  |  Balance: ' + remaining + ' (pending)';
+
     const lines = [];
     lines.push('Dear ' + (bill.customer_name_snapshot || 'Customer') + ',');
     lines.push('');
     lines.push('Thank you for shopping at *' + shopName + '*! 🙏');
     lines.push('');
-    lines.push('*Bill Details:*');
-    lines.push('Bill No : ' + bill.bill_number);
-    lines.push('Date    : ' + dateStr);
-    lines.push('Amount  : ' + total);
-    if (advance)   lines.push('Advance : ' + advance);
-    if (remaining) lines.push('Balance : ' + remaining + ' (pending)');
+    lines.push('Bill No: ' + bill.bill_number + '  |  ' + dateStr);
+    lines.push(amountLine);
     lines.push('');
-    lines.push('📄 View your bill here:');
-    lines.push(shareLink);
+    lines.push('📄 Bill: ' + shareLink);
+    lines.push('⭐ Review: https://maps.app.goo.gl/YjTCZZNLWwbjWZDH8');
+    lines.push('📸 Follow: https://www.instagram.com/shubham_nx_2016/');
     lines.push('');
-    lines.push('📍 ' + shopAddress);
-    lines.push('📞 ' + shopPhone);
+    lines.push('📍 ' + shopAddress + '  |  📞 ' + shopPhone);
     lines.push('');
-    lines.push('⭐ Loved your purchase? Please leave us a review:');
-    lines.push('https://maps.app.goo.gl/YjTCZZNLWwbjWZDH8');
-    lines.push('');
-    lines.push('We look forward to serving you again!');
+    lines.push('See you again soon!');
     return lines.join('\n');
   }
 
