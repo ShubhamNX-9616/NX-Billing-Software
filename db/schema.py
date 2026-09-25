@@ -415,6 +415,14 @@ def _m28_inst_advance_percent(conn):
         )
 
 
+def _m29_inst_company_gst(conn):
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(institution_bills)").fetchall()}
+    if "company_gst_number" not in cols:
+        conn.execute(
+            "ALTER TABLE institution_bills ADD COLUMN company_gst_number TEXT NOT NULL DEFAULT ''"
+        )
+
+
 def _m19_bill_payments_paid_at(conn):
     cols = {row[1] for row in conn.execute("PRAGMA table_info(bill_payments)").fetchall()}
     if "paid_at" not in cols:
@@ -574,6 +582,7 @@ MIGRATIONS = [
     (26, _m26_bill_search_indexes),
     (27, _m27_bills_customer_id_index),
     (28, _m28_inst_advance_percent),
+    (29, _m29_inst_company_gst),
 ]
 
 

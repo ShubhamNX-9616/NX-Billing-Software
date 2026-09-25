@@ -11,7 +11,6 @@ let instCurrentMode = 'Cash';
 let instAdvanceModified = false;
 let instComboLastChanged = null;
 let instClothTypes  = [];
-let instSalespersons = [];
 let instCompanyCache = {};
 let instAddClothTypeCtx = null;
 let instAddCompanyCtx   = null;
@@ -21,7 +20,7 @@ function fmt(v) { return '₹' + Number(v).toFixed(2); }
 
 // ---- Init ----
 document.addEventListener('DOMContentLoaded', async function () {
-  await Promise.all([loadInstClothTypes(), loadInstSalespersons()]);
+  await loadInstClothTypes();
   setupInstPaymentTabs();
 
   if (window.INST_BILL_ID) {
@@ -70,22 +69,6 @@ function refreshAllInstClothSelects() {
     sel.innerHTML    = buildInstClothOptions(cur);
     sel.dataset.prev = cur;
   });
-}
-
-async function loadInstSalespersons() {
-  try {
-    const res = await fetch('/api/salespersons');
-    const data = await res.json();
-    instSalespersons = data;
-    const sel = document.getElementById('inst-salesperson');
-    data.forEach(s => {
-      const opt = document.createElement('option');
-      opt.value = s.name;
-      opt.textContent = s.name;
-      sel.appendChild(opt);
-    });
-    if (data.some(s => s.name === 'Self')) sel.value = 'Self';
-  } catch (e) { console.error('Failed to load salespersons', e); }
 }
 
 // ---- Item rows ----
@@ -462,10 +445,10 @@ function collectInstData() {
   return {
     company_name:          document.getElementById('inst-company-name').value.trim(),
     company_address:       (document.getElementById('inst-company-address')?.value || '').trim(),
+    company_gst_number:    (document.getElementById('inst-company-gst')?.value || '').trim(),
     contact_person_name:   document.getElementById('inst-contact-person').value.trim(),
     contact_person_mobile: document.getElementById('inst-mobile').value.trim(),
     bill_date:             document.getElementById('inst-bill-date').value,
-    salesperson_name:      document.getElementById('inst-salesperson').value,
     payment_mode_type:     mode,
     advance_paid:          r2(parseFloat(document.getElementById('inst-advance-paid')?.value) || 0),
     advance_percent:       r2(parseFloat(document.getElementById('inst-advance-percent')?.value) || 0),
@@ -475,7 +458,7 @@ function collectInstData() {
 }
 
 function clearInstErrors() {
-  ['err-company','err-contact','err-mobile','err-salesperson','err-items','err-payment','err-advance','inst-save-error']
+  ['err-company','err-contact','err-mobile','err-items','err-payment','err-advance','inst-save-error']
     .forEach(id => { const el = document.getElementById(id); if (el) el.textContent = ''; });
 }
 
@@ -488,9 +471,6 @@ function validateInstData(data) {
   }
   if (data.contact_person_mobile && !/^[6-9]\d{9}$/.test(data.contact_person_mobile)) {
     document.getElementById('err-mobile').textContent = 'Enter a valid 10-digit mobile number.'; valid = false;
-  }
-  if (!data.salesperson_name) {
-    document.getElementById('err-salesperson').textContent = 'Salesperson is required.'; valid = false;
   }
   if (!data.items.length || data.items.every(i => i.no_of_pcs === 0)) {
     document.getElementById('err-items').textContent = 'Add at least one item with quantities.'; valid = false;
@@ -546,10 +526,11 @@ async function loadInstBillForEdit(billId) {
     document.getElementById('inst-company-name').value    = bill.company_name    || '';
     const addrEl = document.getElementById('inst-company-address');
     if (addrEl) addrEl.value                             = bill.company_address || '';
+    const gstEl = document.getElementById('inst-company-gst');
+    if (gstEl) gstEl.value                                = bill.company_gst_number || '';
     document.getElementById('inst-contact-person').value  = bill.contact_person_name || '';
     document.getElementById('inst-mobile').value          = bill.contact_person_mobile || '';
     document.getElementById('inst-bill-date').value       = bill.bill_date || '';
-    document.getElementById('inst-salesperson').value     = bill.salesperson_name || '';
 
     // Pre-fill payment mode
     const mode = bill.payment_mode_type || 'Cash';
@@ -681,7 +662,6 @@ function onInstSaveSuccess(bill) {
   document.getElementById('pr-contact').textContent     = bill.contact_person_name;
   document.getElementById('pr-mobile').textContent      = bill.contact_person_mobile;
   document.getElementById('pr-bill-number').textContent = bill.bill_number;
-  document.getElementById('pr-salesperson').textContent = bill.salesperson_name;
   document.getElementById('pr-date').textContent        = formatPrintDate(bill.bill_date);
   document.getElementById('pr-final-total').textContent = fmt(bill.final_total);
   document.getElementById('pr-advance-paid').textContent = fmt(bill.advance_paid);
@@ -791,12 +771,10 @@ function formatPrintDate(dateStr) {
 
 function resetInstForm() {
   // Reset form fields
-  ['inst-company-name','inst-company-address','inst-contact-person','inst-mobile'].forEach(id => {
+  ['inst-company-name','inst-company-address','inst-company-gst','inst-contact-person','inst-mobile'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
-  const salSel = document.getElementById('inst-salesperson');
-  salSel.value = instSalespersons.some(s => s.name === 'Self') ? 'Self' : '';
   document.getElementById('inst-bill-date').value = istToday();
   refreshDateFromServer('inst-bill-date');
   document.getElementById('inst-advance-paid').value = '';

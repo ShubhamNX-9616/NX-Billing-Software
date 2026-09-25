@@ -46,10 +46,10 @@
     <div class="detail-grid">
       <div class="detail-field"><label>Company Name</label><span id="d-company-name"></span></div>
       <div class="detail-field"><label>Company Address</label><span id="d-company-address"></span></div>
+      <div class="detail-field"><label>GST Number</label><span id="d-company-gst"></span></div>
       <div class="detail-field"><label>Contact Person</label><span id="d-contact-person"></span></div>
       <div class="detail-field"><label>Mobile</label><span id="d-mobile"></span></div>
       <div class="detail-field"><label>Bill Date</label><span id="d-bill-date"></span></div>
-      <div class="detail-field"><label>Salesperson</label><span id="d-salesperson"></span></div>
       <div class="detail-field"><label>Payment Mode</label><span id="d-payment-mode"></span></div>
     </div>
   </div>
@@ -256,10 +256,10 @@ function renderInstDetail(data) {
   document.getElementById('d-bill-number').textContent  = bill.bill_number;
   document.getElementById('d-company-name').textContent    = bill.company_name    || '—';
   document.getElementById('d-company-address').textContent = bill.company_address || '—';
+  document.getElementById('d-company-gst').textContent    = bill.company_gst_number || '—';
   document.getElementById('d-contact-person').textContent  = bill.contact_person_name || '—';
   document.getElementById('d-mobile').textContent        = bill.contact_person_mobile || '—';
   document.getElementById('d-bill-date').textContent     = bill.bill_date || '—';
-  document.getElementById('d-salesperson').textContent   = bill.salesperson_name;
   document.getElementById('d-payment-mode').textContent  = bill.payment_mode_type;
 
   document.getElementById('d-final-total').textContent  = fmt(bill.final_total);

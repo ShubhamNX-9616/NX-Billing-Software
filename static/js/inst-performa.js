@@ -131,7 +131,7 @@ function buildPerformaWindow(bill, items, payments, type, winRef) {
   <div class="company-block">
     <div>
       ${bill.company_name}<br/>
-      ${bill.company_address ? bill.company_address + '<br/>' : ''}${bill.contact_person_name || ''}
+      ${bill.company_address ? bill.company_address + '<br/>' : ''}${bill.company_gst_number ? 'GSTIN: ' + bill.company_gst_number + '<br/>' : ''}${bill.contact_person_name || ''}
     </div>
     <div class="company-meta">
       Date: ${date}${!isProforma ? `<br/>Invoice No: ${bill.bill_number}` : ''}

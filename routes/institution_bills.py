@@ -16,17 +16,16 @@ def create_institution_bill():
 
     company_name          = (body.get("company_name")          or "").strip()
     company_address       = (body.get("company_address")       or "").strip()
+    company_gst_number    = (body.get("company_gst_number")    or "").strip()
     contact_person_name   = (body.get("contact_person_name")   or "").strip()
     contact_person_mobile = (body.get("contact_person_mobile") or "").strip()
     bill_date             = (body.get("bill_date")             or "").strip()
-    salesperson_name      = (body.get("salesperson_name")      or "").strip()
     payment_mode_type     = (body.get("payment_mode_type")     or "").strip()
     items                 = body.get("items", [])
     payments              = body.get("payments", [])
     errors = []
     if not company_name:    errors.append("company_name is required")
     if not bill_date:       errors.append("bill_date is required")
-    if not salesperson_name: errors.append("salesperson_name is required")
     if not items:           errors.append("At least one item is required")
     if payment_mode_type and payment_mode_type not in VALID_INST_PAYMENT_MODES:
         errors.append("Invalid payment_mode_type")
@@ -51,14 +50,14 @@ def create_institution_bill():
         cursor = db.execute(
             f"""
             INSERT INTO institution_bills (
-                bill_number, company_name, company_address, contact_person_name, contact_person_mobile,
+                bill_number, company_name, company_address, company_gst_number, contact_person_name, contact_person_mobile,
                 bill_date, subtotal, final_total, advance_paid, remaining, advance_percent,
-                salesperson_name, payment_mode_type, created_at
+                payment_mode_type, created_at
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, {IST_NOW})
             """,
-            (bill_number, company_name, company_address, contact_person_name, contact_person_mobile,
+            (bill_number, company_name, company_address, company_gst_number, contact_person_name, contact_person_mobile,
              bill_date, subtotal, final_total, advance_paid, remaining, advance_percent,
-             salesperson_name, stored_mode),
+             stored_mode),
         )
         bill_id = cursor.lastrowid
 
@@ -89,7 +88,6 @@ def create_institution_bill():
             "contact_person_name":   contact_person_name,
             "contact_person_mobile": contact_person_mobile,
             "bill_date":             bill_date,
-            "salesperson_name":      salesperson_name,
             "subtotal":              subtotal,
             "final_total":           final_total,
             "advance_paid":          advance_paid,
@@ -213,17 +211,16 @@ def update_institution_bill(bill_id):
     body = request.get_json(force=True) or {}
     company_name          = (body.get("company_name")          or "").strip()
     company_address       = (body.get("company_address")       or "").strip()
+    company_gst_number    = (body.get("company_gst_number")    or "").strip()
     contact_person_name   = (body.get("contact_person_name")   or "").strip()
     contact_person_mobile = (body.get("contact_person_mobile") or "").strip()
     bill_date             = (body.get("bill_date")             or "").strip()
-    salesperson_name      = (body.get("salesperson_name")      or "").strip()
     payment_mode_type     = (body.get("payment_mode_type")     or "").strip()
     items                 = body.get("items", [])
     payments              = body.get("payments", [])
     errors = []
     if not company_name:    errors.append("company_name is required")
     if not bill_date:       errors.append("bill_date is required")
-    if not salesperson_name: errors.append("salesperson_name is required")
     if not items:           errors.append("At least one item is required")
     if payment_mode_type and payment_mode_type not in VALID_INST_PAYMENT_MODES:
         errors.append("Invalid payment_mode_type")
@@ -243,14 +240,14 @@ def update_institution_bill(bill_id):
         db.execute(
             f"""
             UPDATE institution_bills SET
-                company_name = ?, company_address = ?, contact_person_name = ?, contact_person_mobile = ?,
-                bill_date = ?, salesperson_name = ?, subtotal = ?, final_total = ?,
+                company_name = ?, company_address = ?, company_gst_number = ?, contact_person_name = ?, contact_person_mobile = ?,
+                bill_date = ?, subtotal = ?, final_total = ?,
                 advance_paid = ?, remaining = ?, advance_percent = ?, payment_mode_type = ?,
                 updated_at = {IST_NOW}
             WHERE id = ?
             """,
-            (company_name, company_address, contact_person_name, contact_person_mobile,
-             bill_date, salesperson_name, subtotal, final_total,
+            (company_name, company_address, company_gst_number, contact_person_name, contact_person_mobile,
+             bill_date, subtotal, final_total,
              advance_paid, remaining, advance_percent, stored_mode, bill_id),
         )
         db.execute("DELETE FROM institution_bill_items    WHERE bill_id = ?", (bill_id,))
