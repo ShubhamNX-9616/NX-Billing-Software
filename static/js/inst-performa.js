@@ -201,7 +201,7 @@ function buildPerformaWindow(bill, items, payments, type, winRef) {
   <div class="footer-note">All the above rates does include GST.</div>
   ${isProforma ? '<div class="footer-note">This Quotation valid for 5 Days only.</div>' : ''}
   <div class="footer-note">Cost of Embroidery would be extra at Actual.</div>
-  ${isProforma ? '<div class="footer-note">70% Advance along with PO.</div>' : ''}
+  ${isProforma && Number(bill.advance_percent) > 0 ? `<div class="footer-note">${Number(bill.advance_percent)}% Advance along with PO.</div>` : ''}
   ${isProforma ? `<div class="footer-note" style="margin-top:20px;">Looking forward for your kind and continued support.</div>` : ''}
 
   <div class="bottom-wrap">

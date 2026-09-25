@@ -2,7 +2,7 @@
 from flask import Blueprint, jsonify, request
 from db import get_db, generate_inst_bill_number, current_fy, IST_NOW
 from services.auth import api_login_required, api_admin_required
-from services.billing import calculate_inst_items, parse_inst_advance, apply_payment
+from services.billing import calculate_inst_items, parse_inst_advance, parse_inst_advance_percent, apply_payment
 
 inst_bills_bp = Blueprint("institution_bills", __name__)
 
@@ -40,6 +40,7 @@ def create_institution_bill():
 
     final_total = subtotal
     advance_paid, remaining = parse_inst_advance(body.get("advance_paid"), final_total)
+    advance_percent = parse_inst_advance_percent(body.get("advance_percent"))
     stored_mode = payment_mode_type or "Pending"
 
     db = None
@@ -51,12 +52,12 @@ def create_institution_bill():
             f"""
             INSERT INTO institution_bills (
                 bill_number, company_name, company_address, contact_person_name, contact_person_mobile,
-                bill_date, subtotal, final_total, advance_paid, remaining,
+                bill_date, subtotal, final_total, advance_paid, remaining, advance_percent,
                 salesperson_name, payment_mode_type, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, {IST_NOW})
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, {IST_NOW})
             """,
             (bill_number, company_name, company_address, contact_person_name, contact_person_mobile,
-             bill_date, subtotal, final_total, advance_paid, remaining,
+             bill_date, subtotal, final_total, advance_paid, remaining, advance_percent,
              salesperson_name, stored_mode),
         )
         bill_id = cursor.lastrowid
@@ -93,6 +94,7 @@ def create_institution_bill():
             "final_total":           final_total,
             "advance_paid":          advance_paid,
             "remaining":             remaining,
+            "advance_percent":       advance_percent,
             "payment_mode_type":     stored_mode,
             "items":                 calc_items,
             "payments":              [{"payment_method": p["payment_method"], "amount": float(p["amount"])} for p in payments],
@@ -234,6 +236,7 @@ def update_institution_bill(bill_id):
         return jsonify({"error": str(e)}), 400
     final_total = subtotal
     advance_paid, remaining = parse_inst_advance(body.get("advance_paid"), final_total)
+    advance_percent = parse_inst_advance_percent(body.get("advance_percent"))
     stored_mode = payment_mode_type or "Pending"
 
     try:
@@ -242,13 +245,13 @@ def update_institution_bill(bill_id):
             UPDATE institution_bills SET
                 company_name = ?, company_address = ?, contact_person_name = ?, contact_person_mobile = ?,
                 bill_date = ?, salesperson_name = ?, subtotal = ?, final_total = ?,
-                advance_paid = ?, remaining = ?, payment_mode_type = ?,
+                advance_paid = ?, remaining = ?, advance_percent = ?, payment_mode_type = ?,
                 updated_at = {IST_NOW}
             WHERE id = ?
             """,
             (company_name, company_address, contact_person_name, contact_person_mobile,
              bill_date, salesperson_name, subtotal, final_total,
-             advance_paid, remaining, stored_mode, bill_id),
+             advance_paid, remaining, advance_percent, stored_mode, bill_id),
         )
         db.execute("DELETE FROM institution_bill_items    WHERE bill_id = ?", (bill_id,))
         db.execute("DELETE FROM institution_bill_payments WHERE bill_id = ?", (bill_id,))
@@ -280,6 +283,7 @@ def update_institution_bill(bill_id):
         "final_total": final_total,
         "advance_paid": advance_paid,
         "remaining":   remaining,
+        "advance_percent": advance_percent,
         "items":       calc_items,
         "payments":    [{"payment_method": p["payment_method"], "amount": float(p["amount"])} for p in payments],
     }), 200

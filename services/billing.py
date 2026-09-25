@@ -257,6 +257,16 @@ def parse_inst_advance(raw, final_total):
     return advance_paid, r2(max(0.0, final_total - advance_paid))
 
 
+def parse_inst_advance_percent(raw, default=70.0):
+    """Parse the advance_percent note shown on institution proforma invoices.
+    Clamped to 0-100; falls back to default on bad input."""
+    try:
+        pct = float(raw)
+    except (TypeError, ValueError):
+        return default
+    return min(100.0, max(0.0, pct))
+
+
 def apply_payment(raw_remaining, raw_advance, raw_amount):
     """Validate and compute a payment against a balance.
     Returns (remaining, amount, new_advance, new_remaining). Raises ValueError on bad input."""

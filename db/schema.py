@@ -407,6 +407,14 @@ def _m18_inst_company_address(conn):
     )
 
 
+def _m28_inst_advance_percent(conn):
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(institution_bills)").fetchall()}
+    if "advance_percent" not in cols:
+        conn.execute(
+            "ALTER TABLE institution_bills ADD COLUMN advance_percent REAL NOT NULL DEFAULT 70"
+        )
+
+
 def _m19_bill_payments_paid_at(conn):
     cols = {row[1] for row in conn.execute("PRAGMA table_info(bill_payments)").fetchall()}
     if "paid_at" not in cols:
@@ -565,6 +573,7 @@ MIGRATIONS = [
     (25, _m25_drop_loyalty_gifts_fy),
     (26, _m26_bill_search_indexes),
     (27, _m27_bills_customer_id_index),
+    (28, _m28_inst_advance_percent),
 ]
 
 

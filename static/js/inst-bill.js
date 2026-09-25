@@ -468,6 +468,7 @@ function collectInstData() {
     salesperson_name:      document.getElementById('inst-salesperson').value,
     payment_mode_type:     mode,
     advance_paid:          r2(parseFloat(document.getElementById('inst-advance-paid')?.value) || 0),
+    advance_percent:       r2(parseFloat(document.getElementById('inst-advance-percent')?.value) || 0),
     items,
     payments,
   };
@@ -577,6 +578,10 @@ async function loadInstBillForEdit(billId) {
     instAdvanceModified = true;
     const advEl = document.getElementById('inst-advance-paid');
     if (advEl) advEl.value = Number(bill.advance_paid || 0).toFixed(2);
+
+    // Pre-fill advance %
+    const advPctEl = document.getElementById('inst-advance-percent');
+    if (advPctEl) advPctEl.value = Number(bill.advance_percent ?? 70);
 
     // Pre-fill items
     for (const item of items) {
