@@ -20,7 +20,7 @@
       <div class="form-group">
         <label class="form-label">Role</label>
         <input type="text" class="input"
-               value="{{ 'Admin' if current_user.is_admin else 'Staff' }}" readonly
+               value="{{ 'Admin' if current_user.is_admin else ('Tailor' if current_user.is_tailor else 'Staff') }}" readonly
                style="background: var(--bg); color: var(--text-muted); cursor: default;" />
       </div>
     </div>

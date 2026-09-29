@@ -1,13 +1,13 @@
 from flask import Blueprint, jsonify, request
 
 from db import get_db
-from services.auth import api_login_required, api_admin_required
+from services.auth import api_staff_or_admin_required, api_admin_required
 
 salespersons_bp = Blueprint("salespersons", __name__)
 
 
 @salespersons_bp.route("/salespersons", methods=["GET"])
-@api_login_required
+@api_staff_or_admin_required
 def get_salespersons():
     try:
         db = get_db()

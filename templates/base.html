@@ -34,13 +34,15 @@
     </div>
 
     <nav class="sidebar-nav">
+      {% if not current_user.is_tailor %}
       <div class="nav-section-label">Billing</div>
-      {# New Bill — visible to all roles #}
+      {# New Bill — visible to admin and staff, not tailor #}
       <a href="/new-bill"
          class="nav-link {% if request.path == '/new-bill' %}active{% endif %}">
         <span class="nav-icon">{{ icon('plus') }}</span>
         New Bill
       </a>
+      {% endif %}
       {% if current_user.is_admin %}
       <a href="/new-institution-bill"
          class="nav-link {% if request.path == '/new-institution-bill' %}active{% endif %}">
@@ -110,6 +112,8 @@
         <span class="sidebar-username">{{ current_user.username }}</span>
         {% if current_user.is_admin %}
           <span class="role-badge role-badge--admin">Admin</span>
+        {% elif current_user.is_tailor %}
+          <span class="role-badge role-badge--tailor">Tailor</span>
         {% else %}
           <span class="role-badge role-badge--staff">Staff</span>
         {% endif %}
@@ -174,11 +178,13 @@
 
   <!-- ====== Mobile bottom navigation ====== -->
   <nav class="mobile-bottom-nav">
-    {# New Bill — always visible #}
+    {% if not current_user.is_tailor %}
+    {# New Bill — visible to admin and staff, not tailor #}
     <a href="/new-bill" class="mob-nav-item" data-page="new-bill">
       {{ icon('plus') }}
       <span>New Bill</span>
     </a>
+    {% endif %}
     {% if current_user.is_admin %}
     <a href="/new-institution-bill" class="mob-nav-item" data-page="inst-bill">
       {{ icon('grid') }}

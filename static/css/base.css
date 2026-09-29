@@ -18,6 +18,7 @@
   --brand-navy:        #0f172a;   /* sidebar + login ground — stays dark in light mode by design */
   --brand-navy-fg:      #ffffff;  /* text/icons on the sidebar — a permanently-dark surface, so one value covers both themes */
   --brand-navy-accent:  #93c5fd;  /* active nav border, admin role badge — on the sidebar */
+  --brand-navy-tailor:  #86efac;  /* tailor role badge — on the sidebar */
   --brand-navy-danger:  #fca5a5;  /* logout hover — on the sidebar */
   --table-head-bg: #f1f5f9;
 

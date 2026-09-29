@@ -151,6 +151,11 @@
   color: rgba(255,255,255,0.65);
 }
 
+.role-badge--tailor {
+  background: rgba(134, 239, 172, 0.2); /* --brand-navy-tailor (#86efac) at 20% */
+  color: var(--brand-navy-tailor);
+}
+
 .sidebar-profile-link {
   display: inline-block;
   font-size: 12px;

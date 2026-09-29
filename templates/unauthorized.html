@@ -89,7 +89,11 @@
       Please contact the admin.
     </div>
 
+    {% if current_user.is_tailor %}
+    <a href="/tailoring" class="btn-primary">Go to Tailoring</a>
+    {% else %}
     <a href="/new-bill" class="btn-primary">Go to New Bill</a>
+    {% endif %}
     <a href="/logout" class="logout-link">Logout</a>
   </div>
 

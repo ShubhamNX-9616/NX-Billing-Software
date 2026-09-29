@@ -58,6 +58,7 @@
       <label class="form-label">Role</label>
       <select id="new-role" class="input">
         <option value="staff">Staff</option>
+        <option value="tailor">Tailor</option>
         <option value="admin">Admin</option>
       </select>
     </div>
@@ -132,6 +133,8 @@
         : '<span class="badge badge-neutral">Inactive</span>';
       const roleBadge = u.role === 'admin'
         ? '<span class="role-badge role-badge--admin">Admin</span>'
+        : u.role === 'tailor'
+        ? '<span class="role-badge role-badge--tailor">Tailor</span>'
         : '<span class="role-badge role-badge--staff">Staff</span>';
       const toggleLabel = isActive ? 'Deactivate' : 'Activate';
       const toggleClass = isActive ? 'btn-danger-outline' : 'btn-secondary';

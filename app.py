@@ -109,6 +109,7 @@ def inject_globals():
             'role': session.get('role'),
             'is_admin': session.get('role') == 'admin',
             'is_staff': session.get('role') == 'staff',
+            'is_tailor': session.get('role') == 'tailor',
         }
     }
 

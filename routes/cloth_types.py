@@ -1,12 +1,12 @@
 from flask import Blueprint, jsonify, request
 from db import get_db
-from services.auth import api_login_required
+from services.auth import api_staff_or_admin_required
 
 cloth_types_bp = Blueprint("cloth_types", __name__)
 
 
 @cloth_types_bp.route("/cloth-types", methods=["GET"])
-@api_login_required
+@api_staff_or_admin_required
 def get_cloth_types():
     try:
         db = get_db()
@@ -23,7 +23,7 @@ def get_cloth_types():
 
 
 @cloth_types_bp.route("/cloth-types", methods=["POST"])
-@api_login_required
+@api_staff_or_admin_required
 def add_cloth_type():
     try:
         body = request.get_json(force=True, silent=True) or {}

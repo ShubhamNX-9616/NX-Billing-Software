@@ -22,11 +22,33 @@ def admin_required(f):
     return decorated
 
 
+def staff_or_admin_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if 'user_id' not in session:
+            return redirect(url_for('auth_routes.login'))
+        if session.get('role') not in ('admin', 'staff'):
+            return redirect(url_for('auth_routes.unauthorized'))
+        return f(*args, **kwargs)
+    return decorated
+
+
 def api_login_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         if 'user_id' not in session:
             return jsonify({"error": "Login required"}), 401
+        return f(*args, **kwargs)
+    return decorated
+
+
+def api_staff_or_admin_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if 'user_id' not in session:
+            return jsonify({"error": "Login required"}), 401
+        if session.get('role') not in ('admin', 'staff'):
+            return jsonify({"error": "Access denied"}), 403
         return f(*args, **kwargs)
     return decorated
 

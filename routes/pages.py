@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template
-from services.auth import login_required, admin_required
+from services.auth import login_required, admin_required, staff_or_admin_required
 from services.billing import get_bill_by_number, get_institution_bill_by_number
 
 pages_bp = Blueprint("pages", __name__)
@@ -12,7 +12,7 @@ def dashboard():
 
 
 @pages_bp.route("/new-bill")
-@login_required
+@staff_or_admin_required
 def new_bill():
     return render_template("new_bill.html")
 

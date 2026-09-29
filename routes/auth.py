@@ -29,6 +29,8 @@ def login():
     if 'user_id' in session:
         if session.get('role') == 'admin':
             return redirect(url_for('pages.dashboard'))
+        if session.get('role') == 'tailor':
+            return redirect(url_for('tailoring_pages.tailoring_page'))
         return redirect(url_for('pages.new_bill'))
     return render_template('login.html')
 
@@ -84,6 +86,8 @@ def login_post():
 
     if user['role'] == 'admin':
         return redirect(url_for('pages.dashboard'))
+    if user['role'] == 'tailor':
+        return redirect(url_for('tailoring_pages.tailoring_page'))
     return redirect(url_for('pages.new_bill'))
 
 
@@ -176,8 +180,8 @@ def create_user():
             return jsonify({"error": "Password must be at least 6 characters"}), 400
         if password != confirm_password:
             return jsonify({"error": "Passwords do not match"}), 400
-        if role not in ('admin', 'staff'):
-            return jsonify({"error": "Role must be 'admin' or 'staff'"}), 400
+        if role not in ('admin', 'staff', 'tailor'):
+            return jsonify({"error": "Role must be 'admin', 'staff', or 'tailor'"}), 400
 
         db = get_db()
         existing = db.execute(

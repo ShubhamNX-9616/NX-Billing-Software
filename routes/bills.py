@@ -3,7 +3,7 @@ from collections import defaultdict
 from flask import Blueprint, current_app, jsonify, request, session
 from db import get_db, generate_bill_number, IST_NOW
 from db import current_fy
-from services.auth import api_login_required, api_admin_required
+from services.auth import api_login_required, api_admin_required, api_staff_or_admin_required
 from utils import normalize_mobile
 from services.billing import (
     validate_and_calculate_items,
@@ -45,7 +45,7 @@ def _run_loyalty_check(db, customer_id, bill_id):
 # GET /api/bills
 # ---------------------------------------------------------------------------
 @bills_bp.route("/bills/next-number", methods=["GET"])
-@api_login_required
+@api_staff_or_admin_required
 def get_next_bill_number():
     try:
         db  = get_db()
@@ -68,7 +68,7 @@ def get_next_bill_number():
 # same page carries the date forward correctly. This endpoint hands back the
 # server's own IST calendar day so the client can self-correct against it.
 @bills_bp.route("/server-date", methods=["GET"])
-@api_login_required
+@api_staff_or_admin_required
 def get_server_date():
     from datetime import datetime, timezone, timedelta
     today = datetime.now(timezone(timedelta(hours=5, minutes=30))).strftime("%Y-%m-%d")
@@ -234,7 +234,7 @@ def get_bill(bill_id):
 # POST /api/bills
 # ---------------------------------------------------------------------------
 @bills_bp.route("/bills", methods=["POST"])
-@api_login_required
+@api_staff_or_admin_required
 def create_bill():
     db = None
     try:
@@ -722,7 +722,7 @@ def restore_bill(bill_id):
 # POST /api/bills/<id>/record-payment  — record a balance payment
 # ---------------------------------------------------------------------------
 @bills_bp.route("/bills/<int:bill_id>/record-payment", methods=["POST"])
-@api_login_required
+@api_staff_or_admin_required
 def record_payment(bill_id):
     try:
         db   = get_db()

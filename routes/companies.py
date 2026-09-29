@@ -1,12 +1,12 @@
 from flask import Blueprint, jsonify, request
 from db import get_db
-from services.auth import api_login_required
+from services.auth import api_staff_or_admin_required
 
 companies_bp = Blueprint("companies", __name__)
 
 
 @companies_bp.route("/companies", methods=["GET"])
-@api_login_required
+@api_staff_or_admin_required
 def get_companies():
     try:
         cloth_type = request.args.get("clothType", "").strip()
@@ -28,7 +28,7 @@ def get_companies():
 
 
 @companies_bp.route("/companies/<int:company_id>", methods=["DELETE"])
-@api_login_required
+@api_staff_or_admin_required
 def delete_company(company_id):
     try:
         db = get_db()
@@ -43,7 +43,7 @@ def delete_company(company_id):
 
 
 @companies_bp.route("/companies", methods=["POST"])
-@api_login_required
+@api_staff_or_admin_required
 def add_company():
     try:
         body = request.get_json(force=True, silent=True) or {}
