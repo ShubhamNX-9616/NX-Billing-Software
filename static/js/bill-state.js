@@ -68,8 +68,29 @@ function fmt(amount) {
   });
 }
 
+// Round-half-up to 2dp, matching the server's r2() (utils.py) bit-for-bit.
+// Multiplying by 100 first (the old `Math.round((n+EPSILON)*100)/100` approach)
+// can itself introduce a fresh float error that flips a value already just
+// under a .xx5 boundary to appear exactly on it — e.g. 715.5*1.15 is really
+// 822.8249999999999, but *100 rounds that up to exactly 82282.5, which then
+// rounds to 822.83 instead of the correct 822.82 (bill #527). Working from
+// the number's own decimal string — the same shortest round-trip
+// representation Python's str(float) produces — avoids that second error.
 function round2(n) {
-  return Math.round((n + Number.EPSILON) * 100) / 100;
+  if (typeof n !== 'number' || !isFinite(n)) return n;
+  const neg = n < 0;
+  const s = Math.abs(n).toString();
+  if (s.includes('e') || s.includes('E')) {
+    return Math.round(n * 100) / 100;   // currency amounts never reach this magnitude
+  }
+  const dot = s.indexOf('.');
+  const intPart  = dot === -1 ? s : s.slice(0, dot);
+  const fracPart = dot === -1 ? '' : s.slice(dot + 1);
+  const digits = (fracPart + '000').slice(0, 3);   // pad so a 3rd decimal digit always exists
+  let cents = parseInt(intPart, 10) * 100 + parseInt(digits.slice(0, 2), 10);
+  if (digits.charCodeAt(2) - 48 >= 5) cents += 1;  // round half up on the 3rd decimal digit
+  const result = cents / 100;
+  return neg ? -result : result;
 }
 
 function todayISO() {
