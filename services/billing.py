@@ -37,6 +37,14 @@ def validate_and_calculate_items(db, items):
         except (TypeError, ValueError):
             raise ValueError(f"{prefix}: discount_percent must be a number")
 
+        raw_discount_amount = item.get("discount_amount")
+        has_discount_amount = raw_discount_amount is not None
+        if has_discount_amount:
+            try:
+                discount_amount_per_unit = float(raw_discount_amount)
+            except (TypeError, ValueError):
+                raise ValueError(f"{prefix}: discount_amount must be a number")
+
         if cloth_type not in valid_cloth_types:
             raise ValueError(f"{prefix}: invalid cloth_type '{cloth_type}'")
         if quantity <= 0:
@@ -45,9 +53,18 @@ def validate_and_calculate_items(db, items):
             raise ValueError(f"{prefix}: mrp must be greater than 0")
         if not (0 <= discount_percent <= 100):
             raise ValueError(f"{prefix}: discount_percent must be 0–100")
+        if has_discount_amount and not (0 <= discount_amount_per_unit <= mrp):
+            raise ValueError(f"{prefix}: discount_amount must be between 0 and mrp")
 
-        unit_label      = _UNIT_LABEL.get(cloth_type, "pcs")
-        disc_per_unit   = r2(mrp * discount_percent / 100)
+        unit_label = _UNIT_LABEL.get(cloth_type, "pcs")
+        # Prefer the rupee discount the client already rounded over recomputing
+        # it from discount_percent: mrp -> /mrp*100 -> *mrp/100 is not exactly
+        # invertible in floating point, so it can round a paisa off from what
+        # the client itself displayed (bill #527).
+        disc_per_unit = (
+            r2(discount_amount_per_unit) if has_discount_amount
+            else r2(mrp * discount_percent / 100)
+        )
         rate_after_disc = r2(mrp - disc_per_unit)
         final_amount    = r2(rate_after_disc * quantity)
         line_total      = r2(mrp * quantity)

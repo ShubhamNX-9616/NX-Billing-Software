@@ -221,6 +221,7 @@ function collectBillData() {
     unit_label:        (document.getElementById(`unit-${id}`).textContent || 'm').trim(),
     mrp:               parseFloat(document.getElementById(`mrp-${id}`).value)   || 0,
     discount_percent:  itemDataStore[id]?.effectiveDiscPct || 0,
+    discount_amount:   itemDataStore[id]?.discPerUnit || 0,
     inventory_item_id: itemDataStore[id]?.inventoryItemId || null,
   }));
 
