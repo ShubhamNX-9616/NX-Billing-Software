@@ -73,7 +73,15 @@
 }
 
 /* Column widths */
+.col-code     { width: 95px; }
 .col-cloth    { width: 100px; }
+
+.code-hint {
+  font-size: 10.5px;
+  color: var(--danger);
+  margin-top: 2px;
+}
+.code-hint:empty { display: none; }
 .col-company  { width: 130px; }
 .col-quality  { width: 90px; }
 .col-qty      { width: 75px; }

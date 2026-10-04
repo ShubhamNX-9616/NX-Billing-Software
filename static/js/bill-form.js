@@ -381,6 +381,8 @@ async function setItemRowValues(id, item) {
   if (qualEl)    qualEl.value    = item.quality_number || '';
   if (item.inventory_item_id) {
     itemDataStore[id].inventoryItemId = item.inventory_item_id;
+    const codeEl = document.getElementById(`code-${id}`);
+    if (codeEl && item.item_code) { codeEl.value = item.item_code; codeEl.dataset.looked = item.item_code; }
     showInventoryBadge(id, true);
   }
   await onClothChangeRestoring(id, item.cloth_type, item.company_name || '');

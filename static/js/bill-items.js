@@ -176,10 +176,10 @@ function setupRowEnterNav(id) {
       const idx  = activeItemIds.indexOf(id);
       const next = activeItemIds[idx + 1];
       if (next !== undefined) {
-        focusAndSelect(`cloth-${next}`);
+        focusAndSelect(`code-${next}`);
       } else {
         addItemRow();
-        requestAnimationFrame(() => focusAndSelect(`cloth-${rowCounter}`));
+        requestAnimationFrame(() => focusAndSelect(`code-${rowCounter}`));
       }
     }
   });
@@ -212,6 +212,12 @@ function appendTableRow(id, vals = {}) {
 
   tr.innerHTML = `
     <td style="text-align:center;color:var(--text-muted);font-size:12px;" class="row-num"></td>
+    <td>
+      <input type="text" class="cell-input col-code" id="code-${id}"
+             placeholder="Code" autocomplete="off" value="${vals.code || ''}"
+             aria-label="Inventory code" />
+      <div class="code-hint" id="code-hint-${id}"></div>
+    </td>
     <td>
       <select class="cell-input select col-cloth" id="cloth-${id}"
               data-prev="${clothType}"
@@ -271,6 +277,7 @@ function appendTableRow(id, vals = {}) {
   tbody.appendChild(tr);
   onClothChangeRestoring(id, clothType, vals.companyName || '');
   setupRowEnterNav(id);
+  setupCodeInput(id);
 }
 
 // ---- Mobile: append a card for item `id` ----
@@ -308,6 +315,13 @@ function appendCard(id, vals = {}) {
         <span id="inv-badge-${id}" class="pill pill-info" style="display:none;cursor:pointer;" onclick="clearInventoryLink(${id})" title="Linked to inventory — click to unlink">INV</span>
         <button type="button" class="btn-remove-row" onclick="removeRow(${id})" title="Remove row" aria-label="Remove row"><svg class="ico" aria-hidden="true"><use href="#i-x"/></svg></button>
       </div>
+    </div>
+
+    <div class="item-card-field">
+      <span class="item-card-label">Code</span>
+      <input type="text" class="input" id="code-${id}"
+             placeholder="Inventory code (optional)" autocomplete="off" value="${vals.code || ''}" />
+      <div class="code-hint" id="code-hint-${id}"></div>
     </div>
 
     <div class="item-card-field">
@@ -381,6 +395,7 @@ function appendCard(id, vals = {}) {
 
   container.appendChild(card);
   onClothChangeRestoring(id, clothType, vals.companyName || '');
+  setupCodeInput(id);
 }
 
 // ---- Remove item — works for both table rows and cards ----
@@ -485,6 +500,7 @@ function handleResponsiveItemsLayout() {
 
   const snapshots = activeItemIds.map(id => ({
     id,
+    code:          document.getElementById(`code-${id}`)?.value       || '',
     clothType:     document.getElementById(`cloth-${id}`)?.value      || 'Shirting',
     companyName:   document.getElementById(`company-${id}`)?.value    || '',
     qualityNumber: document.getElementById(`quality-${id}`)?.value    || '',
@@ -528,6 +544,54 @@ function clearInventoryLink(id) {
   showInventoryBadge(id, false);
 }
 
+// ---- Code column: type/scan an inventory code straight into the row ----
+function setCodeHint(id, text) {
+  const hint = document.getElementById(`code-hint-${id}`);
+  if (hint) hint.textContent = text;
+}
+
+async function lookupRowCode(id) {
+  const codeEl = document.getElementById(`code-${id}`);
+  if (!codeEl) return false;
+  const code = codeEl.value.trim();
+  if (!code || codeEl.dataset.looked === code) return !!itemDataStore[id]?.inventoryItemId;
+  codeEl.dataset.looked = code;
+
+  try {
+    const res = await fetch(`/api/inventory/by-code/${encodeURIComponent(code)}`);
+    if (res.status === 404) { setCodeHint(id, 'Not in inventory'); return false; }
+    if (!res.ok) { setCodeHint(id, 'Lookup failed'); return false; }
+    const item = await res.json();
+    if (!document.getElementById(`code-${id}`)) return false;  // row removed mid-fetch
+    await fillRowFromInventoryItem(item, id);
+    return true;
+  } catch (e) {
+    setCodeHint(id, 'Lookup failed');
+    return false;
+  }
+}
+
+function setupCodeInput(id) {
+  const codeEl = document.getElementById(`code-${id}`);
+  if (!codeEl) return;
+
+  // Editing the code detaches the row from whatever it was linked to
+  codeEl.addEventListener('input', () => {
+    delete codeEl.dataset.looked;
+    setCodeHint(id, '');
+    if (itemDataStore[id]?.inventoryItemId) clearInventoryLink(id);
+  });
+  codeEl.addEventListener('change', () => { lookupRowCode(id); });
+  codeEl.addEventListener('keydown', async e => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    const found = await lookupRowCode(id);
+    if (found) return;  // fill already moved focus to Qty
+    const next = document.getElementById(`cloth-${id}`);
+    if (next) next.focus();
+  });
+}
+
 // ---- QR fill helpers ----
 function findOrAddRow() {
   for (const id of activeItemIds) {
@@ -539,10 +603,13 @@ function findOrAddRow() {
   return activeItemIds[activeItemIds.length - 1];
 }
 
-async function fillRowFromInventoryItem(item) {
-  const id = findOrAddRow();
+async function fillRowFromInventoryItem(item, rowId) {
+  const id = rowId ?? findOrAddRow();
 
   itemDataStore[id].inventoryItemId = item.id;
+  const codeEl = document.getElementById(`code-${id}`);
+  if (codeEl) { codeEl.value = item.item_code || ''; codeEl.dataset.looked = codeEl.value; }
+  setCodeHint(id, '');
 
   const mrpEl  = document.getElementById(`mrp-${id}`);
   const qualEl = document.getElementById(`quality-${id}`);
@@ -576,7 +643,7 @@ async function fillRowFromCurrentStock(data) {
 document.getElementById('btn-add-item').addEventListener('click', () => {
   addItemRow();
   requestAnimationFrame(() => {
-    const clothSel = document.getElementById(`cloth-${rowCounter}`);
-    if (clothSel) clothSel.focus();
+    const codeEl = document.getElementById(`code-${rowCounter}`);
+    if (codeEl) codeEl.focus();
   });
 });
