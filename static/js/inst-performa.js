@@ -14,15 +14,16 @@ function _fmtPerformaDate(dateStr) {
   return `${dd}/${mm}/${yyyy}`;
 }
 
-// type: 'proforma' | 'invoice'
+// type: 'proforma' | 'invoice' | 'quotation'
+// isProforma is the layout flag (pre-invoice document: salutation, no payment
+// block, validity/advance notes); a quotation shares it and differs in wording.
 function buildPerformaWindow(bill, items, payments, type, winRef) {
   type = type || 'proforma';
   payments = Array.isArray(payments) ? payments : [];
-  const isProforma = type === 'proforma';
-  const docTitle   = isProforma ? 'Proforma Invoice' : 'Invoice';
-  const salutation = isProforma
-    ? 'Pls Find the Proforma Invoice for the below mentioned quality for your perusal.'
-    : 'Pls Find the Invoice for the below mentioned quality for your perusal.';
+  const isQuotation = type === 'quotation';
+  const isProforma = type === 'proforma' || isQuotation;
+  const docTitle   = isQuotation ? 'Quotation' : isProforma ? 'Proforma Invoice' : 'Invoice';
+  const salutation = `Pls Find the ${docTitle} for the below mentioned quality for your perusal.`;
 
   const date = _fmtPerformaDate(bill.bill_date);
 
@@ -69,7 +70,7 @@ function buildPerformaWindow(bill, items, payments, type, winRef) {
     body { font-family: Arial, sans-serif; font-size: 13px; color: #000; background: #fff; }
 
     .header-wrap { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px; }
-    .shop-name { font-size: 28px; font-weight: 900; letter-spacing: 0.5px; text-transform: uppercase; }
+    .shop-name { font-size: 28px; font-weight: 900; letter-spacing: 0.5px; text-transform: uppercase; color: #d00000; }
     .shop-meta { font-size: 12px; margin-top: 3px; line-height: 1.55; color: #111; }
     hr.thick { border: none; border-top: 2px solid #000; margin: 5px 0 10px; }
 
@@ -113,7 +114,7 @@ function buildPerformaWindow(bill, items, payments, type, winRef) {
 </head>
 <body>
 
-  <div style="text-align:center;font-size:22px;font-weight:900;letter-spacing:2px;margin-bottom:8px;">${isProforma ? 'PERFORMA INVOICE' : 'INVOICE'}</div>
+  <div style="text-align:center;font-size:22px;font-weight:900;letter-spacing:2px;margin-bottom:8px;">${docTitle.toUpperCase()}</div>
   <div class="header-wrap">
     <div>
       <div class="shop-name">SHUBHAM NX</div>
@@ -238,6 +239,20 @@ async function openInstPerformaInvoice(billId) {
     if (!res.ok) throw new Error('Bill not found');
     const data = await res.json();
     buildPerformaWindow(data.bill, data.items, data.payments, 'proforma', win);
+  } catch (err) {
+    if (win) win.close();
+    alert('Failed to load bill for printing: ' + err.message);
+  }
+}
+
+async function openInstQuotation(billId) {
+  // Open window immediately (before await) so iOS Safari doesn't block the popup
+  const win = window.open('', '_blank');
+  try {
+    const res  = await fetch(`/api/institution-bills/${billId}`);
+    if (!res.ok) throw new Error('Bill not found');
+    const data = await res.json();
+    buildPerformaWindow(data.bill, data.items, data.payments, 'quotation', win);
   } catch (err) {
     if (win) win.close();
     alert('Failed to load bill for printing: ' + err.message);

@@ -595,7 +595,8 @@ function renderInstTable(bills, titleText) {
 
     const moreItems = cancelled
       ? `<button class="row-menu-item" onclick="openInstInvoice(${b.id}); closeRowMenu('inst-menu-${b.id}'); event.stopPropagation();"><svg class="ico" aria-hidden="true"><use href="#i-printer"/></svg> Print Invoice</button>
-         <button class="row-menu-item" onclick="openInstPerformaInvoice(${b.id}); closeRowMenu('inst-menu-${b.id}'); event.stopPropagation();"><svg class="ico" aria-hidden="true"><use href="#i-printer"/></svg> Print Performa</button>
+         <button class="row-menu-item" onclick="openInstPerformaInvoice(${b.id}); closeRowMenu('inst-menu-${b.id}'); event.stopPropagation();"><svg class="ico" aria-hidden="true"><use href="#i-printer"/></svg> Print Proforma</button>
+         <button class="row-menu-item" onclick="openInstQuotation(${b.id}); closeRowMenu('inst-menu-${b.id}'); event.stopPropagation();"><svg class="ico" aria-hidden="true"><use href="#i-printer"/></svg> Print Quotation</button>
          <div class="row-menu-divider"></div>
          <button class="row-menu-item" onclick="instRestoreBill(${b.id}, '${b.bill_number}'); closeRowMenu('inst-menu-${b.id}'); event.stopPropagation();">&#10227; Restore Bill</button>
          <button class="row-menu-item row-menu-danger" onclick="instDeleteBill(${b.id}, '${b.bill_number}'); closeRowMenu('inst-menu-${b.id}'); event.stopPropagation();"><svg class="ico" aria-hidden="true"><use href="#i-trash"/></svg> Delete</button>`
@@ -606,7 +607,8 @@ function renderInstTable(bills, titleText) {
            <div class="row-menu-divider"></div>
          </div>
          <button class="row-menu-item" onclick="openInstInvoice(${b.id}); closeRowMenu('inst-menu-${b.id}'); event.stopPropagation();"><svg class="ico" aria-hidden="true"><use href="#i-printer"/></svg> Print Invoice</button>
-         <button class="row-menu-item" onclick="openInstPerformaInvoice(${b.id}); closeRowMenu('inst-menu-${b.id}'); event.stopPropagation();"><svg class="ico" aria-hidden="true"><use href="#i-printer"/></svg> Print Performa</button>
+         <button class="row-menu-item" onclick="openInstPerformaInvoice(${b.id}); closeRowMenu('inst-menu-${b.id}'); event.stopPropagation();"><svg class="ico" aria-hidden="true"><use href="#i-printer"/></svg> Print Proforma</button>
+         <button class="row-menu-item" onclick="openInstQuotation(${b.id}); closeRowMenu('inst-menu-${b.id}'); event.stopPropagation();"><svg class="ico" aria-hidden="true"><use href="#i-printer"/></svg> Print Quotation</button>
          <div class="row-menu-divider"></div>
          <button class="row-menu-item row-menu-warn" onclick="instCancelBill(${b.id}, '${b.bill_number}'); closeRowMenu('inst-menu-${b.id}'); event.stopPropagation();"><svg class="ico" aria-hidden="true"><use href="#i-x-circle"/></svg> Cancel Bill</button>
          <button class="row-menu-item row-menu-danger" onclick="instDeleteBill(${b.id}, '${b.bill_number}'); closeRowMenu('inst-menu-${b.id}'); event.stopPropagation();"><svg class="ico" aria-hidden="true"><use href="#i-trash"/></svg> Delete</button>`;

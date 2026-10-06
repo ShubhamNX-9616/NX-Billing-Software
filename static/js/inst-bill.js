@@ -711,6 +711,9 @@ function onInstSaveSuccess(bill) {
   const perfornaBtn = document.getElementById('inst-performa-btn');
   if (perfornaBtn) perfornaBtn.onclick = function () { buildPerformaWindow(bill, bill.items, bill.payments, 'proforma'); };
 
+  const quotationBtn = document.getElementById('inst-quotation-btn');
+  if (quotationBtn) quotationBtn.onclick = function () { buildPerformaWindow(bill, bill.items, bill.payments, 'quotation'); };
+
   document.getElementById('inst-save-btn').style.display = 'none';
   document.getElementById('inst-save-error').textContent = '';
 }
