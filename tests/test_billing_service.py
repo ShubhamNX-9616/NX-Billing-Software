@@ -4,6 +4,7 @@ from services.billing import (
     parse_advance,
     validate_payments,
     calculate_inst_items,
+    parse_inst_round_off,
     validate_and_calculate_items,
     find_or_create_customer,
 )
@@ -36,6 +37,13 @@ class TestCalculateBillTotals:
         assert result["final_total"] == 899.50
         assert result["round_off"] == 0.50
         assert result["total_savings"] == 100.50
+
+    def test_negative_round_off_rounds_up(self):
+        result = calculate_bill_totals(_items(final_amount=899.60), -0.40)
+        assert result["final_total"] == 900.0
+        assert result["round_off"] == -0.40
+        # rounding up is not a saving
+        assert result["total_savings"] == 100.0
 
     def test_multiple_items(self):
         items = [
@@ -131,6 +139,24 @@ class TestValidatePayments:
     def test_all_valid_methods_accepted(self):
         for method in ("Cash", "Card", "UPI"):
             validate_payments([{"payment_method": method, "amount": 100.0}], 100.0)
+
+
+class TestParseInstRoundOff:
+    def test_none_is_zero(self):
+        assert parse_inst_round_off(None, 1234.56) == (0.0, 1234.56)
+
+    def test_positive_deducts(self):
+        assert parse_inst_round_off(0.40, 1234.40) == (0.40, 1234.0)
+
+    def test_negative_adds(self):
+        assert parse_inst_round_off(-0.40, 1234.60) == (-0.40, 1235.0)
+
+    def test_garbage_defaults_to_zero(self):
+        assert parse_inst_round_off("abc", 100.0) == (0.0, 100.0)
+
+    def test_exceeding_total_raises(self):
+        with pytest.raises(ValueError, match="round_off cannot exceed"):
+            parse_inst_round_off(500.0, 100.0)
 
 
 # ---------------------------------------------------------------------------

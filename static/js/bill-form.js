@@ -245,7 +245,7 @@ function collectBillData() {
   return { customer_name: name, customer_mobile: mobile, bill_date: date,
            salesperson_name: salespersonName,
            payment_mode_type: mode, items, payments,
-           round_off:    Math.max(0, roundOff),
+           round_off:    roundOff,
            advance_paid: Math.max(0, advancePaid),
            remaining:    Math.max(0, remaining) };
 }
@@ -351,7 +351,8 @@ async function prefillEditForm() {
     setPaymentMode(bill.payment_mode_type, bill.payments || []);
 
     const roEl = document.getElementById('sum-roundoff');
-    if (roEl) roEl.value = (bill.round_off || 0) > 0 ? Number(bill.round_off).toFixed(2) : '';
+    if (roEl) roEl.value = (bill.round_off || 0) !== 0 ? Number(bill.round_off).toFixed(2) : '';
+    roundOffUserModified = true;   // keep the saved R/O; don't re-derive it on edit
 
     const advEl = document.getElementById('advance-paid');
     if (advEl) advEl.value = (bill.advance_paid || 0).toFixed(2);

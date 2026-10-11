@@ -78,6 +78,7 @@
     </div>
     <div class="totals-box">
       <div class="totals-inner">
+        <div class="totals-row" id="d-roundoff-row" style="display:none;"><span>Round Off</span><span id="d-roundoff"></span></div>
         <div class="totals-row grand"><span>Total Payable</span><span id="d-final-total"></span></div>
         <div class="totals-row"><span>Advance Paid</span><span id="d-advance-paid"></span></div>
         <div class="totals-row"><span>Remaining</span><span id="d-remaining"></span></div>
@@ -264,6 +265,9 @@ function renderInstDetail(data) {
   document.getElementById('d-payment-mode').textContent  = bill.payment_mode_type;
 
   document.getElementById('d-final-total').textContent  = fmt(bill.final_total);
+  const dRo = Number(bill.round_off || 0);
+  document.getElementById('d-roundoff-row').style.display = dRo !== 0 ? '' : 'none';
+  document.getElementById('d-roundoff').textContent = dRo > 0 ? `−${fmt(dRo)}` : `+${fmt(-dRo)}`;
   document.getElementById('d-advance-paid').textContent = fmt(bill.advance_paid);
   document.getElementById('d-remaining').textContent    = fmt(bill.remaining);
 

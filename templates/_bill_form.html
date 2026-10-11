@@ -177,7 +177,7 @@
         <input type="number" id="sum-roundoff" class="input"
                step="0.01" placeholder="0.00"
                style="width:120px;text-align:right;padding:4px 8px;"
-               oninput="updateSummary()" />
+               oninput="roundOffUserModified = this.value.trim() !== ''; updateSummary()" />
       </div>
       <div id="roundoff-error" class="text-danger" style="font-size:12px;text-align:right;min-height:16px;"></div>
       <div class="bill-totals-row divider final">

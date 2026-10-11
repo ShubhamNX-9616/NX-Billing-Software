@@ -23,7 +23,14 @@ function updateSummary() {
   const mrpTotalEl = document.getElementById('sum-mrptotal');
   if (mrpTotalEl) mrpTotalEl.textContent = fmt(mrpTotal);
 
-  const roundOff    = round2(parseFloat(document.getElementById('sum-roundoff')?.value) || 0);
+  // R/O = gross - nearest rupee, so a positive value is deducted and a negative one added.
+  // Auto-fills until the user types a value; clearing the box hands control back to auto.
+  const roEl = document.getElementById('sum-roundoff');
+  if (roEl && !roundOffUserModified) {
+    const auto = round2(grossFinal - Math.round(grossFinal));
+    roEl.value = auto !== 0 ? auto.toFixed(2) : '';
+  }
+  const roundOff    = round2(parseFloat(roEl?.value) || 0);
   const netPayable  = round2(grossFinal - roundOff);
   const roErrEl     = document.getElementById('roundoff-error');
 
@@ -35,7 +42,7 @@ function updateSummary() {
     }
   }
 
-  document.getElementById('sum-savings').textContent     = fmt(round2(totalDisc + roundOff));
+  document.getElementById('sum-savings').textContent     = fmt(round2(totalDisc + Math.max(0, roundOff)));
   document.getElementById('sum-final').textContent       = fmt(grossFinal);
   const fpEl = document.getElementById('sum-finalpayable');
   if (fpEl) fpEl.textContent = fmt(netPayable);

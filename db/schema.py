@@ -423,6 +423,14 @@ def _m29_inst_company_gst(conn):
         )
 
 
+def _m30_inst_round_off(conn):
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(institution_bills)").fetchall()}
+    if "round_off" not in cols:
+        conn.execute(
+            "ALTER TABLE institution_bills ADD COLUMN round_off REAL NOT NULL DEFAULT 0"
+        )
+
+
 def _m19_bill_payments_paid_at(conn):
     cols = {row[1] for row in conn.execute("PRAGMA table_info(bill_payments)").fetchall()}
     if "paid_at" not in cols:
@@ -583,6 +591,7 @@ MIGRATIONS = [
     (27, _m27_bills_customer_id_index),
     (28, _m28_inst_advance_percent),
     (29, _m29_inst_company_gst),
+    (30, _m30_inst_round_off),
 ]
 
 

@@ -2,7 +2,10 @@
 from flask import Blueprint, jsonify, request
 from db import get_db, generate_inst_bill_number, current_fy, IST_NOW
 from services.auth import api_login_required, api_admin_required
-from services.billing import calculate_inst_items, parse_inst_advance, parse_inst_advance_percent, apply_payment
+from services.billing import (
+    calculate_inst_items, parse_inst_advance, parse_inst_advance_percent,
+    parse_inst_round_off, apply_payment,
+)
 
 inst_bills_bp = Blueprint("institution_bills", __name__)
 
@@ -34,10 +37,10 @@ def create_institution_bill():
 
     try:
         calc_items, subtotal = calculate_inst_items(items)
+        round_off, final_total = parse_inst_round_off(body.get("round_off"), subtotal)
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
 
-    final_total = subtotal
     advance_paid, remaining = parse_inst_advance(body.get("advance_paid"), final_total)
     advance_percent = parse_inst_advance_percent(body.get("advance_percent"))
     stored_mode = payment_mode_type or "Pending"
@@ -51,12 +54,12 @@ def create_institution_bill():
             f"""
             INSERT INTO institution_bills (
                 bill_number, company_name, company_address, company_gst_number, contact_person_name, contact_person_mobile,
-                bill_date, subtotal, final_total, advance_paid, remaining, advance_percent,
+                bill_date, subtotal, round_off, final_total, advance_paid, remaining, advance_percent,
                 payment_mode_type, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, {IST_NOW})
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, {IST_NOW})
             """,
             (bill_number, company_name, company_address, company_gst_number, contact_person_name, contact_person_mobile,
-             bill_date, subtotal, final_total, advance_paid, remaining, advance_percent,
+             bill_date, subtotal, round_off, final_total, advance_paid, remaining, advance_percent,
              stored_mode),
         )
         bill_id = cursor.lastrowid
@@ -89,6 +92,7 @@ def create_institution_bill():
             "contact_person_mobile": contact_person_mobile,
             "bill_date":             bill_date,
             "subtotal":              subtotal,
+            "round_off":             round_off,
             "final_total":           final_total,
             "advance_paid":          advance_paid,
             "remaining":             remaining,
@@ -229,9 +233,9 @@ def update_institution_bill(bill_id):
 
     try:
         calc_items, subtotal = calculate_inst_items(items)
+        round_off, final_total = parse_inst_round_off(body.get("round_off"), subtotal)
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
-    final_total = subtotal
     advance_paid, remaining = parse_inst_advance(body.get("advance_paid"), final_total)
     advance_percent = parse_inst_advance_percent(body.get("advance_percent"))
     stored_mode = payment_mode_type or "Pending"
@@ -241,13 +245,13 @@ def update_institution_bill(bill_id):
             f"""
             UPDATE institution_bills SET
                 company_name = ?, company_address = ?, company_gst_number = ?, contact_person_name = ?, contact_person_mobile = ?,
-                bill_date = ?, subtotal = ?, final_total = ?,
+                bill_date = ?, subtotal = ?, round_off = ?, final_total = ?,
                 advance_paid = ?, remaining = ?, advance_percent = ?, payment_mode_type = ?,
                 updated_at = {IST_NOW}
             WHERE id = ?
             """,
             (company_name, company_address, company_gst_number, contact_person_name, contact_person_mobile,
-             bill_date, subtotal, final_total,
+             bill_date, subtotal, round_off, final_total,
              advance_paid, remaining, advance_percent, stored_mode, bill_id),
         )
         db.execute("DELETE FROM institution_bill_items    WHERE bill_id = ?", (bill_id,))
@@ -277,6 +281,7 @@ def update_institution_bill(bill_id):
     return jsonify({
         "id":          bill_id,
         "bill_number": bill["bill_number"],
+        "round_off":   round_off,
         "final_total": final_total,
         "advance_paid": advance_paid,
         "remaining":   remaining,

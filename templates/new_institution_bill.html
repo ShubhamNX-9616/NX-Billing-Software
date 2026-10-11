@@ -62,6 +62,10 @@
   </table>
 
   <div class="inst-inv-totals">
+    <div class="inst-inv-total-row" id="pr-roundoff-row" style="display:none;">
+      <span>Round Off</span>
+      <span id="pr-roundoff"></span>
+    </div>
     <div class="inst-inv-total-row grand">
       <span>Total Payable</span>
       <span id="pr-final-total"></span>
@@ -210,6 +214,23 @@
         <tr>
           <td>Total Amount</td>
           <td id="inst-sum-total">₹0.00</td>
+        </tr>
+        <tr>
+          <td>R/O (₹)</td>
+          <td>
+            <input type="number" id="inst-roundoff" class="input" step="0.01" placeholder="0.00"
+                   style="width:120px;text-align:right;padding:4px 8px;"
+                   oninput="onInstRoundOffInput()" />
+          </td>
+        </tr>
+        <tr>
+          <td colspan="2">
+            <div id="err-roundoff" class="text-danger" style="font-size:12px;text-align:right;min-height:14px;"></div>
+          </td>
+        </tr>
+        <tr>
+          <td><strong>Final Payable</strong></td>
+          <td id="inst-sum-final"><strong>₹0.00</strong></td>
         </tr>
         <tr>
           <td>Advance Paid (₹)</td>

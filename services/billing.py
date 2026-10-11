@@ -103,7 +103,8 @@ def calculate_bill_totals(calculated_items, round_off_raw):
         raise ValueError("round_off cannot exceed bill total")
 
     final_total   = r2(gross_final_total - round_off)
-    total_savings = r2(total_discount + round_off)
+    # Rounding up (negative round_off) is not a saving for the customer.
+    total_savings = r2(total_discount + max(0.0, round_off))
 
     return {
         "subtotal":          subtotal,
@@ -263,6 +264,20 @@ def normalize_and_validate_mobile(raw):
     if not validate_indian_mobile(norm):
         raise ValueError("Invalid Indian mobile number")
     return norm
+
+
+def parse_inst_round_off(raw, subtotal):
+    """Parse round_off for institution bills. Positive deducts from the subtotal,
+    negative adds to it. Returns (round_off, final_total). Raises ValueError if
+    the round-off would push the total below zero."""
+    try:
+        round_off = r2(float(raw or 0))
+    except (TypeError, ValueError):
+        round_off = 0.0
+    final_total = r2(subtotal - round_off)
+    if final_total < 0:
+        raise ValueError("round_off cannot exceed bill total")
+    return round_off, final_total
 
 
 def parse_inst_advance(raw, final_total):

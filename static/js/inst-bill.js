@@ -9,6 +9,7 @@ let instActiveIds   = [];
 let instDataStore   = {};
 let instCurrentMode = 'Cash';
 let instAdvanceModified = false;
+let instRoundOffModified = false;   // false → R/O box auto-fills to the nearest rupee
 let instComboLastChanged = null;
 let instClothTypes  = [];
 let instCompanyCache = {};
@@ -297,9 +298,39 @@ function removeInstItem(id) {
 }
 
 // ---- Summary ----
+function instGrossTotal() {
+  return r2(instActiveIds.reduce((s, id) => s + (instDataStore[id]?.total || 0), 0));
+}
+
+function instRoundOffValue() {
+  return r2(parseFloat(document.getElementById('inst-roundoff')?.value) || 0);
+}
+
+// Net payable after round-off (positive R/O is deducted, negative added).
+function instFinalTotal() {
+  return r2(instGrossTotal() - instRoundOffValue());
+}
+
+function onInstRoundOffInput() {
+  instRoundOffModified = document.getElementById('inst-roundoff').value.trim() !== '';
+  updateInstSummary();
+}
+
 function updateInstSummary() {
-  const total = r2(instActiveIds.reduce((s, id) => s + (instDataStore[id]?.total || 0), 0));
-  document.getElementById('inst-sum-total').textContent = fmt(total);
+  const gross = instGrossTotal();
+  document.getElementById('inst-sum-total').textContent = fmt(gross);
+
+  // Auto-fill R/O to the nearest rupee until the user types a value; clearing the box re-enables auto.
+  const roEl = document.getElementById('inst-roundoff');
+  if (roEl && !instRoundOffModified) {
+    const auto = r2(gross - Math.round(gross));
+    roEl.value = auto !== 0 ? auto.toFixed(2) : '';
+  }
+  const total = r2(gross - instRoundOffValue());
+  const finalEl = document.getElementById('inst-sum-final');
+  if (finalEl) finalEl.textContent = fmt(total);
+  const roErrEl = document.getElementById('err-roundoff');
+  if (roErrEl) roErrEl.textContent = total < 0 ? 'R/O cannot exceed bill total.' : '';
 
   const advEl = document.getElementById('inst-advance-paid');
   if (advEl && !instAdvanceModified) advEl.value = total.toFixed(2);
@@ -395,8 +426,8 @@ function syncInstComboAutoFill() {
   const remEl   = document.getElementById('inst-combo-remaining');
   if (checked.length < 2) { remEl.textContent = ''; return; }
 
-  const total          = r2(instActiveIds.reduce((s, id) => s + (instDataStore[id]?.total || 0), 0));
-  const autoMethod     = checked[checked.length - 1];
+  const total          = instFinalTotal();
+  const autoMethod    = checked[checked.length - 1];
   const manualMethods  = checked.filter(m => m !== autoMethod);
   const manualSum      = manualMethods.reduce((s, m) =>
     s + (parseFloat(document.getElementById(`inst-combo-amt-${m}`).value) || 0), 0);
@@ -452,13 +483,14 @@ function collectInstData() {
     payment_mode_type:     mode,
     advance_paid:          r2(parseFloat(document.getElementById('inst-advance-paid')?.value) || 0),
     advance_percent:       r2(parseFloat(document.getElementById('inst-advance-percent')?.value) || 0),
+    round_off:             instRoundOffValue(),
     items,
     payments,
   };
 }
 
 function clearInstErrors() {
-  ['err-company','err-contact','err-mobile','err-items','err-payment','err-advance','inst-save-error']
+  ['err-company','err-contact','err-mobile','err-items','err-payment','err-advance','err-roundoff','inst-save-error']
     .forEach(id => { const el = document.getElementById(id); if (el) el.textContent = ''; });
 }
 
@@ -487,7 +519,10 @@ function validateInstData(data) {
     }
   }
 
-  const total = r2(instActiveIds.reduce((s, id) => s + (instDataStore[id]?.total || 0), 0));
+  const total = instFinalTotal();
+  if (total < 0) {
+    document.getElementById('err-roundoff').textContent = 'R/O cannot exceed bill total.'; valid = false;
+  }
   if (data.advance_paid < 0) {
     document.getElementById('err-advance').textContent = 'Advance cannot be negative.'; valid = false;
   } else if (data.advance_paid > total) {
@@ -559,6 +594,11 @@ async function loadInstBillForEdit(billId) {
     instAdvanceModified = true;
     const advEl = document.getElementById('inst-advance-paid');
     if (advEl) advEl.value = Number(bill.advance_paid || 0).toFixed(2);
+
+    // Keep the saved R/O; don't re-derive it on edit
+    const roEl = document.getElementById('inst-roundoff');
+    if (roEl) roEl.value = Number(bill.round_off || 0) !== 0 ? Number(bill.round_off).toFixed(2) : '';
+    instRoundOffModified = true;
 
     // Pre-fill advance %
     const advPctEl = document.getElementById('inst-advance-percent');
@@ -664,6 +704,9 @@ function onInstSaveSuccess(bill) {
   document.getElementById('pr-bill-number').textContent = bill.bill_number;
   document.getElementById('pr-date').textContent        = formatPrintDate(bill.bill_date);
   document.getElementById('pr-final-total').textContent = fmt(bill.final_total);
+  const prRo = Number(bill.round_off || 0);
+  document.getElementById('pr-roundoff-row').style.display = prRo !== 0 ? '' : 'none';
+  document.getElementById('pr-roundoff').textContent = prRo > 0 ? `−${fmt(prRo)}` : `+${fmt(-prRo)}`;
   document.getElementById('pr-advance-paid').textContent = fmt(bill.advance_paid);
   document.getElementById('pr-remaining').textContent   = fmt(bill.remaining);
 
@@ -789,6 +832,9 @@ function resetInstForm() {
   instDataStore = {};
   instComboLastChanged = null;
   instAdvanceModified = false;
+  instRoundOffModified = false;
+  const roReset = document.getElementById('inst-roundoff');
+  if (roReset) roReset.value = '';
 
   // Reset combo
   INST_COMBO_METHODS.forEach(m => {

@@ -20,6 +20,7 @@ let activeItemIds    = [];        // ordered list of live item IDs
 const itemDataStore  = {};        // { id: { lineTotal, discPerUnit, rateAfterDisc, discAmt, finalAmt, inventoryItemId } }
 let lastIsMobile     = window.innerWidth <= 768;
 let advancePaidUserModified = false;
+let roundOffUserModified = false;   // false → R/O box auto-fills to the nearest rupee
 let billSaved = false;  // set true on successful save to suppress beforeunload
 
 // The new-bill form stays editable after a save, so anything typed afterwards

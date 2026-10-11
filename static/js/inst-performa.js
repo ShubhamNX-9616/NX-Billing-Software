@@ -28,6 +28,7 @@ function buildPerformaWindow(bill, items, payments, type, winRef) {
   const date = _fmtPerformaDate(bill.bill_date);
 
   let grandTotal = 0;
+  const roundOff = Number(bill.round_off || 0);
   const itemRows = items.map(item => {
     const noOfPcs  = Number(item.no_of_pcs       || 0);
     const qtyPerPc = Number(item.quantity_per_pc  || 0);
@@ -169,6 +170,15 @@ function buildPerformaWindow(bill, items, payments, type, winRef) {
         <td style="padding:4px 16px 4px 8px;font-weight:700;border:1px solid #333;background:#f0f0f0;">Total</td>
         <td style="padding:4px 12px;text-align:right;font-weight:700;border:1px solid #333;background:#f0f0f0;min-width:100px;">₹${grandTotal.toFixed(2)}</td>
       </tr>
+      ${roundOff !== 0 ? `
+      <tr>
+        <td style="padding:4px 16px 4px 8px;border:1px solid #555;">Round Off</td>
+        <td style="padding:4px 12px;text-align:right;border:1px solid #555;">${roundOff > 0 ? '−' : '+'}₹${Math.abs(roundOff).toFixed(2)}</td>
+      </tr>
+      <tr>
+        <td style="padding:4px 16px 4px 8px;font-weight:700;border:1px solid #333;background:#f0f0f0;">Total Payable</td>
+        <td style="padding:4px 12px;text-align:right;font-weight:700;border:1px solid #333;background:#f0f0f0;min-width:100px;">₹${(grandTotal - roundOff).toFixed(2)}</td>
+      </tr>` : ''}
       ${!isProforma ? `
       <tr>
         <td style="padding:4px 16px 4px 8px;border:1px solid #555;">Amount Received</td>
