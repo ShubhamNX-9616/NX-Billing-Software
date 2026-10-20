@@ -1,4 +1,5 @@
 ﻿import io
+import re
 import qrcode
 from flask import Blueprint, jsonify, request, send_file, session
 from db import get_db, IST_NOW
@@ -569,6 +570,15 @@ def get_inventory_item_by_code(item_code):
     item = db.execute(
         "SELECT * FROM inventory_items WHERE UPPER(item_code) = UPPER(?)", (item_code,)
     ).fetchone()
+    if not item:
+        # Typed "sut4" / "sut-4" for "SUT-004": codes are PREFIX-NNN, so match
+        # the number as an integer, ignoring zero padding and the hyphen.
+        m = re.fullmatch(r"([A-Za-z]+)[-\s]*(\d+)", item_code.strip())
+        if m:
+            item = db.execute(
+                "SELECT * FROM inventory_items WHERE UPPER(item_code) = UPPER(?)",
+                (f"{m.group(1)}-{int(m.group(2)):03d}",),
+            ).fetchone()
     if not item:
         # Typed "sut001" for "SUT-001": retry ignoring hyphens and spaces.
         squashed = item_code.replace("-", "").replace(" ", "")
