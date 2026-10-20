@@ -1120,7 +1120,9 @@ function filterItems() {
   const q        = document.getElementById('filter-input').value.toLowerCase();
   // "sut001" should find "SUT-001": compare codes with hyphens/spaces removed
   const qCode    = q.replace(/[-\s]/g, '');
-  const status  = document.getElementById('filter-status').value;
+  // "sut4" lists every SUT code whose number contains a 4 (SUT-004, -040…-049, -054…)
+  const qParts   = q.trim().match(/^([a-z]+)[-\s]*(\d+)$/);
+  const status = document.getElementById('filter-status').value;
   const cloth    = document.getElementById('filter-cloth').value;
   const company  = document.getElementById('filter-company').value;
   const supplier = document.getElementById('filter-supplier').value;
@@ -1135,7 +1137,11 @@ function filterItems() {
       (item.quality_number || '').toLowerCase().includes(q) ||
       (item.invoice_number || '').toLowerCase().includes(q) ||
       (item.item_code      || '').toLowerCase().includes(q) ||
-      (qCode && (item.item_code || '').toLowerCase().replace(/[-\s]/g, '').includes(qCode));
+      (qCode && (item.item_code || '').toLowerCase().replace(/[-\s]/g, '').includes(qCode)) ||
+      (qParts && (() => {
+        const [pre, num] = (item.item_code || '').toLowerCase().split('-');
+        return num !== undefined && pre.includes(qParts[1]) && num.includes(qParts[2]);
+      })());
 
     let matchStatus = true;
     if (status === 'negative') matchStatus = item.current_stock < 0;
