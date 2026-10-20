@@ -426,8 +426,8 @@ function syncInstComboAutoFill() {
   const remEl   = document.getElementById('inst-combo-remaining');
   if (checked.length < 2) { remEl.textContent = ''; return; }
 
-  const total          = instFinalTotal();
-  const autoMethod    = checked[checked.length - 1];
+  const total          = r2(parseFloat(document.getElementById('inst-advance-paid')?.value) || 0);
+  const autoMethod   = checked[checked.length - 1];
   const manualMethods  = checked.filter(m => m !== autoMethod);
   const manualSum      = manualMethods.reduce((s, m) =>
     s + (parseFloat(document.getElementById(`inst-combo-amt-${m}`).value) || 0), 0);
@@ -535,9 +535,9 @@ function validateInstData(data) {
       document.getElementById('err-payment').textContent = 'Select at least 2 methods for Combination.'; valid = false;
     } else {
       const sum = r2(data.payments.reduce((s, p) => s + p.amount, 0));
-      if (Math.abs(sum - total) > 0.01) {
+      if (Math.abs(sum - data.advance_paid) > 0.01) {
         document.getElementById('err-payment').textContent =
-          `Payment sum (${fmt(sum)}) must equal total (${fmt(total)}).`; valid = false;
+          `Payment sum (${fmt(sum)}) must equal advance paid (${fmt(data.advance_paid)}).`; valid = false;
       }
     }
   }

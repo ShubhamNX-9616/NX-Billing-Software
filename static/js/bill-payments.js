@@ -152,7 +152,7 @@ function syncComboAutoFill() {
     return;
   }
 
-  const total          = getFinalTotal();
+  const total          = round2(parseFloat(document.getElementById('advance-paid')?.value) || 0);
   const autoFillMethod = checked[checked.length - 1];
   const manualMethods  = checked.filter(m => m !== autoFillMethod);
   const manualSum      = manualMethods.reduce((s, m) =>

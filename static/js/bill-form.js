@@ -313,8 +313,8 @@ function validateBillData(data) {
       valid = false;
     } else {
       const sum = round2(data.payments.reduce((s, p) => s + p.amount, 0));
-      if (Math.abs(sum - finalTotal) > 0.01) {
-        setError('payment-error', `Payment sum (${fmt(sum)}) must equal final total (${fmt(finalTotal)}).`);
+      if (Math.abs(sum - advancePaid) > 0.01) {
+        setError('payment-error', `Payment sum (${fmt(sum)}) must equal advance paid (${fmt(advancePaid)}).`);
         valid = false;
       }
     }
