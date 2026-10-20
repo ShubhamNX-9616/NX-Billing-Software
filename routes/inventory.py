@@ -570,6 +570,16 @@ def get_inventory_item_by_code(item_code):
         "SELECT * FROM inventory_items WHERE UPPER(item_code) = UPPER(?)", (item_code,)
     ).fetchone()
     if not item:
+        # Typed "sut001" for "SUT-001": retry ignoring hyphens and spaces.
+        squashed = item_code.replace("-", "").replace(" ", "")
+        if squashed:
+            item = db.execute(
+                """SELECT * FROM inventory_items
+                   WHERE REPLACE(REPLACE(UPPER(item_code), '-', ''), ' ', '') = UPPER(?)
+                   ORDER BY id LIMIT 1""",
+                (squashed,),
+            ).fetchone()
+    if not item:
         return jsonify({"error": "Item not found"}), 404
     return jsonify(dict(item))
 
