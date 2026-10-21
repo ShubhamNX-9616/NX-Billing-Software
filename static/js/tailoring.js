@@ -1332,9 +1332,12 @@ async function confirmPhotoUpload() {
       const fd = new FormData();
       fd.append('photo', f);
       if (itemId) fd.append('item_id', itemId);
+      const t0 = performance.now();   // TEMP timing diagnostics
       o = await tlFetch(`${TL_API}/orders/${orderId}/photos`, {
         method: 'POST', body: fd,
       });
+      console.log(`[photo-timing] ${(f.size / 1024).toFixed(0)}KB -> ` +
+                  `${(performance.now() - t0).toFixed(0)}ms round trip`);
     }
     tlClosePhotoPreview();
     if (o) {

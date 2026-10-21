@@ -8,6 +8,7 @@ import hmac
 import io
 import os
 import sqlite3
+import time
 import uuid
 from datetime import date, datetime, timedelta, timezone
 from flask import (Blueprint, current_app, jsonify, request, render_template,
@@ -1049,6 +1050,7 @@ def delete_order(order_id):
 @tailoring_api_bp.route("/tailoring/orders/<int:order_id>/photos", methods=["POST"])
 @api_login_required
 def upload_photo(order_id):
+    t0 = time.perf_counter()   # TEMP timing diagnostics — remove once the slow step is known
     db = get_tailoring_db()
     row = db.execute("SELECT id FROM tailoring_orders WHERE id = ?", (order_id,)).fetchone()
     if not row:
@@ -1057,6 +1059,7 @@ def upload_photo(order_id):
     file = request.files.get("photo")
     if not file:
         return jsonify({"error": "No photo provided"}), 400
+    t_recv = time.perf_counter()
 
     # Optional: attach the photo to one garment line of this order
     item_id_raw = (request.form.get("item_id") or "").strip()
@@ -1079,10 +1082,12 @@ def upload_photo(order_id):
         img.thumbnail((MAX_PHOTO_DIM, MAX_PHOTO_DIM))
     except Exception:
         return jsonify({"error": "File is not a valid image"}), 400
+    t_decode = time.perf_counter()
 
     buf = io.BytesIO()
     img.save(buf, "JPEG", quality=PHOTO_JPEG_QUALITY, optimize=True)
     filename = f"order{order_id}-{uuid.uuid4().hex[:10]}.jpg"
+    t_encode = time.perf_counter()
 
     # Prefer Cloudflare R2 (keeps the server's disk quota free); fall back to
     # local disk if R2 isn't configured, or if the upload fails, so a photo
@@ -1093,6 +1098,7 @@ def upload_photo(order_id):
         os.makedirs(UPLOAD_DIR, exist_ok=True)
         with open(os.path.join(UPLOAD_DIR, filename), "wb") as f:
             f.write(buf.getvalue())
+    t_store = time.perf_counter()
 
     db.execute(
         "INSERT INTO tailoring_photos (order_id, item_id, filename) VALUES (?, ?, ?)",
@@ -1100,7 +1106,23 @@ def upload_photo(order_id):
     )
     db.commit()
     order = db.execute("SELECT * FROM tailoring_orders WHERE id = ?", (order_id,)).fetchone()
-    return jsonify(_order_payload(db, order)), 201
+    resp = jsonify(_order_payload(db, order))
+    t_end = time.perf_counter()
+
+    ms = lambda a, b: (b - a) * 1000
+    current_app.logger.warning(
+        "photo-timing tailoring order=%s in=%dKB out=%dKB recv=%.0fms decode+resize=%.0fms "
+        "encode=%.0fms store(%s)=%.0fms db+payload=%.0fms total=%.0fms",
+        order_id, (request.content_length or 0) // 1024, len(buf.getvalue()) // 1024,
+        ms(t0, t_recv), ms(t_recv, t_decode), ms(t_decode, t_encode),
+        "r2" if stored_on_r2 else "disk", ms(t_encode, t_store),
+        ms(t_store, t_end), ms(t0, t_end))
+    resp.headers["Server-Timing"] = (
+        f"recv;dur={ms(t0, t_recv):.0f}, decode;dur={ms(t_recv, t_decode):.0f}, "
+        f"encode;dur={ms(t_decode, t_encode):.0f}, "
+        f"store-{'r2' if stored_on_r2 else 'disk'};dur={ms(t_encode, t_store):.0f}, "
+        f"payload;dur={ms(t_store, t_end):.0f}")
+    return resp, 201
 
 
 @tailoring_api_bp.route("/tailoring/photos/<int:photo_id>", methods=["DELETE"])
