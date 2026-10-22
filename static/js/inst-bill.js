@@ -772,7 +772,7 @@ function buildInstWhatsAppMessage(bill) {
   const shopPhone   = '+91 9284630254';
   const dateStr     = formatPrintDate(bill.bill_date) || new Date().toLocaleDateString('en-IN');
   const total       = fmt(bill.final_total);
-  const advance     = bill.advance_paid > 0 ? fmt(bill.advance_paid) : null;
+  const advance     = bill.advance_paid > 0 && Math.abs(bill.advance_paid - bill.final_total) >= 0.005 ? fmt(bill.advance_paid) : null;
   const remaining   = bill.remaining > 0    ? fmt(bill.remaining)    : null;
   const shareLink   = buildInstShareLink(bill.bill_number);
 
