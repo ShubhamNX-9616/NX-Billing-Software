@@ -3,7 +3,7 @@ from collections import defaultdict
 from flask import Blueprint, current_app, jsonify, request, session
 from db import get_db, generate_bill_number, IST_NOW
 from db import current_fy
-from services.auth import api_login_required, api_admin_required, api_staff_or_admin_required
+from services.auth import api_admin_required, api_staff_or_admin_required
 from utils import normalize_mobile
 from services.billing import (
     validate_and_calculate_items,

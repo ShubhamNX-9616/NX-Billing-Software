@@ -24,10 +24,15 @@ def client(tmp_path, monkeypatch):
     import routes.tailoring as tr
     import routes.tailoring_suits as ts
 
+    import db.connection as conn_mod
+    from db import close_db, init_db
+
     monkeypatch.setattr(tdb, "TAILORING_DB_PATH", str(tmp_path / "tailoring_test.db"))
+    monkeypatch.setattr(conn_mod, "DB_PATH", str(tmp_path / "billing_test.db"))
     monkeypatch.setattr(tr, "UPLOAD_DIR", str(tmp_path / "uploads"))
     monkeypatch.setattr(ts, "UPLOAD_DIR", str(tmp_path / "uploads"))
     tdb.init_tailoring_db()
+    init_db()
 
     app = Flask(
         __name__,
@@ -40,6 +45,7 @@ def client(tmp_path, monkeypatch):
     app.register_blueprint(ts.tailoring_suit_api_bp, url_prefix="/api")
     app.register_blueprint(ts.tailoring_suit_pages_bp)
     app.teardown_appcontext(tdb.close_tailoring_db)
+    app.teardown_appcontext(close_db)
 
     @app.template_filter("format_date")
     def format_date_filter(date_str):
@@ -173,3 +179,66 @@ def test_daily_report_merges_suit_orders_with_general(client):
     assert "SuitTomorrow" in html
     assert "SuitLate" in html
     assert "Book 9" in html   # suit entries are tagged so numbers aren't confused
+
+
+# ---------------------------------------------------------------------------
+# Customer lookup is shared across billing, tailoring and suits
+# ---------------------------------------------------------------------------
+
+def _add_billing_customer(name, mobile):
+    from db import get_db
+    from utils import normalize_mobile
+    d = get_db()
+    d.execute(
+        "INSERT INTO customers (name, mobile, normalized_mobile) VALUES (?, ?, ?)",
+        (name, mobile, normalize_mobile(mobile)),
+    )
+    d.commit()
+
+
+def test_suit_customer_found_in_tailoring_lookup(client):
+    make_suit_order(client, customer_name="Suit Only", mobile="9876500001",
+                    address="Baner")
+
+    data = client.get("/api/tailoring/customers/search?mobile=9876500001").get_json()
+    assert data["found"] is True
+    assert data["customer"]["customer_name"] == "Suit Only"
+    assert data["customer"]["address"] == "Baner"
+
+    names = [r["customer_name"] for r in
+             client.get("/api/tailoring/customers/suggest?q=suit o").get_json()]
+    assert names == ["Suit Only"]
+
+
+def test_tailoring_customer_found_in_suit_lookup(client):
+    client.post("/api/tailoring/orders", json={
+        "order_number": 9001, "customer_name": "Shirt Only",
+        "mobile": "9876500002", "order_date": "2026-07-07",
+        "items": [{"garment_type": "Shirt", "qty": 1, "rate": 400}],
+    })
+
+    data = client.get("/api/tailoring/suits/customers/search?mobile=9876500002").get_json()
+    assert data["found"] is True
+    assert data["customer"]["customer_name"] == "Shirt Only"
+
+
+def test_billing_customer_found_in_both_lookups(client):
+    with client.application.app_context():
+        _add_billing_customer("Billing Only", "9876500003")
+
+    for base in ("/api/tailoring", "/api/tailoring/suits"):
+        data = client.get(f"{base}/customers/search?mobile=9876500003").get_json()
+        assert data["found"] is True, base
+        assert data["customer"]["customer_name"] == "Billing Only"
+        names = [r["customer_name"] for r in
+                 client.get(f"{base}/customers/suggest?q=billing").get_json()]
+        assert names == ["Billing Only"], base
+
+
+def test_own_section_name_wins_over_billing(client):
+    with client.application.app_context():
+        _add_billing_customer("Billing Spelling", "9876500004")
+    make_suit_order(client, customer_name="Suit Spelling", mobile="9876500004")
+
+    data = client.get("/api/tailoring/suits/customers/search?mobile=9876500004").get_json()
+    assert data["customer"]["customer_name"] == "Suit Spelling"

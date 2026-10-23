@@ -15,13 +15,14 @@ risking each other.
 import io
 import os
 import sqlite3
-import time
 import uuid
 from datetime import date, datetime, timedelta, timezone
-from flask import Blueprint, current_app, jsonify, request, render_template
+from flask import Blueprint, jsonify, request, render_template
 from db.tailoring import get_tailoring_db, STAGES, GARMENT_TYPES, IST_NOW
 from services.auth import api_login_required, login_required
+from db.connection import get_db
 from services import r2_storage
+from services.customer_lookup import customer_index
 from utils import normalize_mobile
 
 tailoring_suit_api_bp = Blueprint("tailoring_suit_api", __name__)
@@ -522,21 +523,9 @@ def suit_dashboard():
 
 
 def _customer_index(db):
-    index = {}
-    rows = db.execute(
-        "SELECT customer_name, mobile, address FROM tailoring_suit_orders "
-        "ORDER BY order_number"
-    ).fetchall()
-    for r in rows:
-        norm = normalize_mobile(r["mobile"] or "")
-        key = norm or "name:" + (r["customer_name"] or "").strip().lower()
-        c = index.setdefault(key, {"customer_name": "", "mobile": "", "address": ""})
-        c["customer_name"] = r["customer_name"]
-        if r["mobile"]:
-            c["mobile"] = r["mobile"]
-        if r["address"]:
-            c["address"] = r["address"]
-    return index
+    # Also includes billing and general-tailoring customers (see
+    # services/customer_lookup.py), so someone saved there autofills here.
+    return customer_index(db, get_db(), "tailoring_suit_orders")
 
 
 # ---------------------------------------------------------------------------
@@ -994,7 +983,6 @@ def delete_order(order_id):
 @tailoring_suit_api_bp.route("/tailoring/suits/orders/<int:order_id>/photos", methods=["POST"])
 @api_login_required
 def upload_photo(order_id):
-    t0 = time.perf_counter()   # TEMP timing diagnostics — remove once the slow step is known
     db = get_tailoring_db()
     row = db.execute("SELECT id FROM tailoring_suit_orders WHERE id = ?", (order_id,)).fetchone()
     if not row:
@@ -1003,7 +991,6 @@ def upload_photo(order_id):
     file = request.files.get("photo")
     if not file:
         return jsonify({"error": "No photo provided"}), 400
-    t_recv = time.perf_counter()
 
     item_id_raw = (request.form.get("item_id") or "").strip()
     item_id = None
@@ -1025,12 +1012,10 @@ def upload_photo(order_id):
         img.thumbnail((MAX_PHOTO_DIM, MAX_PHOTO_DIM))
     except Exception:
         return jsonify({"error": "File is not a valid image"}), 400
-    t_decode = time.perf_counter()
 
     buf = io.BytesIO()
     img.save(buf, "JPEG", quality=PHOTO_JPEG_QUALITY, optimize=True)
     filename = f"suitorder{order_id}-{uuid.uuid4().hex[:10]}.jpg"
-    t_encode = time.perf_counter()
 
     stored_on_r2 = r2_storage.is_configured() and r2_storage.upload_bytes(
         buf.getvalue(), filename)
@@ -1038,7 +1023,6 @@ def upload_photo(order_id):
         os.makedirs(UPLOAD_DIR, exist_ok=True)
         with open(os.path.join(UPLOAD_DIR, filename), "wb") as f:
             f.write(buf.getvalue())
-    t_store = time.perf_counter()
 
     db.execute(
         "INSERT INTO tailoring_suit_photos (order_id, item_id, filename) VALUES (?, ?, ?)",
@@ -1046,23 +1030,7 @@ def upload_photo(order_id):
     )
     db.commit()
     order = db.execute("SELECT * FROM tailoring_suit_orders WHERE id = ?", (order_id,)).fetchone()
-    resp = jsonify(_order_payload(db, order))
-    t_end = time.perf_counter()
-
-    ms = lambda a, b: (b - a) * 1000
-    current_app.logger.warning(
-        "photo-timing suits order=%s in=%dKB out=%dKB recv=%.0fms decode+resize=%.0fms "
-        "encode=%.0fms store(%s)=%.0fms db+payload=%.0fms total=%.0fms",
-        order_id, (request.content_length or 0) // 1024, len(buf.getvalue()) // 1024,
-        ms(t0, t_recv), ms(t_recv, t_decode), ms(t_decode, t_encode),
-        "r2" if stored_on_r2 else "disk", ms(t_encode, t_store),
-        ms(t_store, t_end), ms(t0, t_end))
-    resp.headers["Server-Timing"] = (
-        f"recv;dur={ms(t0, t_recv):.0f}, decode;dur={ms(t_recv, t_decode):.0f}, "
-        f"encode;dur={ms(t_decode, t_encode):.0f}, "
-        f"store-{'r2' if stored_on_r2 else 'disk'};dur={ms(t_encode, t_store):.0f}, "
-        f"payload;dur={ms(t_store, t_end):.0f}")
-    return resp, 201
+    return jsonify(_order_payload(db, order)), 201
 
 
 @tailoring_suit_api_bp.route("/tailoring/suits/photos/<int:photo_id>", methods=["DELETE"])

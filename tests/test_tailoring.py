@@ -23,9 +23,14 @@ def client(tmp_path, monkeypatch):
     import db.tailoring as tdb
     import routes.tailoring as tr
 
+    import db.connection as conn_mod
+    from db import close_db, init_db
+
     monkeypatch.setattr(tdb, "TAILORING_DB_PATH", str(tmp_path / "tailoring_test.db"))
+    monkeypatch.setattr(conn_mod, "DB_PATH", str(tmp_path / "billing_test.db"))
     monkeypatch.setattr(tr, "UPLOAD_DIR", str(tmp_path / "uploads"))
     tdb.init_tailoring_db()
+    init_db()
 
     app = Flask(
         __name__,
@@ -36,6 +41,7 @@ def client(tmp_path, monkeypatch):
     app.register_blueprint(tr.tailoring_api_bp, url_prefix="/api")
     app.register_blueprint(tr.tailoring_pages_bp)
     app.teardown_appcontext(tdb.close_tailoring_db)
+    app.teardown_appcontext(close_db)
 
     @app.template_filter("format_date")
     def format_date_filter(date_str):

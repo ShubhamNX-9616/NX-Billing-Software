@@ -8,6 +8,7 @@ try:
 except ImportError:
     pass
 from extensions import bcrypt
+from services.compression import init_compression
 from db import init_db, seed_default_users, close_db
 from routes.customers import customers_bp
 from routes.companies import companies_bp
@@ -76,6 +77,8 @@ app.config['TEMPLATES_AUTO_RELOAD'] = False
 
 # Initialize bcrypt
 bcrypt.init_app(app)
+
+init_compression(app)
 
 # Close the per-request DB connections after each request/appcontext teardown
 app.teardown_appcontext(close_db)

@@ -1,7 +1,10 @@
 from flask import Blueprint, jsonify, request
 from db import get_db
+from db.tailoring import get_tailoring_db
 from services.auth import api_login_required, api_admin_required
+from services.customer_lookup import order_customers
 from services.customers import get_customer_by_mobile, get_customer_stats
+from utils import normalize_mobile
 
 customers_bp = Blueprint("customers", __name__)
 
@@ -39,9 +42,16 @@ def search_customer_by_mobile():
         if not raw:
             return jsonify({"error": "mobile param required"}), 400
         db = get_db()
-        _, customer = get_customer_by_mobile(db, raw)
+        norm, customer = get_customer_by_mobile(db, raw)
         if customer:
             return jsonify({"found": True, "customer": customer})
+        # Not billed yet — fall back to tailoring/suit orders so the person
+        # still autofills. They are saved to customers on their first bill.
+        other = order_customers(get_tailoring_db()).get(norm)
+        if other and other["mobile"]:
+            return jsonify({"found": True, "customer": {
+                "name": other["customer_name"], "mobile": other["mobile"],
+            }})
         return jsonify({"found": False})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -65,7 +75,16 @@ def suggest_customers():
             """,
             (like,),
         ).fetchall()
-        return jsonify([dict(r) for r in rows])
+        matches = [dict(r) for r in rows]
+        # Add tailoring/suit customers not already billed (matched by mobile).
+        seen = {normalize_mobile(m["mobile"] or "") for m in matches}
+        ql = q.lower()
+        for norm, c in order_customers(get_tailoring_db()).items():
+            if (c["mobile"] and norm not in seen
+                    and ql in (c["customer_name"] or "").lower()):
+                matches.append({"name": c["customer_name"], "mobile": c["mobile"]})
+        matches.sort(key=lambda m: (m["name"] or "").lower())
+        return jsonify(matches[:8])
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
