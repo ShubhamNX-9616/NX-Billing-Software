@@ -144,7 +144,7 @@ def _order_payload(db, order_row):
     return order
 
 
-def _order_payloads_bulk(db, order_rows):
+def _order_payloads_bulk(db, order_rows, with_photos=True):
     """Same shape as [_order_payload(db, r) for r in order_rows], but fetches
     items/photos/payments for every order in 3 queries total instead of 3
     per order — the list/dashboard/report endpoints were doing 1+3N queries
@@ -160,10 +160,11 @@ def _order_payloads_bulk(db, order_rows):
         f"SELECT * FROM tailoring_items WHERE order_id IN ({placeholders}) ORDER BY id", ids
     ).fetchall():
         items_by_order.setdefault(r["order_id"], []).append(dict(r))
-    for r in db.execute(
-        f"SELECT * FROM tailoring_photos WHERE order_id IN ({placeholders}) ORDER BY id", ids
-    ).fetchall():
-        photos_by_order.setdefault(r["order_id"], []).append(dict(r))
+    if with_photos:  # callers that only need counts/summaries skip this query
+        for r in db.execute(
+            f"SELECT * FROM tailoring_photos WHERE order_id IN ({placeholders}) ORDER BY id", ids
+        ).fetchall():
+            photos_by_order.setdefault(r["order_id"], []).append(dict(r))
     for r in db.execute(
         f"SELECT * FROM tailoring_payments WHERE order_id IN ({placeholders}) ORDER BY id", ids
     ).fetchall():
@@ -381,6 +382,11 @@ def list_orders():
     if sort not in SORTS:
         sort = DEFAULT_SORT
 
+    # The board (no search) and the badge counts read the same rows, so build
+    # that payload once; only a search needs a second, wider query.
+    live_sql = f"SELECT * FROM tailoring_orders WHERE {ARCHIVE_EXCLUDE_SQL}"
+    all_orders = _order_payloads_bulk(db, db.execute(live_sql).fetchall())
+
     sql = "SELECT * FROM tailoring_orders"
     where, params = [], []
     if q:
@@ -404,7 +410,10 @@ def list_orders():
         sql += " WHERE " + " AND ".join(where)
     sql += " ORDER BY order_number DESC"
 
-    orders = _order_payloads_bulk(db, db.execute(sql, params).fetchall())
+    if q:
+        orders = _order_payloads_bulk(db, db.execute(sql, params).fetchall())
+    else:
+        orders = list(all_orders)
 
     if stage:
         orders = [o for o in orders if o["stage"] == stage]
@@ -423,8 +432,6 @@ def list_orders():
     # Dashboard counts (computed over all orders, ignoring the filters) —
     # these badges describe the live board, so the archive stays excluded
     # here even while q is searching it.
-    all_orders = _order_payloads_bulk(
-        db, db.execute(f"SELECT * FROM tailoring_orders WHERE {ARCHIVE_EXCLUDE_SQL}").fetchall())
     counts = {s: 0 for s in STAGES}
     trial_today = delivery_today = overdue = 0
     for o in all_orders:
@@ -480,8 +487,10 @@ def tailoring_dashboard():
     today_s = today.isoformat()
     tomorrow_s = (today + timedelta(days=1)).isoformat()
 
+    # _order_brief never shows photos, so don't load them.
     orders = _order_payloads_bulk(
-        db, db.execute(f"SELECT * FROM tailoring_orders WHERE {ARCHIVE_EXCLUDE_SQL}").fetchall())
+        db, db.execute(f"SELECT * FROM tailoring_orders WHERE {ARCHIVE_EXCLUDE_SQL}").fetchall(),
+        with_photos=False)
     open_orders = [o for o in orders if o["stage"] != "Delivered"]
 
     # Delivery load per day for the next 15 days (today included):
@@ -1521,10 +1530,15 @@ def tailoring_photo_file(filename):
     """Serve uploaded cloth-sample photos (also used by the public receipt).
     Older photos live on local disk; newer ones are offloaded to R2 — check
     disk first so nothing existing breaks, then redirect to R2 if needed."""
+    # Filenames are random UUIDs and never rewritten, so browsers may cache
+    # them for a year (also saves the redirect hop on repeat views).
+    one_year = 31536000
     if os.path.isfile(os.path.join(os.path.abspath(UPLOAD_DIR), filename)):
-        return send_from_directory(os.path.abspath(UPLOAD_DIR), filename)
+        return send_from_directory(os.path.abspath(UPLOAD_DIR), filename, max_age=one_year)
     if r2_storage.is_configured():
-        return redirect(r2_storage.public_url(filename))
+        resp = redirect(r2_storage.public_url(filename))
+        resp.headers["Cache-Control"] = f"public, max-age={one_year}"
+        return resp
     return jsonify({"error": "Photo not found"}), 404
 
 
