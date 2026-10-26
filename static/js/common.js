@@ -49,7 +49,16 @@ function istToday() {
    gets corrected against the server's own clock when the two disagree;
    fails silently, leaving the client-computed value in place, if the
    request errors. */
+let _pageDateUsed = false;
 async function refreshDateFromServer(inputId) {
+  // First call after page load: the server already embedded its date in the
+  // page (window.SERVER_TODAY), so no request is needed. Later calls (e.g. the
+  // form reset after a save, on a tab left open past midnight) ask the server.
+  if (!_pageDateUsed && window.SERVER_TODAY) {
+    _pageDateUsed = true;
+    document.getElementById(inputId).value = window.SERVER_TODAY;
+    return;
+  }
   try {
     const res  = await fetch('/api/server-date');
     const data = await res.json();

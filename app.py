@@ -1,5 +1,6 @@
 import os
 import subprocess
+from datetime import datetime, timedelta, timezone
 from urllib.parse import urlparse
 from flask import Flask, jsonify, request, session
 try:
@@ -117,6 +118,9 @@ def format_date_filter(date_str):
 def inject_globals():
     return {
         'share_base_url': SHARE_BASE_URL,
+        # Server's IST calendar day, embedded so new-bill screens don't need a
+        # /api/server-date round trip just to fix a drifted client clock.
+        'server_today': datetime.now(timezone(timedelta(hours=5, minutes=30))).strftime('%Y-%m-%d'),
         'sv': STATIC_VERSION,
         'current_user': {
             'id': session.get('user_id'),
