@@ -100,7 +100,11 @@ async function loadMeta() {
 // next sequence number and only applies its response if still current.
 let tlLoadSeq = 0;
 
-async function loadOrders() {
+// Set by the initial page load so the list can fetch in parallel with
+// /meta but still wait for it before rendering (render reads TL_STAGES).
+let tlMetaReady = null;
+
+async function loadOrders(opts) {
   const mySeq = ++tlLoadSeq;
   const q     = document.getElementById('tl-search').value.trim();
   const stage = document.getElementById('tl-stage-filter').value;
@@ -113,12 +117,13 @@ async function loadOrders() {
   if (sort) params.set('sort', sort);
 
   const data = await tlFetch(`${TL_API}/orders?` + params.toString());
+  if (tlMetaReady) await tlMetaReady;
   if (mySeq !== tlLoadSeq) return;  // a newer loadOrders() has since started — discard this stale response
   tlOrders = data.orders;
   renderStats(data.counts);
   renderList();
   // Every mutation ends in loadOrders(), so piggy-back the dashboard refresh here.
-  if (tlActiveTab === 'dashboard') loadDashboard();
+  if (tlActiveTab === 'dashboard' && !(opts && opts.skipDashboard)) loadDashboard();
 }
 
 function renderStats(c) {
@@ -1510,8 +1515,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupCustomerLookup();
 
   try {
-    await loadMeta();
-    await loadOrders();
+    // meta, orders and dashboard don't depend on each other's responses, so
+    // fetch them together instead of as three round trips in a row.
+    tlMetaReady = loadMeta();
+    const dashP = tlActiveTab === 'dashboard' ? loadDashboard() : null;
+    await Promise.all([tlMetaReady, loadOrders({ skipDashboard: true })]);
+    if (dashP) await dashP;
   } catch (e) {
     console.error(e);
     const list = document.getElementById('tl-orders-list');

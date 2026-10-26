@@ -75,6 +75,18 @@ app.config['TEMPLATES_AUTO_RELOAD'] = False
 # Static files are cache-busted with ?v=<git hash> (see STATIC_VERSION above),
 # so browsers may cache them freely — Flask's default max age applies.
 
+@app.after_request
+def cache_versioned_static(response):
+    """Static URLs carry ?v=<git hash>, so a given URL never changes: let
+    browsers reuse it without revalidating. Flask's default sends no max-age,
+    which costs a conditional request per CSS/JS file on every page load.
+    Skipped when the version fell back to "1" (no git), where URLs can go stale."""
+    if (request.endpoint == "static" and response.status_code == 200
+            and request.args.get("v") and STATIC_VERSION != "1"):
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    return response
+
+
 # Initialize bcrypt
 bcrypt.init_app(app)
 
