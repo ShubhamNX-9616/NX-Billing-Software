@@ -365,6 +365,9 @@ DEFAULT_SORT = "order-desc"
 # and build a full payload (items+photos+payments) for ~1000 dead rows on
 # every request. A search query (q) still reaches them, since that's exactly
 # when someone wants an old measurement.
+# Order columns the list rows read (see renderList in static/js/tailoring.js).
+_LIST_ROW_FIELDS = ("id", "order_number", "customer_name", "mobile", "trial_date",
+                    "delivery_date", "stage", "balance", "cloth_balance")
 ARCHIVE_EXCLUDE_SQL = "(notes IS NULL OR notes NOT LIKE 'Imported from Drive archive%')"
 
 
@@ -383,9 +386,10 @@ def list_orders():
         sort = DEFAULT_SORT
 
     # The board (no search) and the badge counts read the same rows, so build
-    # that payload once; only a search needs a second, wider query.
+    # that payload once; only a search needs a second, wider query. Photos
+    # aren't loaded: a list row shows only how many there are (photo_count).
     live_sql = f"SELECT * FROM tailoring_orders WHERE {ARCHIVE_EXCLUDE_SQL}"
-    all_orders = _order_payloads_bulk(db, db.execute(live_sql).fetchall())
+    all_orders = _order_payloads_bulk(db, db.execute(live_sql).fetchall(), with_photos=False)
 
     sql = "SELECT * FROM tailoring_orders"
     where, params = [], []
@@ -411,7 +415,7 @@ def list_orders():
     sql += " ORDER BY order_number DESC"
 
     if q:
-        orders = _order_payloads_bulk(db, db.execute(sql, params).fetchall())
+        orders = _order_payloads_bulk(db, db.execute(sql, params).fetchall(), with_photos=False)
     else:
         orders = list(all_orders)
 
@@ -428,6 +432,18 @@ def list_orders():
 
     key, reverse = SORTS[sort]
     orders.sort(key=key, reverse=reverse)
+
+    # Rows only need what the list draws (the detail modal fetches the full
+    # order by id), so send a trimmed shape instead of every column.
+    photo_counts = dict(db.execute(
+        "SELECT order_id, COUNT(*) FROM tailoring_photos GROUP BY order_id").fetchall())
+    orders = [
+        {**{k: o[k] for k in _LIST_ROW_FIELDS},
+         "items": [{"garment_type": i["garment_type"], "qty": i["qty"], "stage": i["stage"]}
+                   for i in o["items"]],
+         "photo_count": photo_counts.get(o["id"], 0)}
+        for o in orders
+    ]
 
     # Dashboard counts (computed over all orders, ignoring the filters) —
     # these badges describe the live board, so the archive stays excluded

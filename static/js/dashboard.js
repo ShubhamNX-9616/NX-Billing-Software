@@ -392,7 +392,7 @@ async function loadDashboard() {
   try {
     const [summaryRes, billsRes] = await Promise.all([
       fetch('/api/analytics/summary'),
-      fetch('/api/bills'),
+      fetch('/api/bills?limit=10'),
     ]);
 
     if (summaryRes.ok) renderSummary(await summaryRes.json());

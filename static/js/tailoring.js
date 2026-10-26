@@ -181,6 +181,8 @@ function renderList() {
                    : notDone && o.trial_date && o.trial_date < today ? 'overdue' : '';
     const delCls   = notDone && o.delivery_date === today ? 'due-today'
                    : stitchingPending && o.delivery_date && o.delivery_date < today ? 'overdue' : '';
+    // The orders list sends photo_count; the Suits list still sends full photos.
+    const photoCount = o.photo_count ?? o.photos.length;
     const balCls = o.balance > 0 ? 'pending' : 'paid';
     const balText = o.balance > 0
       ? `Balance ${tlFmt(o.balance)}${o.cloth_balance > 0 ? ` (incl. cloth ${tlFmt(o.cloth_balance)})` : ''}`
@@ -191,7 +193,7 @@ function renderList() {
         <span class="tl-order-no">${tlOrderLabel(o)}</span>
         <span class="tl-order-cust">&nbsp; ${tlEsc(o.customer_name)}${o.mobile ? ' · ' + tlEsc(o.mobile) : ''}</span>
         <div class="tl-order-items">${itemsSummary(o.items)}
-          ${o.photos.length ? `&nbsp;· \u{1F4F7} ${o.photos.length}` : ''}</div>
+          ${photoCount ? `&nbsp;· \u{1F4F7} ${photoCount}` : ''}</div>
       </div>
       <div class="tl-order-dates">
         <div class="${trialCls}">Trial: ${tlFmtDate(o.trial_date)}</div>

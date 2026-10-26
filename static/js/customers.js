@@ -37,30 +37,13 @@ document.addEventListener('DOMContentLoaded', () => {
 // ================================================================
 // CUSTOMERS LIST PAGE
 // ================================================================
-let allCustomers     = [];  // full list from API
-let customerBillMap  = {};  // { customerId: [bills] } — loaded from /api/bills
+let allCustomers     = [];  // full list from API (each carries bill_count / last_bill_date)
 
 async function loadCustomerList() {
   try {
-    // Fetch customers and all bills in parallel for bill counts
-    const [custRes, billsRes] = await Promise.all([
-      fetch('/api/customers'),
-      fetch('/api/bills'),
-    ]);
-
-    if (!custRes.ok)  throw new Error('Failed to load customers.');
-    if (!billsRes.ok) throw new Error('Failed to load bills.');
-
+    const custRes = await fetch('/api/customers');
+    if (!custRes.ok) throw new Error('Failed to load customers.');
     allCustomers = await custRes.json();
-    const bills  = await billsRes.json();
-
-    // Build bill map: customerId → sorted bills (newest first)
-    customerBillMap = {};
-    bills.forEach(b => {
-      const cid = b.customer_id;
-      if (!customerBillMap[cid]) customerBillMap[cid] = [];
-      customerBillMap[cid].push(b);
-    });
 
     document.getElementById('cust-loading').style.display = 'none';
     renderCustomerList(allCustomers);
@@ -90,10 +73,8 @@ function renderCustomerList(customers) {
   wrap.style.display  = 'block';
 
   tbody.innerHTML = customers.map(c => {
-    const bills       = customerBillMap[c.id] || [];
-    const billCount   = bills.length;
-    const lastBill    = bills.sort((a, b) => b.bill_date.localeCompare(a.bill_date))[0];
-    const lastDate    = lastBill ? lastBill.bill_date : '—';
+    const billCount   = c.bill_count;
+    const lastDate    = c.last_bill_date || '—';
 
     return `
       <tr onclick="location.href='/customers/${c.id}'" style="cursor:pointer;">

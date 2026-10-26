@@ -80,6 +80,10 @@ def get_server_date():
 def get_bills():
     try:
         search = request.args.get("search", "").strip()
+        # Optional cap so screens that only show the latest few bills (the
+        # dashboard) don't download the whole table.
+        limit = request.args.get("limit", type=int)
+        limit_sql = f" LIMIT {limit}" if limit and limit > 0 else ""
         db = get_db()
         if search:
             like = f"%{search}%"
@@ -98,7 +102,7 @@ def get_bills():
                    OR b.customer_mobile_snapshot LIKE ?
                 GROUP BY b.id
                 ORDER BY b.created_at DESC
-                """,
+                """ + limit_sql,
                 (like, like, like),
             ).fetchall()
         else:
@@ -114,7 +118,7 @@ def get_bills():
                 LEFT JOIN bill_items bi ON bi.bill_id = b.id
                 GROUP BY b.id
                 ORDER BY b.created_at DESC
-                """
+                """ + limit_sql
             ).fetchall()
         return jsonify([dict(r) for r in rows])
     except Exception as e:

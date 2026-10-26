@@ -15,20 +15,24 @@ def get_customers():
     try:
         search = request.args.get("search", "").strip()
         db = get_db()
+        # bill_count / last_bill_date ride along so the customers list doesn't
+        # have to download every bill just to count them per customer.
+        base = """
+            SELECT c.*, COALESCE(s.bill_count, 0) AS bill_count, s.last_bill_date
+            FROM customers c
+            LEFT JOIN (
+                SELECT customer_id, COUNT(*) AS bill_count, MAX(bill_date) AS last_bill_date
+                FROM bills GROUP BY customer_id
+            ) s ON s.customer_id = c.id
+        """
         if search:
             like = f"%{search}%"
             rows = db.execute(
-                """
-                SELECT * FROM customers
-                WHERE name LIKE ? OR mobile LIKE ?
-                ORDER BY name
-                """,
+                base + " WHERE c.name LIKE ? OR c.mobile LIKE ? ORDER BY c.name",
                 (like, like),
             ).fetchall()
         else:
-            rows = db.execute(
-                "SELECT * FROM customers ORDER BY name"
-            ).fetchall()
+            rows = db.execute(base + " ORDER BY c.name").fetchall()
         return jsonify([dict(r) for r in rows])
     except Exception as e:
         return jsonify({"error": str(e)}), 500
