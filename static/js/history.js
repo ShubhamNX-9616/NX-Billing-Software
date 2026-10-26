@@ -192,23 +192,28 @@ function currentFilterParams() {
   return params;
 }
 
+let searchSeq = 0;   // a slower, older response must not overwrite a newer search
+
 async function doSearch() {
   if (currentHistoryTab === 'institution') { await doInstSearch(); return; }
 
   const params = currentFilterParams();
 
   if (![...params.keys()].length) {
+    searchSeq++;   // drop any search still in flight
     showLoading();
     await loadAllBills();
     return;
   }
 
   showLoading();
+  const mySeq = ++searchSeq;
 
   try {
     const res   = await fetch(`/api/bills/search?${params.toString()}`);
     if (!res.ok) throw new Error('API error');
     const bills = await res.json();
+    if (mySeq !== searchSeq) return;
     renderTable(bills, 'Search Results');
   } catch (err) {
     document.getElementById('history-loading').style.display = 'none';
@@ -248,7 +253,17 @@ function debounce(fn, ms) {
   return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
 }
 
-const debouncedSearch = debounce(doSearch, 400);
+// While typing, a single character ("a", "9") matches most bills and ships
+// nearly the whole table back, so wait for 2+ characters. Emptying a field
+// still searches (that resets the list); Enter and the Search button always do.
+function liveSearch() {
+  const typed = ['search-bill-number', 'search-name', 'search-mobile']
+    .map(id => document.getElementById(id).value.trim().length);
+  if (typed.some(n => n === 1)) return;
+  doSearch();
+}
+
+const debouncedSearch = debounce(liveSearch, 250);
 
 ['search-bill-number', 'search-name', 'search-mobile'].forEach(id => {
   const el = document.getElementById(id);
@@ -368,7 +383,7 @@ async function confirmCancel() {
     if (!res.ok) throw new Error(data.error || 'Cancel failed.');
     closeCancelModal();
     showToast('Bill cancelled successfully.');
-    setTimeout(() => { showLoading(); loadAllBills(); }, 800);
+    setTimeout(() => { showLoading(); loadAllBills(); }, 300);
   } catch (err) {
     document.getElementById('cancel-modal-error').textContent = err.message;
     btn.disabled    = false;
@@ -390,7 +405,7 @@ async function restoreBill(billId, billNumber) {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Restore failed.');
     showToast('Bill restored successfully.');
-    setTimeout(() => { showLoading(); loadAllBills(); }, 800);
+    setTimeout(() => { showLoading(); loadAllBills(); }, 300);
   } catch (err) {
     showToast('Error: ' + err.message, true);
   }
@@ -430,7 +445,7 @@ async function confirmDelete() {
     if (!res.ok) throw new Error(data.error || 'Delete failed.');
     closeDeleteModal();
     showToast('Bill deleted. Remaining bills have been renumbered.');
-    setTimeout(() => { showLoading(); loadAllBills(); }, 1000);
+    setTimeout(() => { showLoading(); loadAllBills(); }, 300);
   } catch (err) {
     document.getElementById('delete-modal-error').textContent = err.message;
     btn.disabled    = false;
@@ -527,17 +542,20 @@ async function doInstSearch() {
   const params = currentFilterParams();
 
   if (![...params.keys()].length) {
+    searchSeq++;   // drop any search still in flight
     showLoading();
     await loadAllInstBills();
     return;
   }
 
   showLoading();
+  const mySeq = ++searchSeq;
 
   try {
     const res  = await fetch(`/api/institution-bills/search?${params.toString()}`);
     if (!res.ok) throw new Error('API error');
     const bills = await res.json();
+    if (mySeq !== searchSeq) return;
     renderInstTable(bills, 'Search Results');
   } catch (err) {
     document.getElementById('history-loading').style.display = 'none';
@@ -675,7 +693,7 @@ async function confirmInstCancel() {
     if (!res.ok) throw new Error(data.error || 'Cancel failed.');
     closeInstCancelModal();
     showToast('Institution bill cancelled.');
-    setTimeout(() => { showLoading(); loadAllInstBills(); }, 800);
+    setTimeout(() => { showLoading(); loadAllInstBills(); }, 300);
   } catch (err) {
     document.getElementById('inst-cancel-modal-error').textContent = err.message;
     btn.disabled = false; btn.textContent = 'Yes, Cancel Bill';
@@ -690,7 +708,7 @@ async function instRestoreBill(billId, billNumber) {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Restore failed.');
     showToast('Institution bill restored.');
-    setTimeout(() => { showLoading(); loadAllInstBills(); }, 800);
+    setTimeout(() => { showLoading(); loadAllInstBills(); }, 300);
   } catch (err) {
     showToast('Error: ' + err.message, true);
   }
@@ -724,7 +742,7 @@ async function confirmInstDelete() {
     if (!res.ok) throw new Error(data.error || 'Delete failed.');
     closeInstDeleteModal();
     showToast('Institution bill deleted and renumbered.');
-    setTimeout(() => { showLoading(); loadAllInstBills(); }, 1000);
+    setTimeout(() => { showLoading(); loadAllInstBills(); }, 300);
   } catch (err) {
     document.getElementById('inst-delete-modal-error').textContent = err.message;
     btn.disabled = false; btn.textContent = 'Yes, Delete and Renumber';
