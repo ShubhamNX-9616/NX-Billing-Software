@@ -123,7 +123,7 @@ def _order_payload(db, order_row):
     return order
 
 
-def _order_payloads_bulk(db, order_rows):
+def _order_payloads_bulk(db, order_rows, with_photos=True):
     """Same shape as [_order_payload(db, r) for r in order_rows], but fetches
     items/photos/payments for every order in 3 queries total instead of 3
     per order — mirrors tailoring.py's _order_payloads_bulk."""
@@ -138,10 +138,11 @@ def _order_payloads_bulk(db, order_rows):
         f"SELECT * FROM tailoring_suit_items WHERE order_id IN ({placeholders}) ORDER BY id", ids
     ).fetchall():
         items_by_order.setdefault(r["order_id"], []).append(dict(r))
-    for r in db.execute(
-        f"SELECT * FROM tailoring_suit_photos WHERE order_id IN ({placeholders}) ORDER BY id", ids
-    ).fetchall():
-        photos_by_order.setdefault(r["order_id"], []).append(dict(r))
+    if with_photos:  # callers that only need counts/summaries skip this query
+        for r in db.execute(
+            f"SELECT * FROM tailoring_suit_photos WHERE order_id IN ({placeholders}) ORDER BY id", ids
+        ).fetchall():
+            photos_by_order.setdefault(r["order_id"], []).append(dict(r))
     for r in db.execute(
         f"SELECT * FROM tailoring_suit_payments WHERE order_id IN ({placeholders}) ORDER BY id", ids
     ).fetchall():
@@ -381,7 +382,14 @@ def list_orders():
         sql += " WHERE " + " AND ".join(where)
     sql += " ORDER BY order_number DESC"
 
-    orders = _order_payloads_bulk(db, db.execute(sql, params).fetchall())
+    # With no search the list and the badge counts read the same rows, so
+    # build that payload once; only a search needs a separate query.
+    all_orders = _order_payloads_bulk(
+        db, db.execute("SELECT * FROM tailoring_suit_orders").fetchall())
+    if q:
+        orders = _order_payloads_bulk(db, db.execute(sql, params).fetchall())
+    else:
+        orders = list(all_orders)
 
     if stage:
         orders = [o for o in orders if o["stage"] == stage]
@@ -397,8 +405,6 @@ def list_orders():
     key, reverse = SORTS[sort]
     orders.sort(key=key, reverse=reverse)
 
-    all_orders = _order_payloads_bulk(
-        db, db.execute("SELECT * FROM tailoring_suit_orders").fetchall())
     counts = {s: 0 for s in STAGES}
     trial_today = delivery_today = overdue = 0
     for o in all_orders:
@@ -454,8 +460,10 @@ def suit_dashboard():
     today_s = today.isoformat()
     tomorrow_s = (today + timedelta(days=1)).isoformat()
 
+    # _order_brief never shows photos, so don't load them.
     orders = _order_payloads_bulk(
-        db, db.execute("SELECT * FROM tailoring_suit_orders").fetchall())
+        db, db.execute("SELECT * FROM tailoring_suit_orders").fetchall(),
+        with_photos=False)
     open_orders = [o for o in orders if o["stage"] != "Delivered"]
 
     days = []
