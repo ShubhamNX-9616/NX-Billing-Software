@@ -72,11 +72,11 @@
     }
     .print-btn svg { vertical-align: -0.15em; margin-right: 6px; }
 
+    @page {
+      size: A5 portrait;
+      margin: 5mm 8mm 8mm 8mm;
+    }
     @media print {
-      @page {
-        size: A5 portrait;
-        margin: 5mm 8mm 8mm 8mm;
-      }
       body { background: #fff; }
       .wrapper { max-width: none; padding: 0; }
       .receipt { border-radius: 0; }

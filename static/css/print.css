@@ -2,13 +2,13 @@
    PRINT.CSS — @media print invoice styles
    ============================================================ */
 
-@media print {
-  /* ---- Page setup ---- */
-  @page {
-    size: A5 portrait;
-    margin: 5mm 8mm 8mm 8mm;
-  }
+/* @page must sit at top level — Chrome/Edge ignore it inside @media */
+@page {
+  size: A5 portrait;
+  margin: 5mm 8mm 8mm 8mm;
+}
 
+@media print {
   /* ---- Hide everything not needed ---- */
   .sidebar,
   .topbar,
