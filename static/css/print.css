@@ -261,23 +261,53 @@
     margin-left: 4px !important;
   }
 
-  /* Items: 7 columns can't fit in ~44 mm. Keep Description, Qty, Amount. */
-  #invoice-card .inv-items-table th:nth-child(1),
-  #invoice-card .inv-items-table td:nth-child(1),
-  #invoice-card .inv-items-table th:nth-child(4),
-  #invoice-card .inv-items-table td:nth-child(4),
-  #invoice-card .inv-items-table th:nth-child(5),
-  #invoice-card .inv-items-table td:nth-child(5),
-  #invoice-card .inv-items-table th:nth-child(6),
-  #invoice-card .inv-items-table td:nth-child(6) {
+  /* Items: 7 columns can't fit in ~44 mm, so each item prints as a block:
+       1  Description (wraps)
+          Qty: x        MRP: x
+          Disc: x       Rate: x
+          Amount: x
+     The cells have no labels of their own (the header row is hidden), so
+     they come from ::before. */
+  #invoice-card .inv-items-table,
+  #invoice-card .inv-items-table tbody {
+    display: block !important;
+    width: 100% !important;
+  }
+
+  #invoice-card .inv-items-table thead {
     display: none !important;
   }
 
-  #invoice-card .inv-items-table th,
+  #invoice-card .inv-items-table tr {
+    display: grid !important;
+    grid-template-columns: 4mm 1fr 1fr;
+    column-gap: 2px;
+    padding: 2px 0;
+    border-bottom: 1px dashed #000;
+    break-inside: avoid;
+  }
+
   #invoice-card .inv-items-table td {
-    padding: 1px 2px !important;
+    display: block !important;
+    padding: 0 !important;
+    border: none !important;
+    text-align: left !important;
     word-break: break-word;
   }
+
+  #invoice-card .inv-items-table td:nth-child(1) { grid-column: 1; }
+  #invoice-card .inv-items-table td:nth-child(2) { grid-column: 2 / 4; font-weight: 700; }
+  #invoice-card .inv-items-table td:nth-child(3) { grid-column: 2; }
+  #invoice-card .inv-items-table td:nth-child(4) { grid-column: 3; }
+  #invoice-card .inv-items-table td:nth-child(5) { grid-column: 2; }
+  #invoice-card .inv-items-table td:nth-child(6) { grid-column: 3; }
+  #invoice-card .inv-items-table td:nth-child(7) { grid-column: 2 / 4; font-weight: 700; }
+
+  #invoice-card .inv-items-table td:nth-child(3)::before { content: "Qty: "; }
+  #invoice-card .inv-items-table td:nth-child(4)::before { content: "MRP: "; }
+  #invoice-card .inv-items-table td:nth-child(5)::before { content: "Disc: "; }
+  #invoice-card .inv-items-table td:nth-child(6)::before { content: "Rate: "; }
+  #invoice-card .inv-items-table td:nth-child(7)::before { content: "Amount: "; }
 
   /* Payment above totals, both full width */
   #invoice-card > div[style*="justify-content:space-between"] {
