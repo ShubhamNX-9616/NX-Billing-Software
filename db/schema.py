@@ -431,6 +431,12 @@ def _m30_inst_round_off(conn):
         )
 
 
+def _m31_inst_item_code(conn):
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(institution_bill_items)").fetchall()}
+    if "item_code" not in cols:
+        conn.execute("ALTER TABLE institution_bill_items ADD COLUMN item_code TEXT")
+
+
 def _m19_bill_payments_paid_at(conn):
     cols = {row[1] for row in conn.execute("PRAGMA table_info(bill_payments)").fetchall()}
     if "paid_at" not in cols:
@@ -592,6 +598,7 @@ MIGRATIONS = [
     (28, _m28_inst_advance_percent),
     (29, _m29_inst_company_gst),
     (30, _m30_inst_round_off),
+    (31, _m31_inst_item_code),
 ]
 
 

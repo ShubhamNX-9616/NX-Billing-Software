@@ -67,11 +67,11 @@ def create_institution_bill():
         db.executemany(
             """
             INSERT INTO institution_bill_items
-                (bill_id, cloth_type, company_name, quality_number,
+                (bill_id, cloth_type, company_name, quality_number, item_code,
                  quantity_per_pc, rate_per_m, no_of_pcs, stitching_per_unit, total)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            [(bill_id, i["cloth_type"], i["company_name"], i["quality_number"],
+            [(bill_id, i["cloth_type"], i["company_name"], i["quality_number"], i["item_code"],
               i["quantity_per_pc"], i["rate_per_m"], i["no_of_pcs"], i["stitching_per_unit"], i["total"])
              for i in calc_items],
         )
@@ -259,10 +259,10 @@ def update_institution_bill(bill_id):
 
         db.executemany(
             """INSERT INTO institution_bill_items
-               (bill_id, cloth_type, company_name, quality_number,
+               (bill_id, cloth_type, company_name, quality_number, item_code,
                 quantity_per_pc, rate_per_m, no_of_pcs, stitching_per_unit, total)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            [(bill_id, i["cloth_type"], i["company_name"], i["quality_number"],
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            [(bill_id, i["cloth_type"], i["company_name"], i["quality_number"], i["item_code"],
               i["quantity_per_pc"], i["rate_per_m"], i["no_of_pcs"], i["stitching_per_unit"], i["total"])
              for i in calc_items],
         )

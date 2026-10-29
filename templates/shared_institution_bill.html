@@ -59,6 +59,9 @@
       {% if item.quality_number %}
       <div class="shared-item-detail">Quality: {{ item.quality_number }}</div>
       {% endif %}
+      {% if item.item_code %}
+      <div class="shared-item-detail">Code: {{ item.item_code }}</div>
+      {% endif %}
       <div class="shared-item-detail">
         {{ item.no_of_pcs }} pcs × {{ "%.2f"|format(item.quantity_per_pc) }} m
         @ ₹{{ "%.2f"|format(item.rate_per_m) }}/m

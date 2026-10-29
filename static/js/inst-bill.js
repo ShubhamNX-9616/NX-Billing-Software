@@ -83,6 +83,11 @@ function addInstItem() {
   tr.id = `inst-row-${id}`;
   tr.innerHTML = `
     <td>
+      <input class="input" id="inst-code-${id}" placeholder="Code" autocomplete="off"
+             aria-label="Inventory code" />
+      <div class="code-hint" id="inst-code-hint-${id}"></div>
+    </td>
+    <td>
       <select class="input select inst-cloth-sel" id="inst-cloth-${id}" data-prev=""
               onchange="onInstClothChange(${id})">
         ${buildInstClothOptions('')}
@@ -122,6 +127,69 @@ function addInstItem() {
     </td>
   `;
   tbody.appendChild(tr);
+  setupInstCodeInput(id);
+}
+
+// ---- Code column: type/scan an inventory code to fill the row ----
+function setInstCodeHint(id, text) {
+  const hint = document.getElementById(`inst-code-hint-${id}`);
+  if (hint) hint.textContent = text;
+}
+
+async function lookupInstRowCode(id) {
+  const codeEl = document.getElementById(`inst-code-${id}`);
+  if (!codeEl) return false;
+  const code = codeEl.value.trim();
+  if (!code || codeEl.dataset.looked === code) return false;
+  codeEl.dataset.looked = code;
+
+  try {
+    const res = await fetch(`/api/inventory/by-code/${encodeURIComponent(code)}`);
+    if (res.status === 404) { setInstCodeHint(id, 'Not in inventory'); return false; }
+    if (!res.ok)            { setInstCodeHint(id, 'Lookup failed');    return false; }
+    const item = await res.json();
+    if (!document.getElementById(`inst-code-${id}`)) return false;  // row removed mid-fetch
+    await fillInstRowFromInventoryItem(item, id);
+    return true;
+  } catch (e) {
+    setInstCodeHint(id, 'Lookup failed');
+    return false;
+  }
+}
+
+async function fillInstRowFromInventoryItem(item, id) {
+  const codeEl = document.getElementById(`inst-code-${id}`);
+  codeEl.value = item.item_code || codeEl.value;
+  codeEl.dataset.looked = codeEl.value;
+  setInstCodeHint(id, '');
+
+  document.getElementById(`inst-quality-${id}`).value = item.quality_number || '';
+  document.getElementById(`inst-rate-${id}`).value    = item.mrp || '';
+
+  const clothSel = document.getElementById(`inst-cloth-${id}`);
+  clothSel.value        = item.cloth_type;
+  clothSel.dataset.prev = item.cloth_type;
+  await onInstClothChange(id);
+  document.getElementById(`inst-company-${id}`).value = item.company_name || '';
+
+  calcInstRow(id);
+  document.getElementById(`inst-qtypc-${id}`).focus();
+}
+
+function setupInstCodeInput(id) {
+  const codeEl = document.getElementById(`inst-code-${id}`);
+  if (!codeEl) return;
+  codeEl.addEventListener('input', () => {
+    delete codeEl.dataset.looked;
+    setInstCodeHint(id, '');
+  });
+  codeEl.addEventListener('change', () => { lookupInstRowCode(id); });
+  codeEl.addEventListener('keydown', async e => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    if (await lookupInstRowCode(id)) return;  // fill already moved focus to Qty/pc
+    document.getElementById(`inst-cloth-${id}`).focus();
+  });
 }
 
 async function onInstClothChange(id) {
@@ -467,6 +535,7 @@ function collectInstData() {
     cloth_type:        document.getElementById(`inst-cloth-${id}`).value,
     company_name:      document.getElementById(`inst-company-${id}`).value,
     quality_number:    document.getElementById(`inst-quality-${id}`).value,
+    item_code:         document.getElementById(`inst-code-${id}`).value.trim(),
     quantity_per_pc:   parseFloat(document.getElementById(`inst-qtypc-${id}`).value)   || 0,
     rate_per_m:        parseFloat(document.getElementById(`inst-rate-${id}`).value)     || 0,
     no_of_pcs:         parseInt(document.getElementById(`inst-pcs-${id}`).value)        || 0,
@@ -626,6 +695,11 @@ async function populateInstItemForEdit(item) {
   tr.id = `inst-row-${id}`;
   tr.innerHTML = `
     <td>
+      <input class="input" id="inst-code-${id}" placeholder="Code" autocomplete="off"
+             aria-label="Inventory code" value="${item.item_code || ''}" />
+      <div class="code-hint" id="inst-code-hint-${id}"></div>
+    </td>
+    <td>
       <select class="input select inst-cloth-sel" id="inst-cloth-${id}" data-prev="${item.cloth_type || ''}" onchange="onInstClothChange(${id})">
         ${buildInstClothOptions(item.cloth_type || '')}
       </select>
@@ -646,6 +720,9 @@ async function populateInstItemForEdit(item) {
     <td><button class="inst-del-btn" onclick="removeInstItem(${id})" title="Remove" aria-label="Remove item"><svg class="ico" aria-hidden="true"><use href="#i-x"/></svg></button></td>
   `;
   tbody.appendChild(tr);
+  const editCodeEl = document.getElementById(`inst-code-${id}`);
+  editCodeEl.dataset.looked = editCodeEl.value;   // already-saved code: don't re-fill on blur
+  setupInstCodeInput(id);
 
   if (item.cloth_type) {
     const data = await fetchInstCompanies(item.cloth_type);
@@ -716,7 +793,7 @@ function onInstSaveSuccess(bill) {
       <td>${i + 1}</td>
       <td>${item.cloth_type}</td>
       <td>${item.company_name}</td>
-      <td>${item.quality_number || '—'}</td>
+      <td>${item.quality_number || '—'}${item.item_code ? `<br>${item.item_code}` : ''}</td>
       <td class="tr">${Number(item.quantity_per_pc).toFixed(2)}</td>
       <td class="tr">${fmt(item.rate_per_m)}</td>
       <td class="tr">${item.no_of_pcs}</td>

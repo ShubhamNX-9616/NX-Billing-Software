@@ -231,6 +231,7 @@ def calculate_inst_items(items):
             "cloth_type":         (item.get("cloth_type")     or "").strip(),
             "company_name":       (item.get("company_name")   or "").strip(),
             "quality_number":     (item.get("quality_number") or "").strip(),
+            "item_code":          (item.get("item_code")      or "").strip(),
             "quantity_per_pc":    qty_per_pc,
             "rate_per_m":         rate_per_m,
             "no_of_pcs":          no_of_pcs,

@@ -42,7 +42,7 @@ function buildPerformaWindow(bill, items, payments, type, winRef) {
       <tr>
         <td class="td-left">${item.cloth_type   || '—'}</td>
         <td class="td-left">${item.company_name || '—'}</td>
-        <td class="td-left">${item.quality_number || '—'}</td>
+        <td class="td-left">${item.quality_number || '—'}${item.item_code ? `<br>${item.item_code}` : ''}</td>
         <td class="td-right">${qtyPerPc.toFixed(2)}</td>
         <td class="td-right">${rate.toFixed(2)}</td>
         <td class="td-right">${noOfPcs}</td>

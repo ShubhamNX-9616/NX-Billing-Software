@@ -298,7 +298,7 @@ function renderInstDetail(data) {
       <td>${i + 1}</td>
       <td>${item.cloth_type}</td>
       <td>${item.company_name}</td>
-      <td>${item.quality_number || '—'}</td>
+      <td>${item.quality_number || '—'}${item.item_code ? `<br>${item.item_code}` : ''}</td>
       <td class="tr">${Number(item.quantity_per_pc).toFixed(2)}</td>
       <td class="tr">${fmt(item.rate_per_m)}</td>
       <td class="tr">${item.no_of_pcs}</td>
