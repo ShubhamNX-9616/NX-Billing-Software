@@ -135,6 +135,14 @@
       </tbody>
     </table>
 
+    <!-- Piece counts: one per Shirting / Suiting line, Others by quantity -->
+    <div id="inv-counts" class="inv-counts"
+         style="display:flex;gap:16px;flex-wrap:wrap;padding:6px 0;margin-bottom:8px;border-top:1px solid var(--border);border-bottom:1px solid var(--border);font-size:13px;font-weight:600;">
+      <span>Shirts: <span id="inv-count-shirts">0</span></span>
+      <span>Pants: <span id="inv-count-pants">0</span></span>
+      <span>Others: <span id="inv-count-others">0</span></span>
+    </div>
+
     <!-- Summary row: Payment (left) + Totals (right) -->
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
 
@@ -468,6 +476,18 @@
         </tr>
       `;
     }).join('');
+
+    // Piece counts: a Shirting / Suiting line is one shirt / pant whatever its
+    // metres; every other type counts by quantity.
+    let shirts = 0, pants = 0, others = 0;
+    bill.items.forEach(item => {
+      if (item.cloth_type === 'Shirting') shirts += 1;
+      else if (item.cloth_type === 'Suiting') pants += 1;
+      else others += Number(item.quantity) || 0;
+    });
+    document.getElementById('inv-count-shirts').textContent = shirts;
+    document.getElementById('inv-count-pants').textContent  = pants;
+    document.getElementById('inv-count-others').textContent = others.toLocaleString('en-IN');
 
     // Totals
     const subtotal = Number(bill.subtotal || 0);
