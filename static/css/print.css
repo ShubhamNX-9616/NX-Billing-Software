@@ -3,9 +3,10 @@
    ============================================================ */
 
 /* @page must sit at top level — Chrome/Edge ignore it inside @media */
+/* Thermal paper roll: 48 mm wide, 210 mm long */
 @page {
-  size: A5 portrait;
-  margin: 5mm 8mm 8mm 8mm;
+  size: 48mm 210mm;
+  margin: 2mm;
 }
 
 @media print {
@@ -210,5 +211,86 @@
   #invoice-print-area > .card > div[style*="justify-content:flex-end"],
   #invoice-print-area div[style*="justify-content:flex-end"] {
     justify-content: flex-end !important;
+  }
+
+  /* ---- 48 mm thermal roll: one narrow column, black on white ----
+     Most of bill_detail.html's layout is inline-styled, hence !important. */
+  body {
+    font-size: 9px;
+    font-family: Arial, sans-serif;
+  }
+
+  #invoice-card,
+  #invoice-card * {
+    color: #000 !important;
+    background: #fff !important;
+  }
+
+  #invoice-card div,
+  #invoice-card span,
+  #invoice-card td,
+  #invoice-card th {
+    font-size: 9px !important;
+  }
+
+  #invoice-card .inv-shop-name {
+    font-size: 13px !important;
+    letter-spacing: 0;
+  }
+
+  /* Meta: stack customer block over bill block, left-aligned */
+  #invoice-card .inv-meta {
+    grid-template-columns: 1fr !important;
+    gap: 2px !important;
+  }
+
+  .inv-meta > div:last-child {
+    text-align: left !important;
+  }
+
+  #invoice-card .inv-meta-row {
+    justify-content: flex-start !important;
+  }
+
+  #invoice-card .inv-meta-label {
+    min-width: 0 !important;
+    text-align: left !important;
+  }
+
+  #invoice-card .inv-meta-value {
+    margin-left: 4px !important;
+  }
+
+  /* Items: 7 columns can't fit in ~44 mm. Keep Description, Qty, Amount. */
+  #invoice-card .inv-items-table th:nth-child(1),
+  #invoice-card .inv-items-table td:nth-child(1),
+  #invoice-card .inv-items-table th:nth-child(4),
+  #invoice-card .inv-items-table td:nth-child(4),
+  #invoice-card .inv-items-table th:nth-child(5),
+  #invoice-card .inv-items-table td:nth-child(5),
+  #invoice-card .inv-items-table th:nth-child(6),
+  #invoice-card .inv-items-table td:nth-child(6) {
+    display: none !important;
+  }
+
+  #invoice-card .inv-items-table th,
+  #invoice-card .inv-items-table td {
+    padding: 1px 2px !important;
+    word-break: break-word;
+  }
+
+  /* Payment above totals, both full width */
+  #invoice-card > div[style*="justify-content:space-between"] {
+    flex-direction: column !important;
+    gap: 4px;
+  }
+
+  #invoice-card div[style*="width:260px"] {
+    width: 100% !important;
+  }
+
+  #invoice-card #inv-payments span[style*="margin-left"] {
+    display: block;
+    margin-left: 0 !important;
   }
 }
