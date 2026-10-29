@@ -7,7 +7,6 @@ from services.billing import (
     parse_inst_round_off,
     validate_and_calculate_items,
     find_or_create_customer,
-    count_items,
 )
 
 
@@ -319,17 +318,3 @@ class TestFindOrCreateCustomer:
         db.commit()
         assert id1 != id2
         assert db.execute("SELECT COUNT(*) FROM customers").fetchone()[0] == 2
-
-
-def test_count_items_shirting_suiting_by_line_others_by_quantity():
-    items = [
-        {"cloth_type": "Shirting", "quantity": 1.2},
-        {"cloth_type": "Shirting", "quantity": 1.2},
-        {"cloth_type": "Suiting", "quantity": 1.2},
-        {"cloth_type": "Suiting", "quantity": 1.2},
-        {"cloth_type": "Suiting", "quantity": 1.2},
-        {"cloth_type": "Kurta", "quantity": 3},
-        {"cloth_type": "Accessories", "quantity": 2},
-    ]
-    assert count_items(items) == {"shirts": 2, "pants": 3, "others": 5}
-    assert count_items(items[:2]) == {"shirts": 2, "pants": 0, "others": 0}

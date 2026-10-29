@@ -367,13 +367,6 @@
     lines.push('');
     lines.push('Bill No: ' + bill.bill_number + '  |  ' + dateStr);
     lines.push(amountLine);
-    let shirts = 0, pants = 0, others = 0;
-    (bill.items || []).forEach(item => {
-      if (item.cloth_type === 'Shirting') shirts += 1;
-      else if (item.cloth_type === 'Suiting') pants += 1;
-      else others += Number(item.quantity) || 0;
-    });
-    lines.push('Shirts: ' + shirts + '  |  Pants: ' + pants + '  |  Others: ' + others);
     lines.push('');
     lines.push('📄 Bill: ' + shareLink);
     lines.push('⭐ Review: https://maps.app.goo.gl/YjTCZZNLWwbjWZDH8');
