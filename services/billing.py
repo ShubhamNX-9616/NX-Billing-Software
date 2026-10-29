@@ -6,6 +6,20 @@ VALID_PAYMENT_METHODS = {"Cash", "Card", "UPI"}
 _UNIT_LABEL = {"Shirting": "m", "Suiting": "m"}
 
 
+def count_items(items):
+    """Piece counts shown under a bill's items: each Shirting / Suiting line is
+    one shirt / pant whatever its metres; every other type counts by quantity."""
+    counts = {"shirts": 0, "pants": 0, "others": 0}
+    for item in items:
+        if item["cloth_type"] == "Shirting":
+            counts["shirts"] += 1
+        elif item["cloth_type"] == "Suiting":
+            counts["pants"] += 1
+        else:
+            counts["others"] += item["quantity"]
+    return counts
+
+
 def validate_and_calculate_items(db, items):
     """Validate items list against DB cloth types and compute per-item financials.
     Returns list of calculated item dicts. Raises ValueError on any invalid input."""

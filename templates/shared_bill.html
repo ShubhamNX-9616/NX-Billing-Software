@@ -64,6 +64,21 @@
     </div>
     {% if not loop.last %}<hr class="shared-divider">{% endif %}
     {% endfor %}
+
+    {# Same rule as bill_detail.html: a Shirting / Suiting line is one shirt /
+       pant whatever its metres; every other type counts by quantity. #}
+    {% set n = namespace(shirts=0, pants=0, others=0) %}
+    {% for item in items %}
+      {% if item.cloth_type == 'Shirting' %}{% set n.shirts = n.shirts + 1 %}
+      {% elif item.cloth_type == 'Suiting' %}{% set n.pants = n.pants + 1 %}
+      {% else %}{% set n.others = n.others + item.quantity %}{% endif %}
+    {% endfor %}
+    <hr class="shared-divider">
+    <div class="shared-summary-row">
+      <span>Shirts: <b>{{ n.shirts }}</b></span>
+      <span>Pants: <b>{{ n.pants }}</b></span>
+      <span>Others: <b>{{ '%g' | format(n.others) }}</b></span>
+    </div>
   </div>
 
   <!-- Summary -->

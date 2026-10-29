@@ -35,6 +35,10 @@ function buildWhatsAppMessage(bill) {
   lines.push('');
   lines.push('Bill No: ' + bill.bill_number + '  |  ' + dateStr);
   lines.push(amountLine);
+  if (bill.item_counts) {
+    const c = bill.item_counts;
+    lines.push('Shirts: ' + c.shirts + '  |  Pants: ' + c.pants + '  |  Others: ' + c.others);
+  }
   lines.push('');
   lines.push('📄 Bill: ' + shareLink);
   lines.push('⭐ Review: https://maps.app.goo.gl/YjTCZZNLWwbjWZDH8');

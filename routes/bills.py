@@ -14,6 +14,7 @@ from services.billing import (
     normalize_and_validate_mobile,
     apply_payment,
     compute_bill_display_fields,
+    count_items,
 )
 from services.inventory import deduct_stock, restore_stock, apply_inventory_diff
 from services.loyalty import check_and_unlock_gifts
@@ -366,6 +367,7 @@ def create_bill():
             "salesperson_name":         salesperson_name,
             "payment_mode_type":        stored_payment_mode,
             "share_link":               f"/bill/share/{bill_number}",
+            "item_counts":              count_items(calculated_items),
             "loyalty_unlocked":         loyalty_unlocked,
         }), 201
 
@@ -538,6 +540,7 @@ def update_bill(bill_id):
             "remaining":                remaining,
             "salesperson_name":         salesperson_name,
             "payment_mode_type":        stored_payment_mode,
+            "item_counts":              count_items(calculated_items),
             "loyalty_unlocked":         loyalty_unlocked,
         }), 200
 
