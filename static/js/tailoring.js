@@ -109,11 +109,13 @@ async function loadOrders(opts) {
   const q     = document.getElementById('tl-search').value.trim();
   const stage = document.getElementById('tl-stage-filter').value;
   const due   = document.getElementById('tl-due-filter').value;
+  const pay   = document.getElementById('tl-pay-filter').value;
   const sort  = document.getElementById('tl-sort').value;
   const params = new URLSearchParams();
   if (q) params.set('q', q);
   if (stage) params.set('stage', stage);
   if (due) params.set('due', due);
+  if (pay) params.set('pay', pay);
   if (sort) params.set('sort', sort);
 
   const data = await tlFetch(`${TL_API}/orders?` + params.toString());
@@ -156,6 +158,7 @@ function renderStats(c) {
 function setFilters(stage, due) {
   document.getElementById('tl-stage-filter').value = stage;
   document.getElementById('tl-due-filter').value = due;
+  document.getElementById('tl-pay-filter').value = '';
   loadOrders();
 }
 
@@ -424,6 +427,7 @@ function showCustomerOrders(c) {
   document.getElementById('tl-search').value = c.mobile || c.customer_name;
   document.getElementById('tl-stage-filter').value = '';
   document.getElementById('tl-due-filter').value = '';
+  document.getElementById('tl-pay-filter').value = '';
   switchTlTab('orders');
   loadOrders();
 }

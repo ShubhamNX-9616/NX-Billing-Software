@@ -54,6 +54,12 @@
         <option value="delivery-today">Delivery due today</option>
         <option value="overdue">Overdue delivery</option>
       </select>
+      <select id="tl-pay-filter" class="input" style="max-width:160px;" onchange="loadOrders()"
+              aria-label="Filter by payment">
+        <option value="">All payments</option>
+        <option value="due">Payment due</option>
+        <option value="paid">Fully paid</option>
+      </select>
       <select id="tl-sort" class="input" style="max-width:210px;" onchange="loadOrders()"
               aria-label="Sort orders">
         <option value="order-desc">Sort: Order no. (newest)</option>

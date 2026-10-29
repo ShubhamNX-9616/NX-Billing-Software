@@ -358,7 +358,8 @@ def list_orders():
     q     = (request.args.get("q") or "").strip()
     stage = (request.args.get("stage") or "").strip()
     due   = (request.args.get("due") or "").strip()
-    sort  = (request.args.get("sort") or "").strip()
+    pay   = (request.args.get("pay") or "").strip()
+    sort = (request.args.get("sort") or "").strip()
     if sort not in SORTS:
         sort = DEFAULT_SORT
 
@@ -401,6 +402,11 @@ def list_orders():
         orders = [o for o in orders if o["delivery_date"] == today and o["stage"] != "Delivered"]
     elif due == "overdue":
         orders = [o for o in orders if _is_overdue(o, today)]
+
+    if pay == "due":
+        orders = [o for o in orders if o["balance"] > 0]
+    elif pay == "paid":
+        orders = [o for o in orders if o["balance"] <= 0]
 
     key, reverse = SORTS[sort]
     orders.sort(key=key, reverse=reverse)

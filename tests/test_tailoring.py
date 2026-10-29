@@ -206,6 +206,18 @@ def test_list_filters_and_counts(client):
     assert data["orders"][0]["customer_name"] == "Patil"
 
 
+def test_list_payment_filter(client):
+    due = make_order(client).get_json()
+    paid = make_order(client, advance=3300, mobile="9000000002").get_json()
+    assert paid["balance"] == 0
+
+    data = client.get("/api/tailoring/orders?pay=due").get_json()
+    assert [o["id"] for o in data["orders"]] == [due["id"]]
+    data = client.get("/api/tailoring/orders?pay=paid").get_json()
+    assert [o["id"] for o in data["orders"]] == [paid["id"]]
+    assert len(client.get("/api/tailoring/orders").get_json()["orders"]) == 2
+
+
 def test_list_sorting(client):
     a = make_order(client, customer_name="Zaveri", delivery_date="2026-08-20",
                    advance=0).get_json()
