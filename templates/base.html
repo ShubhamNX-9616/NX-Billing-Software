@@ -69,6 +69,13 @@
         Mirror Try-On
       </a>
       {% endif %}
+      {% if not current_user.is_tailor %}
+      <a href="/tryon-gallery"
+         class="nav-link {% if request.path.startswith('/tryon-gallery') %}active{% endif %}">
+        <span class="nav-icon">{{ icon('image') }}</span>
+        Try-On Gallery
+      </a>
+      {% endif %}
 
       {# RECORDS and MANAGE groups are entirely admin-only — their labels
          live inside the same is_admin guard so staff never see an empty group. #}

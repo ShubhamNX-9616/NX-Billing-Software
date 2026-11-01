@@ -1,10 +1,9 @@
 ﻿import io
-import re
 import qrcode
 from flask import Blueprint, jsonify, request, send_file, session
 from db import get_db, IST_NOW
 from services.auth import api_login_required, api_admin_required
-from services.inventory import compute_special_code, next_item_code, adjust_stock
+from services.inventory import compute_special_code, next_item_code, adjust_stock, find_item_by_code
 
 inventory_bp = Blueprint("inventory", __name__)
 
@@ -566,29 +565,7 @@ def low_stock():
 @inventory_bp.route("/inventory/by-code/<item_code>", methods=["GET"])
 @api_login_required
 def get_inventory_item_by_code(item_code):
-    db = get_db()
-    item = db.execute(
-        "SELECT * FROM inventory_items WHERE UPPER(item_code) = UPPER(?)", (item_code,)
-    ).fetchone()
-    if not item:
-        # Typed "sut4" / "sut-4" for "SUT-004": codes are PREFIX-NNN, so match
-        # the number as an integer, ignoring zero padding and the hyphen.
-        m = re.fullmatch(r"([A-Za-z]+)[-\s]*(\d+)", item_code.strip())
-        if m:
-            item = db.execute(
-                "SELECT * FROM inventory_items WHERE UPPER(item_code) = UPPER(?)",
-                (f"{m.group(1)}-{int(m.group(2)):03d}",),
-            ).fetchone()
-    if not item:
-        # Typed "sut001" for "SUT-001": retry ignoring hyphens and spaces.
-        squashed = item_code.replace("-", "").replace(" ", "")
-        if squashed:
-            item = db.execute(
-                """SELECT * FROM inventory_items
-                   WHERE REPLACE(REPLACE(UPPER(item_code), '-', ''), ' ', '') = UPPER(?)
-                   ORDER BY id LIMIT 1""",
-                (squashed,),
-            ).fetchone()
+    item = find_item_by_code(get_db(), item_code)
     if not item:
         return jsonify({"error": "Item not found"}), 404
     return jsonify(dict(item))
