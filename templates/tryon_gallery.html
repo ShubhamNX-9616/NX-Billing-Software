@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+
+{% block title %}Try-On Gallery — SHUBHAM NX{% endblock %}
+{% block page_title %}Try-On Gallery{% endblock %}
+
+{% block extra_css %}
+<style>
+  .tg-bar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:12px; }
+  .tg-tabs { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
+  .tg-tab { border:1.5px solid var(--border, #ddd); background:transparent; color:inherit;
+            border-radius:999px; padding:6px 14px; font-size:14px; cursor:pointer; }
+  .tg-tab.on { background:var(--primary, #8b1a2b); border-color:var(--primary, #8b1a2b); color:#fff; }
+  .tg-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(190px, 1fr)); gap:14px; }
+  .tg-card { border:1px solid var(--border, #ddd); border-radius:10px; overflow:hidden; cursor:pointer; }
+  .tg-card img { width:100%; aspect-ratio:3/4; object-fit:cover; display:block; background:#eee; }
+  .tg-meta { padding:8px 10px; font-size:13px; }
+  .tg-meta strong { display:block; font-size:14px; }
+  .tg-meta span { color:var(--text-muted, #777); }
+  .tg-modal { position:fixed; inset:0; background:rgba(0,0,0,.85); display:none; z-index:1000;
+              align-items:center; justify-content:center; flex-direction:column; gap:12px; padding:16px; }
+  .tg-modal.open { display:flex; }
+  .tg-modal img { max-width:100%; max-height:80vh; border-radius:8px; }
+  .tg-modal .tg-cap { color:#fff; font-size:15px; text-align:center; }
+  .tg-modal-actions { display:flex; gap:10px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="tg-bar">
+  <input type="text" id="tg-search" class="input" style="max-width:320px;"
+         placeholder="Search by inventory code or fabric name…" oninput="tgDebouncedLoad()" />
+  <span id="tg-count" class="text-muted" style="font-size:13px;"></span>
+</div>
+
+<div class="tg-tabs" id="tg-tabs">
+  <button type="button" class="tg-tab on" data-garment="">All</button>
+  {% for key, label in garments.items() %}
+  <button type="button" class="tg-tab" data-garment="{{ key }}">{{ label }}</button>
+  {% endfor %}
+</div>
+
+<div id="tg-empty" class="empty-state" style="display:none;">
+  <div id="tg-empty-msg">No try-on pictures saved yet. Save one from the Mirror Try-On app after entering the fabric's inventory code.</div>
+</div>
+<div class="tg-grid" id="tg-grid"></div>
+
+<div class="tg-modal" id="tg-modal" onclick="tgClose()">
+  <img id="tg-big" alt="" onclick="event.stopPropagation()" />
+  <div class="tg-cap" id="tg-cap"></div>
+  <div class="tg-modal-actions">
+    {% if current_user.is_admin %}
+    <button type="button" class="btn btn-secondary" id="tg-delete" onclick="event.stopPropagation(); tgDelete()">Delete</button>
+    {% endif %}
+    <button type="button" class="btn btn-primary" onclick="event.stopPropagation(); tgClose()">Close</button>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  let tgGarment = "";
+  let tgTimer = null;
+  let tgOpen = null;
+
+  function tgDebouncedLoad() {
+    clearTimeout(tgTimer);
+    tgTimer = setTimeout(tgLoad, 250);
+  }
+
+  async function tgLoad() {
+    const q = document.getElementById("tg-search").value.trim();
+    const params = new URLSearchParams();
+    if (tgGarment) params.set("garment", tgGarment);
+    if (q) params.set("q", q);
+    const grid = document.getElementById("tg-grid");
+    const empty = document.getElementById("tg-empty");
+    let rows = [];
+    try {
+      const r = await fetch("/api/tryon-gallery?" + params);
+      if (r.ok) rows = await r.json();
+    } catch (e) { /* show empty state */ }
+
+    document.getElementById("tg-count").textContent = rows.length ? rows.length + " picture(s)" : "";
+    grid.textContent = "";
+    empty.style.display = rows.length ? "none" : "";
+    if (!rows.length && (q || tgGarment)) {
+      document.getElementById("tg-empty-msg").textContent = "No pictures match.";
+    }
+    rows.forEach((p) => {
+      const card = document.createElement("div");
+      card.className = "tg-card";
+      card.onclick = () => tgShow(p);
+      const img = document.createElement("img");
+      img.loading = "lazy";
+      img.alt = p.item_code;
+      img.src = p.url;
+      const meta = document.createElement("div");
+      meta.className = "tg-meta";
+      const code = document.createElement("strong");
+      code.textContent = p.item_code;
+      const sub = document.createElement("span");
+      sub.textContent = p.garment_label + (p.item_name ? " · " + p.item_name : "");
+      meta.append(code, sub);
+      card.append(img, meta);
+      grid.append(card);
+    });
+  }
+
+  function tgShow(p) {
+    tgOpen = p;
+    document.getElementById("tg-big").src = p.url;
+    const bits = [p.item_code, p.garment_label, p.item_name, p.company_name].filter(Boolean);
+    document.getElementById("tg-cap").textContent = bits.join(" · ");
+    document.getElementById("tg-modal").classList.add("open");
+  }
+
+  function tgClose() {
+    document.getElementById("tg-modal").classList.remove("open");
+    tgOpen = null;
+  }
+
+  async function tgDelete() {
+    if (!tgOpen) return;
+    if (!confirm("Delete the " + tgOpen.garment_label + " picture for " + tgOpen.item_code + "?")) return;
+    const r = await fetch("/api/tryon-gallery/" + tgOpen.id, { method: "DELETE" });
+    if (r.ok) { tgClose(); tgLoad(); } else { alert("Could not delete the picture."); }
+  }
+
+  document.getElementById("tg-tabs").addEventListener("click", (e) => {
+    const b = e.target.closest(".tg-tab");
+    if (!b) return;
+    document.querySelectorAll(".tg-tab").forEach((t) => t.classList.toggle("on", t === b));
+    tgGarment = b.dataset.garment;
+    tgLoad();
+  });
+  tgLoad();
+</script>
+{% endblock %}

@@ -567,6 +567,23 @@ def _m27_bills_customer_id_index(conn):
     conn.execute("CREATE INDEX IF NOT EXISTS idx_bills_customer_id ON bills(customer_id)")
 
 
+def _m32_tryon_photos(conn):
+    """Mirror Try-On pictures saved from the tablet app. One row per
+    (garment, inventory code): saving the same fabric in the same garment
+    again replaces the earlier picture. `storage` is 'r2' or 'local' so a
+    picture can be found again wherever it landed."""
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS tryon_photos (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            garment    TEXT NOT NULL,
+            item_code  TEXT NOT NULL,
+            storage    TEXT NOT NULL DEFAULT 'local',
+            created_at TEXT DEFAULT (datetime('now','localtime')),
+            UNIQUE(garment, item_code)
+        )
+    """)
+
+
 MIGRATIONS = [
     (1,  _m01_baseline_schema),
     (2,  _m02_bills_extra_columns),
@@ -599,6 +616,7 @@ MIGRATIONS = [
     (29, _m29_inst_company_gst),
     (30, _m30_inst_round_off),
     (31, _m31_inst_item_code),
+    (32, _m32_tryon_photos),
 ]
 
 

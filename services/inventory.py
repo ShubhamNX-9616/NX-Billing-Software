@@ -1,4 +1,6 @@
-﻿from utils import r2, cloth_type_prefix
+import re
+
+from utils import r2, cloth_type_prefix
 from db.connection import IST_NOW
 
 _CIPHER = 'RAYMONDSUI'
@@ -102,3 +104,33 @@ def apply_inventory_diff(db, old_qty_map, new_qty_map, bill_id, username):
             deduct_stock(db, inv_id, diff, bill_id, username)
         elif diff < 0:
             restore_stock(db, inv_id, -diff, bill_id, username)
+
+
+def find_item_by_code(db, item_code):
+    """Inventory row for a typed item code, or None.
+
+    Tolerant of how staff type it: "sut4" / "sut-4" / "sut001" all find
+    "SUT-004" / "SUT-001" (codes are PREFIX-NNN)."""
+    item = db.execute(
+        "SELECT * FROM inventory_items WHERE UPPER(item_code) = UPPER(?)", (item_code,)
+    ).fetchone()
+    if not item:
+        # Typed "sut4" / "sut-4" for "SUT-004": match the number as an
+        # integer, ignoring zero padding and the hyphen.
+        m = re.fullmatch(r"([A-Za-z]+)[-\s]*(\d+)", item_code.strip())
+        if m:
+            item = db.execute(
+                "SELECT * FROM inventory_items WHERE UPPER(item_code) = UPPER(?)",
+                (f"{m.group(1)}-{int(m.group(2)):03d}",),
+            ).fetchone()
+    if not item:
+        # Typed "sut001" for "SUT-001": retry ignoring hyphens and spaces.
+        squashed = item_code.replace("-", "").replace(" ", "")
+        if squashed:
+            item = db.execute(
+                """SELECT * FROM inventory_items
+                   WHERE REPLACE(REPLACE(UPPER(item_code), '-', ''), ' ', '') = UPPER(?)
+                   ORDER BY id LIMIT 1""",
+                (squashed,),
+            ).fetchone()
+    return item
