@@ -67,6 +67,11 @@ app.secret_key = _secret
 # Leave empty to fall back to the browser's current origin (local network only).
 SHARE_BASE_URL = os.environ.get('SHARE_BASE_URL', '').rstrip('/')
 
+# Web address of the Mirror Try-On tablet app (hosted separately on Vercel).
+# The "Mirror Try-On" menu item opens it in a new tab. Set TRYON_URL to an
+# empty value in .env to hide the menu item.
+TRYON_URL = os.environ.get('TRYON_URL', 'https://shubham-nx-tryon.vercel.app').strip()
+
 # Session cookie settings
 app.config['SESSION_PERMANENT'] = False         # session cookie expires when browser closes
 app.config['SESSION_COOKIE_HTTPONLY'] = True    # JS cannot read the cookie
@@ -118,6 +123,7 @@ def format_date_filter(date_str):
 def inject_globals():
     return {
         'share_base_url': SHARE_BASE_URL,
+        'tryon_url': TRYON_URL,
         # Server's IST calendar day, embedded so new-bill screens don't need a
         # /api/server-date round trip just to fix a drifted client clock.
         'server_today': datetime.now(timezone(timedelta(hours=5, minutes=30))).strftime('%Y-%m-%d'),
