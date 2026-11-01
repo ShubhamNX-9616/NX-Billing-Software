@@ -62,6 +62,13 @@
         <span class="nav-icon">{{ icon('suits') }}</span>
         Suits
       </a>
+      {% if tryon_url and not current_user.is_tailor %}
+      {# Mirror Try-On is a separate tablet app; opens in a new tab. #}
+      <a href="{{ tryon_url }}" target="_blank" rel="noopener" class="nav-link">
+        <span class="nav-icon">{{ icon('camera') }}</span>
+        Mirror Try-On
+      </a>
+      {% endif %}
 
       {# RECORDS and MANAGE groups are entirely admin-only — their labels
          live inside the same is_admin guard so staff never see an empty group. #}
@@ -199,6 +206,12 @@
       {{ icon('suits') }}
       <span>Suits</span>
     </a>
+    {% if tryon_url and not current_user.is_tailor %}
+    <a href="{{ tryon_url }}" target="_blank" rel="noopener" class="mob-nav-item">
+      {{ icon('camera') }}
+      <span>Try-On</span>
+    </a>
+    {% endif %}
 
     {# Admin-only tabs #}
     {% if current_user.is_admin %}
