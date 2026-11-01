@@ -127,6 +127,12 @@ def test_save_writes_file_named_by_code_in_garment_folder(env):
     assert (tmp / "uploads" / "tryon" / "suit" / "SUT-001.jpg").is_file()
 
 
+def test_sherwani_is_an_accepted_garment(env):
+    app, tmp = env
+    assert _save(_client(app), garment="sherwani").status_code == 201
+    assert (tmp / "uploads" / "tryon" / "sherwani" / "SUT-001.jpg").is_file()
+
+
 def test_same_code_other_garment_goes_to_its_own_folder(env):
     app, tmp = env
     c = _client(app)
