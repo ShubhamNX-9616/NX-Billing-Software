@@ -45,6 +45,7 @@ GARMENTS = {
     "shirt": "Shirt",
     "pant": "Pant",
     "bandhgala": "Bandhgala",
+    "sherwani": "Sherwani",
     "nehru": "Nehru jacket",
 }
 MAX_IMAGE_BYTES = 6_000_000   # after base64 decoding; the app sends ~0.3-1 MB
