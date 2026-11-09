@@ -3,10 +3,10 @@
    ============================================================ */
 
 /* @page must sit at top level — Chrome/Edge ignore it inside @media */
-/* Thermal paper roll: 48 mm wide, 210 mm long */
+/* A5 portrait: 148 mm x 210 mm */
 @page {
-  size: 48mm 210mm;
-  margin: 2mm;
+  size: A5 portrait;
+  margin: 8mm;
 }
 
 @media print {
@@ -26,7 +26,7 @@
   body {
     background: #fff;
     color: #000;
-    font-size: 10px;
+    font-size: 11px;
     font-family: 'Segoe UI', Arial, sans-serif;
     margin: 0;
     padding: 0;
@@ -128,7 +128,7 @@
   .inv-items-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 14px;
+    font-size: 11px;
     margin-bottom: 4px;
   }
 
@@ -204,7 +204,7 @@
   /* Items table: always full width, no horizontal scroll */
   .inv-items-table {
     width: 100% !important;
-    font-size: 14px !important;
+    font-size: 11px !important;
   }
 
   /* Summary block: restore right-alignment */
@@ -213,123 +213,22 @@
     justify-content: flex-end !important;
   }
 
-  /* ---- 48 mm thermal roll: one narrow column, black on white ----
-     Most of bill_detail.html's layout is inline-styled, hence !important. */
-  body {
-    font-size: 9px;
-    font-family: Arial, sans-serif;
-  }
-
+  /* ---- A5 portrait: black on white, standard 7-column items table ---- */
   #invoice-card,
   #invoice-card * {
     color: #000 !important;
     background: #fff !important;
   }
 
-  #invoice-card div,
-  #invoice-card span,
-  #invoice-card td,
-  #invoice-card th {
-    font-size: 9px !important;
-  }
-
-  #invoice-card .inv-shop-name {
-    font-size: 13px !important;
-    letter-spacing: 0;
-  }
-
-  /* Meta: stack customer block over bill block, left-aligned */
-  #invoice-card .inv-meta {
-    grid-template-columns: 1fr !important;
-    gap: 2px !important;
-  }
-
-  .inv-meta > div:last-child {
-    text-align: left !important;
-  }
-
-  #invoice-card .inv-meta-row {
-    justify-content: flex-start !important;
-  }
-
-  #invoice-card .inv-meta-label {
-    min-width: 0 !important;
-    text-align: left !important;
-  }
-
-  #invoice-card .inv-meta-value {
-    margin-left: 4px !important;
-  }
-
-  /* Items: 7 columns can't fit in ~44 mm, so each item prints as a block:
-       1  Description (wraps)
-          Qty: x        MRP: x
-          Disc: x       Rate: x
-          Amount: x
-     The cells have no labels of their own (the header row is hidden), so
-     they come from ::before. */
-  #invoice-card .inv-items-table,
-  #invoice-card .inv-items-table tbody {
-    display: block !important;
-    width: 100% !important;
-  }
-
-  #invoice-card .inv-items-table thead {
-    display: none !important;
+  #invoice-card .inv-items-table th {
+    background: #f0f0f0 !important;
   }
 
   #invoice-card .inv-items-table tr {
-    display: grid !important;
-    grid-template-columns: 4mm 1fr 1fr;
-    column-gap: 2px;
-    padding: 2px 0;
-    border-bottom: 1px dashed #000;
     break-inside: avoid;
   }
 
-  #invoice-card .inv-items-table td {
-    display: block !important;
-    padding: 0 !important;
-    border: none !important;
-    text-align: left !important;
-    word-break: break-word;
-  }
-
-  #invoice-card .inv-items-table td:nth-child(1) { grid-column: 1; }
-  #invoice-card .inv-items-table td:nth-child(2) { grid-column: 2 / 4; font-weight: 700; }
-  #invoice-card .inv-items-table td:nth-child(3) { grid-column: 2; }
-  #invoice-card .inv-items-table td:nth-child(4) { grid-column: 3; }
-  #invoice-card .inv-items-table td:nth-child(5) { grid-column: 2; }
-  #invoice-card .inv-items-table td:nth-child(6) { grid-column: 3; }
-  #invoice-card .inv-items-table td:nth-child(7) { grid-column: 2 / 4; font-weight: 700; }
-
-  #invoice-card .inv-items-table td:nth-child(3)::before { content: "Qty: "; }
-  #invoice-card .inv-items-table td:nth-child(4)::before { content: "MRP: "; }
-  #invoice-card .inv-items-table td:nth-child(5)::before { content: "Disc: "; }
-  #invoice-card .inv-items-table td:nth-child(6)::before { content: "Rate: "; }
-  #invoice-card .inv-items-table td:nth-child(7)::before { content: "Amount: "; }
-
-  /* Shirts / Pants / Others: one per line */
-  #invoice-card .inv-counts {
-    flex-direction: column !important;
-    gap: 0 !important;
-    padding: 2px 0 !important;
-    border-top: 1px dashed #000 !important;
-    border-bottom: 1px dashed #000 !important;
-  }
-
-  /* Payment above totals, both full width */
-  #invoice-card > div[style*="justify-content:space-between"] {
-    flex-direction: column !important;
-    gap: 4px;
-  }
-
-  #invoice-card div[style*="width:260px"] {
-    width: 100% !important;
-  }
-
-  #invoice-card #inv-payments span[style*="margin-left"] {
-    display: block;
-    margin-left: 0 !important;
+  #invoice-card .inv-shop-name {
+    font-size: 18px !important;
   }
 }
