@@ -7,6 +7,13 @@
   var editingMeasurement = null;   // measurement being edited, or null when creating
   var editingCustomerId = null;    // customer being edited, or null when creating
   var searchTimer = null;
+  var tab = 'dashboard';      // which list-view tab is active
+  var dash = null;            // last dashboard payload
+  var selectedDay = null;     // ISO date (or 'overdue') open in the day-detail panel
+  var STATUS_BADGE = {
+    'Measured': 'badge-neutral', 'In Stitching': 'badge-info',
+    'Trial Ready': 'badge-warning', 'Delivered': 'badge-success'
+  };
 
   function $(id) { return document.getElementById(id); }
   function esc(s) { return escapeHtml(s == null ? '' : String(s)); }
@@ -97,8 +104,155 @@
     current = null;
     $('m-view-detail').classList.add('hidden');
     $('m-view-list').classList.remove('hidden');
-    loadCustomers();
+    switchTab(tab);
     loadCounts();
+  }
+
+  function switchTab(name) {
+    tab = name;
+    var tabs = document.querySelectorAll('.m-tab');
+    for (var i = 0; i < tabs.length; i++) {
+      tabs[i].classList.toggle('active', tabs[i].dataset.tab === name);
+    }
+    $('m-tab-dashboard').classList.toggle('hidden', name !== 'dashboard');
+    $('m-tab-customers').classList.toggle('hidden', name !== 'customers');
+    if (name === 'dashboard') loadDashboard(); else loadCustomers();
+  }
+
+  // -------------------------------------------------------------------------
+  // Dashboard
+  // -------------------------------------------------------------------------
+  function loadDashboard() {
+    api('GET', '/api/measurements/dashboard').then(function (d) {
+      dash = d;
+      renderDashboard();
+    }).catch(function (e) { say(e.message, true); });
+  }
+
+  function dayLabel(iso, todayIso) {
+    var p = iso.split('-');
+    var dt = new Date(+p[0], +p[1] - 1, +p[2]);
+    return {
+      name: iso === todayIso ? 'Today'
+        : dt.toLocaleDateString('en-IN', { weekday: 'short' }),
+      num: dt.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+    };
+  }
+
+  function garmentSummary(map) {
+    var parts = [];
+    Object.keys(map).forEach(function (k) { parts.push(map[k] + ' ' + k); });
+    return parts.join(', ');
+  }
+
+  function briefRow(b, extra) {
+    var sub = [b.garment_label + (b.pieces > 1 ? ' x' + b.pieces : '')];
+    if (b.trial_date) sub.push('Trial ' + fmtDate(b.trial_date));
+    if (b.delivery_date) sub.push('Delivery ' + fmtDate(b.delivery_date));
+    return '<button type="button" class="m-brief" data-customer="' + b.customer_id + '">' +
+      '<span><span class="m-brief-name">' + esc(b.customer_name) + '</span> ' +
+      '<span class="m-brief-sub">' + esc(b.mobile) + '</span><br>' +
+      '<span class="m-brief-sub">' + esc(sub.join(' · ')) + '</span>' +
+      (extra ? ' <span class="m-brief-sub m-brief-late">' + esc(extra) + '</span>' : '') +
+      '</span>' +
+      '<span class="badge ' + (STATUS_BADGE[b.status] || 'badge-neutral') + '">' +
+      esc(b.status) + '</span></button>';
+  }
+
+  function section(title, list, opts) {
+    if (!list.length) return '';
+    opts = opts || {};
+    return '<div class="card m-section' + (opts.danger ? ' is-danger' : '') + '">' +
+      '<div class="m-section-head">' + esc(title) +
+      ' <span class="badge ' + (opts.danger ? 'badge-danger' : 'badge-neutral') + '">' +
+      list.length + '</span></div>' +
+      '<div class="m-brief-list">' + list.map(function (b) {
+        return briefRow(b, opts.late && b.days_late ? b.days_late + ' day(s) late' : '');
+      }).join('') + '</div></div>';
+  }
+
+  function renderDashboard() {
+    var d = dash;
+    // Status chips
+    var chips = '<div class="m-stat"><div class="m-stat-n">' + d.total +
+      '</div><div class="m-stat-l">Total saved</div></div>';
+    meta.statuses.forEach(function (s) {
+      chips += '<div class="m-stat"><div class="m-stat-n">' + (d.counts[s] || 0) +
+        '</div><div class="m-stat-l">' + esc(s) + '</div></div>';
+    });
+    $('m-stats').innerHTML = chips;
+
+    // Day strip: overdue card first, then the next 15 days
+    var strip = '';
+    if (d.overdue.length) {
+      strip += '<button type="button" class="m-day is-overdue' +
+        (selectedDay === 'overdue' ? ' selected' : '') + '" data-day="overdue">' +
+        '<div class="m-day-name">Overdue</div><div class="m-day-num">' + d.overdue.length +
+        '</div><div class="m-day-count">deliveries</div>' +
+        '<div class="m-day-garments">' + esc(garmentSummary(d.overdue_garments)) + '</div></button>';
+    }
+    d.days.forEach(function (day) {
+      var lbl = dayLabel(day.date, d.today);
+      strip += '<button type="button" class="m-day' + (day.date === d.today ? ' is-today' : '') +
+        (selectedDay === day.date ? ' selected' : '') + '" data-day="' + day.date + '">' +
+        '<div class="m-day-name">' + esc(lbl.name) + '</div>' +
+        '<div class="m-day-num">' + esc(lbl.num) + '</div>' +
+        '<div class="m-day-count' + (day.deliveries ? '' : ' is-zero') + '">' +
+        day.deliveries + ' due</div>' +
+        (day.trials ? '<div class="m-day-trial">' + day.trials + ' trial' +
+          (day.trials > 1 ? 's' : '') + '</div>' : '') +
+        (day.deliveries ? '<div class="m-day-garments">' +
+          esc(garmentSummary(day.garments)) + '</div>' : '') + '</button>';
+    });
+    $('m-day-strip').innerHTML = strip;
+    renderDayDetail();
+
+    // Sections
+    var html = '';
+    html += section('Overdue deliveries', d.overdue, { danger: true, late: true });
+    html += section('Missed trials', d.missed_trials, { danger: true });
+    html += section('Trials today', d.trials_today);
+    html += section('Deliveries today', d.deliveries_today);
+    html += section('Trials tomorrow', d.trials_tomorrow);
+    html += section('Deliveries tomorrow', d.deliveries_tomorrow);
+    if (!html) {
+      html = '<div class="card"><div class="m-empty">' + (d.open
+        ? 'Nothing due today or tomorrow.'
+        : 'No open measurements yet. Add a customer and take a measurement to see it here.') +
+        '</div></div>';
+    }
+    $('m-dash-sections').innerHTML = html;
+  }
+
+  function renderDayDetail() {
+    var box = $('m-day-detail');
+    if (!selectedDay || !dash) { box.classList.add('hidden'); return; }
+    var html = '';
+    if (selectedDay === 'overdue') {
+      html = '<h4>Overdue deliveries</h4><div class="m-brief-list">' +
+        dash.overdue.map(function (b) {
+          return briefRow(b, b.days_late + ' day(s) late');
+        }).join('') + '</div>';
+    } else {
+      var day = null;
+      dash.days.forEach(function (x) { if (x.date === selectedDay) day = x; });
+      if (!day) { box.classList.add('hidden'); return; }
+      if (day.delivery_list.length) {
+        html += '<h4>Deliveries due (' + day.delivery_list.length + ')</h4>' +
+          '<div class="m-brief-list">' + day.delivery_list.map(function (b) {
+            return briefRow(b);
+          }).join('') + '</div>';
+      }
+      if (day.trial_list.length) {
+        html += '<h4>Trials (' + day.trial_list.length + ')</h4>' +
+          '<div class="m-brief-list">' + day.trial_list.map(function (b) {
+            return briefRow(b);
+          }).join('') + '</div>';
+      }
+      if (!html) html = '<div class="m-empty">Nothing due on this day.</div>';
+    }
+    box.innerHTML = html;
+    box.classList.remove('hidden');
   }
 
   function openCustomer(id) {
@@ -108,6 +262,7 @@
 
   function renderCustomer(c) {
     current = c;
+    selectedDay = null;     // come back to a clean dashboard, not a stale open day
     $('m-view-list').classList.add('hidden');
     $('m-view-detail').classList.remove('hidden');
     $('m-d-name').textContent = c.name;
@@ -330,9 +485,25 @@
         m.garments.map(function (g) {
           return '<option value="' + g.type + '">' + esc(g.label) + '</option>';
         }).join('');
-      loadCustomers();
+      switchTab('dashboard');
       loadCounts();
     }).catch(function (e) { say(e.message, true); });
+
+    var tabButtons = document.querySelectorAll('.m-tab');
+    for (var t = 0; t < tabButtons.length; t++) {
+      tabButtons[t].addEventListener('click', function () { switchTab(this.dataset.tab); });
+    }
+    $('m-day-strip').addEventListener('click', function (ev) {
+      var btn = ev.target.closest('.m-day');
+      if (!btn) return;
+      selectedDay = selectedDay === btn.dataset.day ? null : btn.dataset.day;
+      renderDashboard();
+    });
+    // Any "brief" row (dashboard sections or day detail) opens that customer.
+    $('m-tab-dashboard').addEventListener('click', function (ev) {
+      var row = ev.target.closest('.m-brief');
+      if (row) openCustomer(parseInt(row.dataset.customer, 10));
+    });
 
     $('m-search').addEventListener('input', function () {
       clearTimeout(searchTimer);

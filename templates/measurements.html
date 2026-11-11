@@ -19,13 +19,36 @@
 
 <div id="m-msg" class="m-msg hidden" role="status"></div>
 
-<!-- ====== View 1: customer list ====== -->
+<!-- ====== View 1: Dashboard | Customers ====== -->
 <div id="m-view-list">
-  <div class="card">
-    <label for="m-search" class="m-label">Find a customer</label>
-    <input type="text" id="m-search" class="input" placeholder="Name or mobile number…"
-           autocomplete="off" />
-    <div id="m-customer-list" class="m-customer-list"></div>
+  <div class="m-tabs" role="tablist">
+    <button type="button" class="m-tab active" data-tab="dashboard" role="tab">Dashboard</button>
+    <button type="button" class="m-tab" data-tab="customers" role="tab">Customers</button>
+  </div>
+
+  <!-- Dashboard tab -->
+  <div id="m-tab-dashboard">
+    <div class="m-stats" id="m-stats"></div>
+
+    <div class="card">
+      <div class="m-card-title">Delivery load — next 15 days
+        <span class="m-hint">(tap a day to see what is due)</span>
+      </div>
+      <div class="m-day-strip" id="m-day-strip"></div>
+      <div id="m-day-detail" class="m-day-detail hidden"></div>
+    </div>
+
+    <div id="m-dash-sections"></div>
+  </div>
+
+  <!-- Customers tab -->
+  <div id="m-tab-customers" class="hidden">
+    <div class="card">
+      <label for="m-search" class="m-label">Find a customer</label>
+      <input type="text" id="m-search" class="input" placeholder="Name or mobile number…"
+             autocomplete="off" />
+      <div id="m-customer-list" class="m-customer-list"></div>
+    </div>
   </div>
 </div>
 

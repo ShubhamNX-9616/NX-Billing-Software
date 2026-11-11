@@ -218,3 +218,104 @@ def test_new_endpoints_require_login(client):  # noqa: F811
 
 def test_photo_path_traversal_blocked(admin):
     assert admin.get("/measurements/photos/..%2F..%2Fapp.py").status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# Phase 3: dashboard
+# ---------------------------------------------------------------------------
+from datetime import date, timedelta  # noqa: E402
+
+
+def _day(offset):
+    import routes.measurements as mr
+    return (date.fromisoformat(mr._today_ist()) + timedelta(days=offset)).isoformat()
+
+
+def _item(c, cust, garment="shirt", delivery=None, trial=None, status=None, values=None):
+    m = _add_measurement(c, cust["id"], garment=garment, values=values or {},
+                         delivery_date=delivery, trial_date=trial).get_json()
+    if status:
+        c.patch(f"/api/measurements/{m['id']}/status", json={"status": status})
+    return m
+
+
+def test_dashboard_empty(admin):
+    d = admin.get("/api/measurements/dashboard").get_json()
+    assert d["total"] == 0 and d["open"] == 0
+    assert len(d["days"]) == 15
+    assert d["days"][0]["date"] == _day(0)
+    assert d["overdue"] == [] and d["missed_trials"] == []
+
+
+def test_dashboard_status_counts_include_delivered(admin):
+    cust = _add_customer(admin)
+    _item(admin, cust)
+    _item(admin, cust, status="In Stitching")
+    _item(admin, cust, status="Delivered")
+    d = admin.get("/api/measurements/dashboard").get_json()
+    assert d["counts"] == {"Measured": 1, "In Stitching": 1, "Trial Ready": 0, "Delivered": 1}
+    assert d["total"] == 3
+    assert d["open"] == 2          # Delivered is not open
+
+
+def test_dashboard_buckets_deliveries_and_trials_by_day(admin):
+    cust = _add_customer(admin, "Ravi Kumar")
+    _item(admin, cust, "shirt", delivery=_day(0), values={"no_of_shirts": "3"})
+    _item(admin, cust, "pant", delivery=_day(0))
+    _item(admin, cust, "kurta", delivery=_day(1), trial=_day(1))
+    _item(admin, cust, "suit", delivery=_day(40))        # outside the 15-day window
+    d = admin.get("/api/measurements/dashboard").get_json()
+
+    today = d["days"][0]
+    assert today["deliveries"] == 2
+    assert today["garments"] == {"Shirt": 3, "Pant": 1}   # count field is honoured
+    tomorrow = d["days"][1]
+    assert tomorrow["deliveries"] == 1 and tomorrow["trials"] == 1
+    assert {b["garment_label"] for b in d["deliveries_today"]} == {"Shirt", "Pant"}
+    assert len(d["deliveries_tomorrow"]) == 1
+    assert len(d["trials_tomorrow"]) == 1
+    assert sum(day["deliveries"] for day in d["days"]) == 3   # the +40 day one is not in it
+
+
+def test_dashboard_overdue_excludes_delivered(admin):
+    cust = _add_customer(admin)
+    _item(admin, cust, delivery=_day(-3))
+    _item(admin, cust, delivery=_day(-3), status="Delivered")
+    _item(admin, cust, delivery=_day(0))              # due today is not overdue
+    d = admin.get("/api/measurements/dashboard").get_json()
+    assert len(d["overdue"]) == 1
+    assert d["overdue"][0]["days_late"] == 3
+    assert d["overdue_garments"] == {"Shirt": 1}
+
+
+def test_dashboard_missed_trials(admin):
+    cust = _add_customer(admin)
+    _item(admin, cust, trial=_day(-2))                          # Measured -> missed
+    _item(admin, cust, trial=_day(-2), status="In Stitching")   # missed
+    _item(admin, cust, trial=_day(-2), status="Trial Ready")    # reached trial -> fine
+    _item(admin, cust, trial=_day(-2), status="Delivered")      # done
+    _item(admin, cust, trial=_day(0))                           # today is not missed
+    d = admin.get("/api/measurements/dashboard").get_json()
+    assert len(d["missed_trials"]) == 2
+    assert len(d["trials_today"]) == 1
+
+
+def test_dashboard_brief_carries_customer_link(admin):
+    cust = _add_customer(admin, "Ravi Kumar", "9876543210")
+    _item(admin, cust, delivery=_day(0))
+    brief = admin.get("/api/measurements/dashboard").get_json()["deliveries_today"][0]
+    assert brief["customer_id"] == cust["id"]
+    assert brief["customer_name"] == "Ravi Kumar" and brief["mobile"] == "9876543210"
+
+
+def test_dashboard_requires_login(client):  # noqa: F811
+    assert client.get("/api/measurements/dashboard").status_code in (401, 403)
+
+
+def test_piece_count_helper():
+    from services.measurement_fields import piece_count
+    assert piece_count("shirt", {"no_of_shirts": "4"}) == 4
+    assert piece_count("shirt", {"no_of_shirts": "abc"}) == 1
+    assert piece_count("shirt", {"no_of_shirts": "0"}) == 1
+    assert piece_count("shirt", {}) == 1
+    assert piece_count("cape", {}) == 1
