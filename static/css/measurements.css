@@ -1,0 +1,115 @@
+/* Measurements trial — styles. Tokens only (see base.css); no raw hex. */
+
+.m-trial-note {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+
+.m-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.m-msg {
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  margin-bottom: 10px;
+  font-size: 13px;
+  background: var(--success-bg);
+  color: var(--success-fg);
+  border: 1px solid var(--success-border);
+}
+.m-msg.is-error {
+  background: var(--danger-bg);
+  color: var(--danger-fg);
+  border-color: var(--danger-border);
+}
+.m-error {
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  background: var(--danger-bg);
+  color: var(--danger-fg);
+  border: 1px solid var(--danger-border);
+}
+.m-msg.hidden, .m-error.hidden,
+#m-view-list.hidden, #m-view-detail.hidden { display: none; }
+
+/* ---- Customer list ---- */
+.m-customer-list { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; }
+.m-customer-row {
+  display: flex; justify-content: space-between; align-items: center; gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: var(--text);
+  width: 100%;
+}
+.m-customer-row:hover { background: var(--bg); border-color: var(--border-strong); }
+.m-customer-row .m-cr-name { font-weight: 600; }
+.m-customer-row .m-cr-mobile { font-size: 12px; color: var(--text-muted); }
+.m-empty { color: var(--text-muted); font-size: 13px; padding: 14px 4px; }
+
+/* ---- Customer detail ---- */
+.m-customer-card { margin-top: 12px; }
+.m-customer-head { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.m-customer-name { font-size: 18px; font-weight: 700; }
+.m-customer-sub { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
+.m-actions { display: flex; gap: 6px; align-items: flex-start; }
+.m-actions .btn, .m-card-actions .btn { display: inline-flex; align-items: center; gap: 4px; }
+
+.m-add-row { display: flex; gap: 10px; align-items: flex-end; }
+.m-add-row > div { flex: 1; }
+
+/* ---- Saved measurements ---- */
+.m-measurement-list { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
+.m-mcard {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+}
+.m-mcard-head { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; align-items: center; }
+.m-mcard-title { font-weight: 700; font-size: 15px; }
+.m-mcard-dates { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+.m-mcard-values { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.m-chip {
+  font-size: 12px;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  border: 1px solid var(--border);
+}
+.m-chip b { font-weight: 700; }
+.m-chip span { color: var(--text-muted); }
+.m-mcard-foot {
+  display: flex; justify-content: space-between; align-items: center; gap: 10px;
+  flex-wrap: wrap; margin-top: 12px;
+}
+.m-status-wrap { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); }
+.m-status-wrap select { width: auto; }
+.m-card-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* ---- Measurement form ---- */
+.m-dates { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.m-section-title { font-weight: 700; margin: 16px 0 8px; }
+.m-section-title span { color: var(--text-muted); font-weight: 400; }
+.m-fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.m-form-stack { display: flex; flex-direction: column; gap: 10px; }
+.m-photo-current { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.m-photo-current.hidden { display: none; }
+.m-photo-current img { max-height: 90px; border-radius: var(--radius-sm); border: 1px solid var(--border); }
+.m-remove-photo { font-size: 13px; }
+
+@media (max-width: 600px) {
+  .m-dates { grid-template-columns: 1fr; }
+  .m-fields { grid-template-columns: repeat(2, 1fr); }
+}

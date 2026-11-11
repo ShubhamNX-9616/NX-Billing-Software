@@ -62,6 +62,13 @@
         <span class="nav-icon">{{ icon('suits') }}</span>
         Suits
       </a>
+      {% if measurements_enabled and not current_user.is_tailor %}
+      <a href="/measurements"
+         class="nav-link {% if request.path.startswith('/measurements') %}active{% endif %}">
+        <span class="nav-icon">{{ icon('list') }}</span>
+        Measurements (Trial)
+      </a>
+      {% endif %}
       {% if tryon_url and not current_user.is_tailor %}
       {# Mirror Try-On is a separate tablet app; opens in a new tab. #}
       <a href="{{ tryon_url }}" target="_blank" rel="noopener" class="nav-link">
