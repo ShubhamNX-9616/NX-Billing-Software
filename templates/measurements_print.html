@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Measurement #{{ '%04d' % m.id }} — {{ customer.name }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}?v={{ sv }}" />
+  <style>
+    body { background: var(--bg); color: var(--text); font-family: var(--font); margin: 0; }
+    .bar { max-width: 680px; margin: 16px auto 0; padding: 0 12px; display: flex; gap: 8px; }
+    .slip {
+      max-width: 680px; margin: 12px auto 24px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); overflow: hidden;
+    }
+    .s-head { padding: 14px 20px; border-bottom: 2px solid var(--tl-brand); }
+    .s-shop { font-size: 22px; font-weight: 800; letter-spacing: .04em; color: var(--tl-brand); }
+    .s-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+    .s-badge {
+      display: inline-block; margin-top: 8px; font-size: 12px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .06em;
+      padding: 2px 10px; border-radius: var(--radius-full);
+      background: var(--danger-bg); color: var(--danger-fg);
+    }
+    .s-info { display: grid; grid-template-columns: repeat(2, 1fr); border-bottom: 1px solid var(--border); }
+    .s-info > div { padding: 8px 20px; border-right: 1px solid var(--border); }
+    .s-info > div:nth-child(2n) { border-right: none; }
+    .s-label { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: var(--text-muted); }
+    .s-val { font-size: 15px; font-weight: 600; }
+    .s-sec { padding: 14px 20px 6px; }
+    .s-sec h3 {
+      margin: 0 0 10px; font-size: 11px; text-transform: uppercase; letter-spacing: .08em;
+      color: var(--text-muted); border-bottom: 1px dashed var(--border-strong); padding-bottom: 6px;
+    }
+    .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .cell { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 6px 10px; background: var(--bg); }
+    .cell .v { font-size: 17px; font-weight: 700; display: block; }
+    .row { display: flex; gap: 8px; }
+    .row .cell { flex: 1; text-align: center; }
+    .notes { margin: 0 20px 14px; padding: 8px 12px; border-radius: var(--radius-sm);
+             background: var(--warning-bg); color: var(--warning-fg); border: 1px solid var(--warning-border); font-size: 14px; }
+    .foot { display: flex; justify-content: space-between; padding: 8px 20px;
+            background: var(--bg); border-top: 1px solid var(--border); font-size: 11px; color: var(--text-muted); }
+
+    @media print {
+      body { background: #fff; color: #000; }
+      .bar { display: none; }
+      .slip { max-width: 100%; margin: 0; border: none; border-radius: 0; }
+      .grid { grid-template-columns: repeat(4, 1fr); }
+    }
+  </style>
+</head>
+<body>
+  <div class="bar">
+    <button type="button" class="btn btn-primary" onclick="window.print()">Print</button>
+    <button type="button" class="btn btn-secondary" onclick="window.close()">Close</button>
+  </div>
+
+  <div class="slip">
+    <div class="s-head">
+      <div class="s-shop">SHUBHAM NX</div>
+      <div class="s-sub">Krishna Chowk, New Sangvi, Pune &mdash; 411061</div>
+      <div class="s-badge">{{ garment_label }} measurement</div>
+    </div>
+
+    <div class="s-info">
+      <div><span class="s-label">Customer</span><span class="s-val">{{ customer.name }}</span></div>
+      <div><span class="s-label">Mobile</span><span class="s-val">{{ customer.mobile }}</span></div>
+      <div><span class="s-label">Order date</span><span class="s-val">{{ m.order_date|format_date }}</span></div>
+      <div><span class="s-label">Slip #</span><span class="s-val">{{ '%04d' % m.id }}</span></div>
+      {% if m.trial_date %}
+      <div><span class="s-label">Trial date</span><span class="s-val">{{ m.trial_date|format_date }}</span></div>
+      {% endif %}
+      {% if m.delivery_date %}
+      <div><span class="s-label">Delivery date</span><span class="s-val">{{ m.delivery_date|format_date }}</span></div>
+      {% endif %}
+    </div>
+
+    <div class="s-sec">
+      <h3>Measurements (inches){% if count %} &middot; {{ count[0] }}: {{ count[1] }}{% endif %}</h3>
+      <div class="grid">
+        {% for label, v in inch %}
+        <div class="cell"><span class="s-label">{{ label }}</span><span class="v">{{ v }}&quot;</span></div>
+        {% endfor %}
+      </div>
+
+      {% if front %}
+      <div style="margin-top:10px;"><span class="s-label">Front</span>
+        <div class="row">{% for v in front %}<div class="cell"><span class="v">{{ v }}&quot;</span></div>{% endfor %}</div>
+      </div>
+      {% endif %}
+      {% if back %}
+      <div style="margin-top:10px;"><span class="s-label">Back</span>
+        <div class="row">{% for v in back %}<div class="cell"><span class="v">{{ v }}&quot;</span></div>{% endfor %}</div>
+      </div>
+      {% endif %}
+
+      {% if labels %}
+      <div class="grid" style="margin-top:10px;">
+        {% for label, v in labels %}
+        <div class="cell"><span class="s-label">{{ label }}</span><span class="v" style="font-size:14px;">{{ v }}</span></div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+
+    {% if m.image_url %}
+    <div class="s-sec">
+      <h3>Fabric photo</h3>
+      <img src="{{ m.image_url }}" alt="Fabric photo"
+           style="max-width:100%;max-height:220px;border-radius:6px;border:1px solid var(--border);" />
+    </div>
+    {% endif %}
+
+    {% if m.notes %}
+    <div class="notes"><strong>Notes:</strong> {{ m.notes }}</div>
+    {% endif %}
+
+    <div class="foot">
+      <span>SHUBHAM NX</span>
+      <span>Status: {{ m.status }} &middot; Slip #{{ '%04d' % m.id }}</span>
+    </div>
+  </div>
+</body>
+</html>

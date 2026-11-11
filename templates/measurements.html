@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+
+{% block title %}Measurements (Trial) — SHUBHAM NX{% endblock %}
+{% block page_title %}Measurements (Trial){% endblock %}
+
+{% block topbar_actions %}
+  <button type="button" class="btn btn-primary" id="m-new-customer-btn">+ New Customer</button>
+{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/measurements.css') }}?v={{ sv }}" />
+{% endblock %}
+
+{% block content %}
+<div class="m-trial-note">
+  Trial section — keeps its own data, separate from Tailoring and Suits.
+  <span id="m-counts"></span>
+</div>
+
+<div id="m-msg" class="m-msg hidden" role="status"></div>
+
+<!-- ====== View 1: customer list ====== -->
+<div id="m-view-list">
+  <div class="card">
+    <label for="m-search" class="m-label">Find a customer</label>
+    <input type="text" id="m-search" class="input" placeholder="Name or mobile number…"
+           autocomplete="off" />
+    <div id="m-customer-list" class="m-customer-list"></div>
+  </div>
+</div>
+
+<!-- ====== View 2: one customer ====== -->
+<div id="m-view-detail" class="hidden">
+  <button type="button" class="btn btn-secondary btn-sm" id="m-back-btn">All customers</button>
+
+  <div class="card m-customer-card">
+    <div class="m-customer-head">
+      <div>
+        <div class="m-customer-name" id="m-d-name"></div>
+        <div class="m-customer-sub" id="m-d-mobile"></div>
+        <div class="m-customer-sub" id="m-d-address"></div>
+      </div>
+      <div class="m-actions">
+        <button type="button" class="btn btn-secondary btn-sm" id="m-edit-customer-btn">
+          <svg class="ico" aria-hidden="true"><use href="#i-pencil"/></svg> Edit
+        </button>
+        <button type="button" class="btn btn-danger-outline btn-sm" id="m-delete-customer-btn">
+          <svg class="ico" aria-hidden="true"><use href="#i-trash"/></svg> Delete
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="m-add-row">
+      <div>
+        <label for="m-garment-pick" class="m-label">Take new measurement</label>
+        <select id="m-garment-pick" class="input"></select>
+      </div>
+      <button type="button" class="btn btn-primary" id="m-add-measurement-btn">+ Add</button>
+    </div>
+  </div>
+
+  <div id="m-measurement-list" class="m-measurement-list"></div>
+</div>
+
+<!-- ====== Customer modal ====== -->
+<div class="modal-overlay hidden" id="m-customer-modal">
+  <div class="modal-box" style="max-width:440px;width:95vw;">
+    <div class="modal-header">
+      <h3 id="m-customer-modal-title">New Customer</h3>
+      <button type="button" class="modal-close" data-close="m-customer-modal" aria-label="Close">{{ icon('x', 18) }}</button>
+    </div>
+    <div class="modal-body">
+      <div class="m-form-stack">
+        <div>
+          <label for="m-c-name" class="m-label">Name <span class="text-danger">*</span></label>
+          <input type="text" id="m-c-name" class="input" />
+        </div>
+        <div>
+          <label for="m-c-mobile" class="m-label">Mobile <span class="text-danger">*</span></label>
+          <input type="tel" id="m-c-mobile" class="input" placeholder="10-digit mobile" />
+        </div>
+        <div>
+          <label for="m-c-address" class="m-label">Address</label>
+          <input type="text" id="m-c-address" class="input" placeholder="Optional" />
+        </div>
+        <div id="m-c-error" class="m-error hidden"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary" data-close="m-customer-modal">Cancel</button>
+      <button type="button" class="btn btn-primary" id="m-c-save">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ====== Measurement modal ====== -->
+<div class="modal-overlay hidden" id="m-measurement-modal">
+  <div class="modal-box" style="max-width:720px;width:95vw;">
+    <div class="modal-header">
+      <h3 id="m-measurement-modal-title">New Measurement</h3>
+      <button type="button" class="modal-close" data-close="m-measurement-modal" aria-label="Close">{{ icon('x', 18) }}</button>
+    </div>
+    <div class="modal-body">
+      <div class="m-dates">
+        <div>
+          <label for="m-f-order" class="m-label">Order date</label>
+          <input type="date" id="m-f-order" class="input" />
+        </div>
+        <div>
+          <label for="m-f-trial" class="m-label">Trial date</label>
+          <input type="date" id="m-f-trial" class="input" />
+        </div>
+        <div>
+          <label for="m-f-delivery" class="m-label">Delivery date</label>
+          <input type="date" id="m-f-delivery" class="input" />
+        </div>
+      </div>
+
+      <div class="m-section-title">Measurements <span id="m-garment-title"></span></div>
+      <div id="m-fields" class="m-fields"></div>
+
+      <div class="m-form-stack" style="margin-top:14px;">
+        <div>
+          <label for="m-f-notes" class="m-label">Notes</label>
+          <textarea id="m-f-notes" class="input" rows="2"></textarea>
+        </div>
+        <div>
+          <label for="m-f-photo" class="m-label">Fabric photo</label>
+          <div id="m-photo-current" class="m-photo-current hidden">
+            <img id="m-photo-img" alt="Fabric photo" />
+            <label class="m-remove-photo">
+              <input type="checkbox" id="m-photo-remove" /> Remove this photo
+            </label>
+          </div>
+          <input type="file" id="m-f-photo" accept="image/*" class="input" />
+        </div>
+        <div id="m-f-error" class="m-error hidden"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary" data-close="m-measurement-modal">Cancel</button>
+      <button type="button" class="btn btn-primary" id="m-f-save">Save</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/measurements.js') }}?v={{ sv }}"></script>
+{% endblock %}

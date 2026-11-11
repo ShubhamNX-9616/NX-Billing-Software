@@ -73,6 +73,11 @@ SHARE_BASE_URL = os.environ.get('SHARE_BASE_URL', '').rstrip('/')
 # empty value in .env to hide the menu item.
 TRYON_URL = os.environ.get('TRYON_URL', 'https://shubham-nx-tryon.vercel.app').strip()
 
+# Measurements trial section. Off by default: when off, no routes, no menu link
+# and no measurements.db file are created, so the app behaves exactly as before.
+# Set MEASUREMENTS_ENABLED=true in .env to turn the trial on.
+MEASUREMENTS_ENABLED = os.environ.get('MEASUREMENTS_ENABLED', 'false').strip().lower() == 'true'
+
 # Session cookie settings
 app.config['SESSION_PERMANENT'] = False         # session cookie expires when browser closes
 app.config['SESSION_COOKIE_HTTPONLY'] = True    # JS cannot read the cookie
@@ -107,6 +112,10 @@ app.teardown_appcontext(close_tailoring_db)
 init_db()
 seed_default_users(bcrypt)
 init_tailoring_db()  # separate tailoring.db for the tailoring delivery system
+if MEASUREMENTS_ENABLED:
+    from db.measurements import init_measurements_db, close_measurements_db
+    app.teardown_appcontext(close_measurements_db)
+    init_measurements_db()  # separate measurements.db for the measurements trial
 
 @app.template_filter("format_date")
 def format_date_filter(date_str):
@@ -125,6 +134,7 @@ def inject_globals():
     return {
         'share_base_url': SHARE_BASE_URL,
         'tryon_url': TRYON_URL,
+        'measurements_enabled': MEASUREMENTS_ENABLED,
         # Server's IST calendar day, embedded so new-bill screens don't need a
         # /api/server-date round trip just to fix a drifted client clock.
         'server_today': datetime.now(timezone(timedelta(hours=5, minutes=30))).strftime('%Y-%m-%d'),
@@ -178,6 +188,10 @@ app.register_blueprint(tailoring_api_bp, url_prefix="/api")
 app.register_blueprint(tailoring_pages_bp)
 app.register_blueprint(tailoring_suit_api_bp, url_prefix="/api")
 app.register_blueprint(tailoring_suit_pages_bp)
+if MEASUREMENTS_ENABLED:
+    from routes.measurements import measurements_api_bp, measurements_pages_bp
+    app.register_blueprint(measurements_api_bp, url_prefix="/api")
+    app.register_blueprint(measurements_pages_bp)
 app.register_blueprint(pages_bp)
 
 
