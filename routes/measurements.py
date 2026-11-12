@@ -20,7 +20,7 @@ from flask import (Blueprint, jsonify, render_template, request,
 from db.measurements import IST_NOW, get_measurements_db
 from services.auth import api_staff_or_admin_required, staff_or_admin_required
 from services.measurement_fields import (DEFAULT_STATUS, GARMENTS, STATUSES,
-                                         clean_values)
+                                         clean_values, piece_count)
 from utils import normalize_mobile, validate_indian_mobile
 
 measurements_api_bp = Blueprint("measurements_api", __name__)
@@ -57,11 +57,16 @@ def _customer_dict(c):
             "address": c["address"] or ""}
 
 
-def _measurement_dict(m):
+def _load_values(raw):
     try:
-        values = json.loads(m["values_json"] or "{}")
+        values = json.loads(raw or "{}")
     except ValueError:
-        values = {}
+        return {}
+    return values if isinstance(values, dict) else {}
+
+
+def _measurement_dict(m):
+    values = _load_values(m["values_json"])
     garment = GARMENTS.get(m["garment_type"], {})
     return {
         "id": m["id"],
@@ -386,6 +391,103 @@ def delete_photo(measurement_id):
     db.commit()
     _remove_photo_file(row["image"])
     return jsonify({"ok": True})
+
+
+# ---------------------------------------------------------------------------
+# GET /api/measurements/dashboard — delivery and trial preparation view
+# ---------------------------------------------------------------------------
+# "Open" = anything not yet Delivered. A trial counts as missed once its date
+# has passed while the garment is still Measured / In Stitching (i.e. it never
+# reached Trial Ready).
+MISSED_TRIAL_STATUSES = ("Measured", "In Stitching")
+DASHBOARD_DAYS = 15
+
+
+def _brief(r):
+    values = _load_values(r["values_json"])
+    garment = GARMENTS.get(r["garment_type"], {})
+    return {
+        "id": r["id"],
+        "customer_id": r["customer_id"],
+        "customer_name": r["name"],
+        "mobile": r["mobile"],
+        "garment_type": r["garment_type"],
+        "garment_label": garment.get("label", r["garment_type"].title()),
+        "pieces": piece_count(r["garment_type"], values),
+        "status": r["status"],
+        "order_date": r["order_date"],
+        "trial_date": r["trial_date"],
+        "delivery_date": r["delivery_date"],
+    }
+
+
+def _garment_totals(briefs):
+    totals = {}
+    for b in briefs:
+        totals[b["garment_label"]] = totals.get(b["garment_label"], 0) + b["pieces"]
+    return totals
+
+
+@measurements_api_bp.route("/measurements/dashboard", methods=["GET"])
+@api_staff_or_admin_required
+def measurements_dashboard():
+    db = get_measurements_db()
+    today = datetime.now(IST).date()
+    today_s = today.isoformat()
+    tomorrow_s = (today + timedelta(days=1)).isoformat()
+
+    counts = {s: 0 for s in STATUSES}
+    for r in db.execute("SELECT status, COUNT(*) AS n FROM m_measurements GROUP BY status"):
+        counts[r["status"]] = r["n"]
+
+    rows = db.execute(
+        "SELECT m.*, c.name, c.mobile FROM m_measurements m "
+        "JOIN m_customers c ON c.id = m.customer_id WHERE m.status != 'Delivered'"
+    ).fetchall()
+    open_items = sorted((_brief(r) for r in rows), key=lambda b: b["customer_name"].lower())
+
+    days = []
+    for n in range(DASHBOARD_DAYS):
+        ds = (today + timedelta(days=n)).isoformat()
+        deliveries = [b for b in open_items if b["delivery_date"] == ds]
+        trials = [b for b in open_items if b["trial_date"] == ds]
+        days.append({
+            "date": ds,
+            "deliveries": len(deliveries),
+            "trials": len(trials),
+            "garments": _garment_totals(deliveries),
+            "delivery_list": deliveries,
+            "trial_list": trials,
+        })
+
+    overdue = sorted((b for b in open_items
+                      if b["delivery_date"] and b["delivery_date"] < today_s),
+                     key=lambda b: b["delivery_date"])
+    for b in overdue:
+        b["days_late"] = (today - datetime.strptime(b["delivery_date"], "%Y-%m-%d").date()).days
+
+    missed_trials = sorted((b for b in open_items
+                            if b["trial_date"] and b["trial_date"] < today_s
+                            and b["status"] in MISSED_TRIAL_STATUSES),
+                           key=lambda b: b["trial_date"])
+
+    def due_on(field, ds):
+        return [b for b in open_items if b[field] == ds]
+
+    return jsonify({
+        "today": today_s,
+        "counts": counts,
+        "total": sum(counts.values()),
+        "open": len(open_items),
+        "days": days,
+        "overdue": overdue,
+        "overdue_garments": _garment_totals(overdue),
+        "missed_trials": missed_trials,
+        "deliveries_today": due_on("delivery_date", today_s),
+        "deliveries_tomorrow": due_on("delivery_date", tomorrow_s),
+        "trials_today": due_on("trial_date", today_s),
+        "trials_tomorrow": due_on("trial_date", tomorrow_s),
+    })
 
 
 # ---------------------------------------------------------------------------

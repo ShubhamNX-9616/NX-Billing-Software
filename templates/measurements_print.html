@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Measurement #{{ '%04d' % m.id }} — {{ customer.name }}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}?v={{ sv }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}?v={{ sv }}" />
   <style>
     body { background: var(--bg); color: var(--text); font-family: var(--font); margin: 0; }
     .bar { max-width: 680px; margin: 16px auto 0; padding: 0 12px; display: flex; gap: 8px; }
@@ -36,7 +37,7 @@
     .cell { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 6px 10px; background: var(--bg); }
     .cell .v { font-size: 17px; font-weight: 700; display: block; }
     .row { display: flex; gap: 8px; }
-    .row .cell { flex: 1; text-align: center; }
+    .row .cell { flex: 0 1 140px; text-align: center; }
     .notes { margin: 0 20px 14px; padding: 8px 12px; border-radius: var(--radius-sm);
              background: var(--warning-bg); color: var(--warning-fg); border: 1px solid var(--warning-border); font-size: 14px; }
     .foot { display: flex; justify-content: space-between; padding: 8px 20px;

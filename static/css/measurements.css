@@ -37,7 +37,69 @@
   border: 1px solid var(--danger-border);
 }
 .m-msg.hidden, .m-error.hidden,
-#m-view-list.hidden, #m-view-detail.hidden { display: none; }
+#m-view-list.hidden, #m-view-detail.hidden,
+#m-tab-dashboard.hidden, #m-tab-customers.hidden,
+.m-day-detail.hidden { display: none; }
+
+/* ---- Tabs ---- */
+.m-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
+.m-tab {
+  padding: 8px 16px; font: inherit; font-weight: 600; cursor: pointer;
+  background: none; border: none; border-bottom: 2px solid transparent;
+  color: var(--text-muted); margin-bottom: -1px;
+}
+.m-tab:hover { color: var(--text); }
+.m-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+/* ---- Dashboard ---- */
+.m-card-title { font-weight: 600; margin-bottom: 8px; }
+.m-hint { font-weight: 400; font-size: 12px; color: var(--text-muted); }
+
+.m-stats { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.m-stat {
+  flex: 1 1 110px; padding: 10px 12px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+}
+.m-stat-n { font-size: 22px; font-weight: 700; line-height: 1.1; }
+.m-stat-l { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+.m-day-strip { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px; }
+.m-day {
+  flex: 0 0 92px; text-align: center; padding: 8px 6px; font: inherit; color: var(--text);
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.m-day:hover { border-color: var(--border-strong); background: var(--bg); }
+.m-day.selected { border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary); }
+.m-day.is-today { background: var(--info-bg); }
+.m-day.is-overdue { background: var(--danger-bg); border-color: var(--danger-border); }
+.m-day-name { font-size: 11px; color: var(--text-muted); }
+.m-day-num { font-weight: 700; margin: 2px 0; }
+.m-day-count { font-size: 12px; }
+.m-day-count.is-zero { color: var(--text-light); }
+.m-day-trial { font-size: 11px; color: var(--warning-fg); }
+.m-day-garments { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+
+.m-day-detail { margin-top: 10px; }
+.m-day-detail h4 { margin: 10px 0 6px; font-size: 13px; }
+
+.m-section { margin-bottom: 12px; }
+.m-section-head {
+  display: flex; align-items: center; gap: 8px;
+  font-weight: 600; margin-bottom: 8px;
+}
+.m-section.is-danger .m-section-head { color: var(--danger-fg); }
+.m-brief-list { display: flex; flex-direction: column; gap: 6px; }
+.m-brief {
+  display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap;
+  width: 100%; text-align: left; font: inherit; color: var(--text); cursor: pointer;
+  padding: 8px 12px; background: var(--surface);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+}
+.m-brief:hover { background: var(--bg); border-color: var(--border-strong); }
+.m-brief-name { font-weight: 600; }
+.m-brief-sub { font-size: 12px; color: var(--text-muted); }
+.m-brief-late { color: var(--danger-fg); font-weight: 600; }
 
 /* ---- Customer list ---- */
 .m-customer-list { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; }

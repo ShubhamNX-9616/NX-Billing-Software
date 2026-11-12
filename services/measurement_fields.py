@@ -99,6 +99,19 @@ GARMENTS = {
 MAX_VALUE_LEN = 40
 
 
+def piece_count(garment_type, values):
+    """How many pieces a saved measurement stands for: the garment's count field
+    ("No of Shirts") when it holds a whole number >= 1, otherwise 1."""
+    garment = GARMENTS.get(garment_type)
+    if not garment:
+        return 1
+    for field in garment["fields"]:
+        if field["kind"] == "count":
+            raw = str(values.get(field["key"], "")).strip()
+            return int(raw) if raw.isdigit() and int(raw) >= 1 else 1
+    return 1
+
+
 def clean_values(garment_type, raw):
     """Keep only the known fields of this garment, trimmed. Select fields must
     hold one of their options (anything else is dropped). Returns
