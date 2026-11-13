@@ -19,6 +19,12 @@ from flask import (Blueprint, jsonify, render_template, request,
 
 from db.measurements import IST_NOW, get_measurements_db
 from services.auth import api_staff_or_admin_required, staff_or_admin_required
+from services.measurement_billing import (ORDER_TYPES, PAYMENT_MODES, item_amount,
+                                          order_label,
+                                          parse_money, payment_problem,
+                                          recompute_order, remember_rate,
+                                          saved_rates, stitching_total,
+                                          sync_delivered)
 from services.measurement_fields import (DEFAULT_STATUS, GARMENTS, STATUSES,
                                          clean_values, piece_count)
 from utils import normalize_mobile, validate_indian_mobile
@@ -81,6 +87,11 @@ def _measurement_dict(m):
         "delivery_date": m["delivery_date"],
         "status": m["status"],
         "created_at": m["created_at"],
+        # billing (set only when the garment belongs to an order)
+        "order_id": m["order_id"],
+        "qty": m["qty"],
+        "rate": m["rate"],
+        "amount": m["amount"],
     }
 
 
@@ -124,6 +135,9 @@ def measurements_meta():
         "garments": [{"type": t, "label": g["label"], "fields": g["fields"]}
                      for t, g in GARMENTS.items()],
         "today": _today_ist(),
+        "order_types": list(ORDER_TYPES),
+        "payment_modes": list(PAYMENT_MODES),
+        "rates": saved_rates(get_measurements_db()),
     })
 
 
@@ -221,6 +235,10 @@ def delete_customer(customer_id):
     row = db.execute("SELECT id FROM m_customers WHERE id = ?", (customer_id,)).fetchone()
     if not row:
         return jsonify({"error": "Customer not found"}), 404
+    if db.execute("SELECT 1 FROM m_orders WHERE customer_id = ? LIMIT 1",
+                  (customer_id,)).fetchone():
+        return jsonify({"error": "This customer has billing orders - delete those "
+                                 "orders first"}), 409
     images = [r["image"] for r in db.execute(
         "SELECT image FROM m_measurements WHERE customer_id = ?", (customer_id,))]
     db.execute("DELETE FROM m_customers WHERE id = ?", (customer_id,))
@@ -299,13 +317,37 @@ def update_measurement(measurement_id):
     fields, err = _parse_measurement_body(data, row["garment_type"])
     if err:
         return jsonify({"error": err}), 400
-    db.execute(
-        f"UPDATE m_measurements SET values_json = ?, notes = ?, order_date = ?, "
-        f"trial_date = ?, delivery_date = ?, updated_at = ({IST_NOW}) WHERE id = ?",
-        (fields["values_json"], fields["notes"], fields["order_date"] or row["order_date"],
-         fields["trial_date"], fields["delivery_date"], measurement_id),
-    )
-    db.commit()
+
+    if row["order_id"]:
+        # A garment on an order: dates belong to the order, and changing the
+        # values or rate changes what the order costs.
+        qty = piece_count(row["garment_type"], json.loads(fields["values_json"]))
+        rate = row["rate"]
+        if "rate" in data:
+            rate, err = parse_money(data.get("rate"), "Rate")
+            if err:
+                return jsonify({"error": err}), 400
+        amount = item_amount(rate, qty)
+        new_total = round(stitching_total(db, row["order_id"]) - row["amount"] + amount, 2)
+        problem = payment_problem(db, row["order_id"], new_total=new_total)
+        if problem:
+            return jsonify({"error": problem}), 400
+        db.execute(
+            f"UPDATE m_measurements SET values_json = ?, notes = ?, qty = ?, rate = ?, "
+            f"amount = ?, updated_at = ({IST_NOW}) WHERE id = ?",
+            (fields["values_json"], fields["notes"], qty, rate, amount, measurement_id))
+        order = db.execute("SELECT order_type FROM m_orders WHERE id = ?",
+                           (row["order_id"],)).fetchone()
+        remember_rate(db, order["order_type"], row["garment_type"], rate)
+        recompute_order(db, row["order_id"])
+        db.commit()
+    else:
+        db.execute(
+            f"UPDATE m_measurements SET values_json = ?, notes = ?, order_date = ?, "
+            f"trial_date = ?, delivery_date = ?, updated_at = ({IST_NOW}) WHERE id = ?",
+            (fields["values_json"], fields["notes"], fields["order_date"] or row["order_date"],
+             fields["trial_date"], fields["delivery_date"], measurement_id))
+        db.commit()
     row = db.execute("SELECT * FROM m_measurements WHERE id = ?", (measurement_id,)).fetchone()
     return jsonify(_measurement_dict(row))
 
@@ -318,10 +360,14 @@ def update_status(measurement_id):
     if status not in STATUSES:
         return jsonify({"error": "Invalid status"}), 400
     db = get_measurements_db()
-    if not db.execute("SELECT 1 FROM m_measurements WHERE id = ?", (measurement_id,)).fetchone():
+    found = db.execute("SELECT order_id FROM m_measurements WHERE id = ?",
+                       (measurement_id,)).fetchone()
+    if not found:
         return jsonify({"error": "Measurement not found"}), 404
     db.execute(f"UPDATE m_measurements SET status = ?, updated_at = ({IST_NOW}) WHERE id = ?",
                (status, measurement_id))
+    if found["order_id"]:
+        sync_delivered(db, found["order_id"])
     db.commit()
     row = db.execute("SELECT * FROM m_measurements WHERE id = ?", (measurement_id,)).fetchone()
     return jsonify(_measurement_dict(row))
@@ -331,10 +377,23 @@ def update_status(measurement_id):
 @api_staff_or_admin_required
 def delete_measurement(measurement_id):
     db = get_measurements_db()
-    row = db.execute("SELECT image FROM m_measurements WHERE id = ?", (measurement_id,)).fetchone()
+    row = db.execute("SELECT image, order_id, amount FROM m_measurements WHERE id = ?",
+                     (measurement_id,)).fetchone()
     if not row:
         return jsonify({"error": "Measurement not found"}), 404
+    if row["order_id"]:
+        left = db.execute("SELECT COUNT(*) FROM m_measurements WHERE order_id = ? AND id != ?",
+                          (row["order_id"], measurement_id)).fetchone()[0]
+        if not left:
+            return jsonify({"error": "This is the only garment on its order - "
+                                     "delete the order instead"}), 400
+        new_total = round(stitching_total(db, row["order_id"]) - row["amount"], 2)
+        problem = payment_problem(db, row["order_id"], new_total=new_total)
+        if problem:
+            return jsonify({"error": problem}), 400
     db.execute("DELETE FROM m_measurements WHERE id = ?", (measurement_id,))
+    if row["order_id"]:
+        recompute_order(db, row["order_id"])
     db.commit()
     _remove_photo_file(row["image"])
     return jsonify({"ok": True})
@@ -396,10 +455,12 @@ def delete_photo(measurement_id):
 # ---------------------------------------------------------------------------
 # GET /api/measurements/dashboard — delivery and trial preparation view
 # ---------------------------------------------------------------------------
-# "Open" = anything not yet Delivered. A trial counts as missed once its date
-# has passed while the garment is still Measured / In Stitching (i.e. it never
-# reached Trial Ready).
-MISSED_TRIAL_STATUSES = ("Measured", "In Stitching")
+# "Open" = anything not yet Delivered. Mirrors the Tailoring/Suits dashboard
+# (same JSON shape and rules), with "Trial Ready" standing in for their
+# "Full Stitched": once a garment is Trial Ready a late pickup is on the
+# customer, so it is not "overdue" and a past trial date is not "missed" —
+# instead it shows under "Ready & waiting pickup".
+READY_STATUS = "Trial Ready"
 DASHBOARD_DAYS = 15
 
 
@@ -418,6 +479,11 @@ def _brief(r):
         "order_date": r["order_date"],
         "trial_date": r["trial_date"],
         "delivery_date": r["delivery_date"],
+        # billing: set only when the garment belongs to an order (balance is the
+        # whole order's, repeated on each of its garments)
+        "order_id": r["order_id"],
+        "order_label": (order_label(r["o_type"], r["o_number"]) if r["order_id"] else None),
+        "balance": r["o_balance"] if r["order_id"] else None,
     }
 
 
@@ -441,35 +507,52 @@ def measurements_dashboard():
         counts[r["status"]] = r["n"]
 
     rows = db.execute(
-        "SELECT m.*, c.name, c.mobile FROM m_measurements m "
-        "JOIN m_customers c ON c.id = m.customer_id WHERE m.status != 'Delivered'"
+        "SELECT m.*, c.name, c.mobile, o.order_type AS o_type, "
+        "o.order_number AS o_number, o.balance AS o_balance FROM m_measurements m "
+        "JOIN m_customers c ON c.id = m.customer_id "
+        "LEFT JOIN m_orders o ON o.id = m.order_id WHERE m.status != 'Delivered'"
     ).fetchall()
     open_items = sorted((_brief(r) for r in rows), key=lambda b: b["customer_name"].lower())
 
+    # Delivery load per day for the next 15 days (today included).
     days = []
     for n in range(DASHBOARD_DAYS):
         ds = (today + timedelta(days=n)).isoformat()
-        deliveries = [b for b in open_items if b["delivery_date"] == ds]
-        trials = [b for b in open_items if b["trial_date"] == ds]
+        due = [b for b in open_items if b["delivery_date"] == ds]
         days.append({
             "date": ds,
-            "deliveries": len(deliveries),
-            "trials": len(trials),
-            "garments": _garment_totals(deliveries),
-            "delivery_list": deliveries,
-            "trial_list": trials,
+            "orders": len(due),
+            "garments": _garment_totals(due),
+            "trials": sum(1 for b in open_items if b["trial_date"] == ds),
+            "order_list": due,
         })
 
     overdue = sorted((b for b in open_items
-                      if b["delivery_date"] and b["delivery_date"] < today_s),
+                      if b["delivery_date"] and b["delivery_date"] < today_s
+                      and b["status"] != READY_STATUS),
                      key=lambda b: b["delivery_date"])
     for b in overdue:
         b["days_late"] = (today - datetime.strptime(b["delivery_date"], "%Y-%m-%d").date()).days
 
-    missed_trials = sorted((b for b in open_items
-                            if b["trial_date"] and b["trial_date"] < today_s
-                            and b["status"] in MISSED_TRIAL_STATUSES),
-                           key=lambda b: b["trial_date"])
+    # Same shape as a `days` entry so the strip can show it as the first card.
+    overdue_day = {
+        "orders": len(overdue),
+        "garments": _garment_totals(overdue),
+        "trials": sum(1 for b in open_items
+                      if b["trial_date"] and b["trial_date"] < today_s
+                      and b["status"] != READY_STATUS),
+        "order_list": overdue,
+    }
+
+    # Trial Ready, delivery date arrived/passed (or never set): call the customer.
+    ready_waiting = sorted(
+        (dict(b) for b in open_items
+         if b["status"] == READY_STATUS
+         and (not b["delivery_date"] or b["delivery_date"] <= today_s)),
+        key=lambda b: b["delivery_date"] or "")
+    for b in ready_waiting:
+        if b["delivery_date"] and b["delivery_date"] < today_s:
+            b["days_waiting"] = (today - datetime.strptime(b["delivery_date"], "%Y-%m-%d").date()).days
 
     def due_on(field, ds):
         return [b for b in open_items if b[field] == ds]
@@ -480,9 +563,9 @@ def measurements_dashboard():
         "total": sum(counts.values()),
         "open": len(open_items),
         "days": days,
+        "overdue_day": overdue_day,
         "overdue": overdue,
-        "overdue_garments": _garment_totals(overdue),
-        "missed_trials": missed_trials,
+        "ready_waiting": ready_waiting,
         "deliveries_today": due_on("delivery_date", today_s),
         "deliveries_tomorrow": due_on("delivery_date", tomorrow_s),
         "trials_today": due_on("trial_date", today_s),
@@ -541,3 +624,8 @@ def measurement_photo_file(filename):
     if not os.path.isfile(os.path.join(folder, filename)):
         return jsonify({"error": "Photo not found"}), 404
     return send_from_directory(folder, filename, max_age=31536000)
+
+
+# Billing routes (orders, garment lines, payments) share this blueprint. Imported
+# last because that module imports the helpers and blueprint defined above.
+from routes import measurement_orders  # noqa: E402,F401

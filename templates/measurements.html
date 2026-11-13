@@ -4,7 +4,8 @@
 {% block page_title %}Measurements (Trial){% endblock %}
 
 {% block topbar_actions %}
-  <button type="button" class="btn btn-primary" id="m-new-customer-btn">+ New Customer</button>
+  <button type="button" class="btn btn-secondary" id="m-new-customer-btn">+ New Customer</button>
+  <button type="button" class="btn btn-primary" id="m-new-order-btn">+ New Order</button>
 {% endblock %}
 
 {% block extra_css %}
@@ -23,6 +24,7 @@
 <div id="m-view-list">
   <div class="m-tabs" role="tablist">
     <button type="button" class="m-tab active" data-tab="dashboard" role="tab">Dashboard</button>
+    <button type="button" class="m-tab" data-tab="orders" role="tab">Orders</button>
     <button type="button" class="m-tab" data-tab="customers" role="tab">Customers</button>
   </div>
 
@@ -32,13 +34,35 @@
 
     <div class="card">
       <div class="m-card-title">Delivery load — next 15 days
-        <span class="m-hint">(tap a day to see what is due)</span>
+        <span class="m-hint">(tap a day to see its deliveries)</span>
       </div>
       <div class="m-day-strip" id="m-day-strip"></div>
       <div id="m-day-detail" class="m-day-detail hidden"></div>
     </div>
 
     <div id="m-dash-sections"></div>
+  </div>
+
+  <!-- Orders tab -->
+  <div id="m-tab-orders" class="hidden">
+    <div class="card">
+      <div class="m-filter-row">
+        <div class="m-grow">
+          <label for="m-order-search" class="m-label">Find an order</label>
+          <input type="text" id="m-order-search" class="input"
+                 placeholder="Customer name, mobile or order number…" autocomplete="off" />
+        </div>
+        <div>
+          <label for="m-order-type" class="m-label">Type</label>
+          <select id="m-order-type" class="input">
+            <option value="">All</option>
+            <option value="general">General</option>
+            <option value="suit">Suits</option>
+          </select>
+        </div>
+      </div>
+      <div id="m-order-list" class="m-order-list"></div>
+    </div>
   </div>
 
   <!-- Customers tab -->
@@ -64,6 +88,9 @@
         <div class="m-customer-sub" id="m-d-address"></div>
       </div>
       <div class="m-actions">
+        <button type="button" class="btn btn-primary btn-sm" id="m-cust-new-order-btn">
+          <svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg> New Order
+        </button>
         <button type="button" class="btn btn-secondary btn-sm" id="m-edit-customer-btn">
           <svg class="ico" aria-hidden="true"><use href="#i-pencil"/></svg> Edit
         </button>
@@ -85,6 +112,146 @@
   </div>
 
   <div id="m-measurement-list" class="m-measurement-list"></div>
+</div>
+
+<!-- ====== View 3: one order ====== -->
+<div id="m-view-order" class="hidden">
+  <button type="button" class="btn btn-secondary btn-sm" id="m-order-back-btn">All orders</button>
+  <div id="m-order-head"></div>
+  <div id="m-order-money"></div>
+  <div class="card">
+    <div class="m-add-row">
+      <div>
+        <label for="m-order-garment-pick" class="m-label">Add another garment to this order</label>
+        <select id="m-order-garment-pick" class="input"></select>
+      </div>
+      <button type="button" class="btn btn-primary" id="m-order-add-garment">+ Add</button>
+    </div>
+  </div>
+  <div id="m-order-items" class="m-measurement-list"></div>
+</div>
+
+<!-- ====== View 4: new order ====== -->
+<div id="m-view-neworder" class="hidden">
+  <button type="button" class="btn btn-secondary btn-sm" id="m-no-back-btn">Cancel</button>
+  <div class="m-page-title">New Order <span class="m-hint">The order number is given when you save.</span></div>
+
+  <div class="card">
+    <div class="m-card-title">1. Customer</div>
+    <div id="m-no-cust-selected" class="m-picked hidden"></div>
+    <div id="m-no-cust-search-wrap">
+      <label for="m-no-cust-search" class="m-label">Find by name or mobile</label>
+      <div class="m-filter-row">
+        <input type="text" id="m-no-cust-search" class="input m-grow" autocomplete="off"
+               placeholder="Start typing…" />
+        <button type="button" class="btn btn-secondary" id="m-no-newcust-btn">+ New customer</button>
+      </div>
+      <div id="m-no-cust-results" class="m-customer-list"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="m-card-title">2. Order</div>
+    <div class="m-type-row" role="radiogroup" aria-label="Order type">
+      <label class="m-type"><input type="radio" name="m-no-type" value="general" checked /> General</label>
+      <label class="m-type"><input type="radio" name="m-no-type" value="suit" /> Suits</label>
+    </div>
+    <div class="m-dates" style="margin-top:10px;">
+      <div>
+        <label for="m-no-order-date" class="m-label">Order date</label>
+        <input type="date" id="m-no-order-date" class="input" />
+      </div>
+      <div>
+        <label for="m-no-trial-date" class="m-label">Trial date</label>
+        <input type="date" id="m-no-trial-date" class="input" />
+      </div>
+      <div>
+        <label for="m-no-delivery-date" class="m-label">Delivery date</label>
+        <input type="date" id="m-no-delivery-date" class="input" />
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="m-card-title">3. Garments and measurements</div>
+    <div class="m-add-row">
+      <div>
+        <label for="m-no-garment-pick" class="m-label">Add a garment</label>
+        <select id="m-no-garment-pick" class="input"></select>
+      </div>
+      <button type="button" class="btn btn-primary" id="m-no-add-garment">+ Add</button>
+    </div>
+    <div id="m-no-garments" class="m-gblocks"></div>
+  </div>
+
+  <div class="card">
+    <div class="m-card-title">4. Payment</div>
+    <div class="m-pay-grid">
+      <div>
+        <label for="m-no-cloth" class="m-label">Cloth balance (&#8377;)</label>
+        <input type="number" id="m-no-cloth" class="input" min="0" step="any" inputmode="decimal" />
+      </div>
+      <div>
+        <label for="m-no-advance" class="m-label">Advance paid now (&#8377;)</label>
+        <input type="number" id="m-no-advance" class="input" min="0" step="any" inputmode="decimal" />
+      </div>
+      <div>
+        <label for="m-no-mode" class="m-label">Payment mode</label>
+        <select id="m-no-mode" class="input"></select>
+      </div>
+    </div>
+    <div id="m-no-summary" class="m-summary"></div>
+    <div style="margin-top:10px;">
+      <label for="m-no-notes" class="m-label">Order notes</label>
+      <textarea id="m-no-notes" class="input" rows="2"></textarea>
+    </div>
+    <div id="m-no-error" class="m-error hidden" style="margin-top:10px;"></div>
+    <div class="m-save-row">
+      <button type="button" class="btn btn-secondary" id="m-no-cancel-btn">Cancel</button>
+      <button type="button" class="btn btn-primary" id="m-no-save">Save Order</button>
+    </div>
+  </div>
+</div>
+
+<!-- ====== Edit order modal ====== -->
+<div class="modal-overlay hidden" id="m-order-modal">
+  <div class="modal-box" style="max-width:520px;width:95vw;">
+    <div class="modal-header">
+      <h3 id="m-order-modal-title">Edit Order</h3>
+      <button type="button" class="modal-close" data-close="m-order-modal" aria-label="Close">{{ icon('x', 18) }}</button>
+    </div>
+    <div class="modal-body">
+      <div class="m-dates">
+        <div>
+          <label for="m-oe-order" class="m-label">Order date</label>
+          <input type="date" id="m-oe-order" class="input" />
+        </div>
+        <div>
+          <label for="m-oe-trial" class="m-label">Trial date</label>
+          <input type="date" id="m-oe-trial" class="input" />
+        </div>
+        <div>
+          <label for="m-oe-delivery" class="m-label">Delivery date</label>
+          <input type="date" id="m-oe-delivery" class="input" />
+        </div>
+      </div>
+      <div class="m-form-stack" style="margin-top:12px;">
+        <div>
+          <label for="m-oe-cloth" class="m-label">Cloth balance (&#8377;)</label>
+          <input type="number" id="m-oe-cloth" class="input" min="0" step="any" inputmode="decimal" />
+        </div>
+        <div>
+          <label for="m-oe-notes" class="m-label">Notes</label>
+          <textarea id="m-oe-notes" class="input" rows="2"></textarea>
+        </div>
+        <div id="m-oe-error" class="m-error hidden"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary" data-close="m-order-modal">Cancel</button>
+      <button type="button" class="btn btn-primary" id="m-oe-save">Save</button>
+    </div>
+  </div>
 </div>
 
 <!-- ====== Customer modal ====== -->
@@ -126,7 +293,12 @@
       <button type="button" class="modal-close" data-close="m-measurement-modal" aria-label="Close">{{ icon('x', 18) }}</button>
     </div>
     <div class="modal-body">
-      <div class="m-dates">
+      <div id="m-f-rate-wrap" class="hidden" style="margin-bottom:12px;">
+        <label for="m-f-rate" class="m-label">Rate (&#8377;) <span class="m-hint">per piece</span></label>
+        <input type="number" id="m-f-rate" class="input" min="0" step="any" inputmode="decimal"
+               style="max-width:180px;" />
+      </div>
+      <div class="m-dates" id="m-f-dates">
         <div>
           <label for="m-f-order" class="m-label">Order date</label>
           <input type="date" id="m-f-order" class="input" />
@@ -172,4 +344,5 @@
 
 {% block extra_js %}
 <script src="{{ url_for('static', filename='js/measurements.js') }}?v={{ sv }}"></script>
+<script src="{{ url_for('static', filename='js/measurements-orders.js') }}?v={{ sv }}"></script>
 {% endblock %}

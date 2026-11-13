@@ -5,11 +5,14 @@
   var meta = null;            // { statuses, garments, today }
   var current = null;         // customer currently open in the detail view
   var editingMeasurement = null;   // measurement being edited, or null when creating
+  var addingToOrder = null;        // {id, type} when a new garment is being added to an order
   var editingCustomerId = null;    // customer being edited, or null when creating
   var searchTimer = null;
   var tab = 'dashboard';      // which list-view tab is active
   var dash = null;            // last dashboard payload
   var selectedDay = null;     // ISO date (or 'overdue') open in the day-detail panel
+  var view = 'list';          // list | detail | order | neworder
+  var MApp = window.MApp = { afterCustomerSave: null };   // shared with measurements-orders.js
   var STATUS_BADGE = {
     'Measured': 'badge-neutral', 'In Stitching': 'badge-info',
     'Trial Ready': 'badge-warning', 'Delivered': 'badge-success'
@@ -52,12 +55,32 @@
   }
 
   function openModal(id) { $(id).classList.remove('hidden'); }
-  function closeModal(id) { $(id).classList.add('hidden'); }
+  function closeModal(id) {
+    $(id).classList.add('hidden');
+    // Dismissing the customer modal abandons whatever was waiting for its result.
+    if (id === 'm-customer-modal') setTimeout(function () { MApp.afterCustomerSave = null; }, 0);
+  }
 
   function fmtDate(d) {
     if (!d) return '';
     var p = d.split('-');
     return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : d;
+  }
+
+  function fmtMoney(n) {
+    return '\u20B9' + Number(n || 0).toLocaleString('en-IN', {
+      minimumFractionDigits: 2, maximumFractionDigits: 2
+    });
+  }
+
+  // One of four screens is visible at a time.
+  function showView(name) {
+    view = name;
+    var ids = { list: 'm-view-list', detail: 'm-view-detail',
+                order: 'm-view-order', neworder: 'm-view-neworder' };
+    Object.keys(ids).forEach(function (k) {
+      $(ids[k]).classList.toggle('hidden', k !== name);
+    });
   }
 
   function garmentDef(type) {
@@ -102,8 +125,7 @@
   // -------------------------------------------------------------------------
   function showList() {
     current = null;
-    $('m-view-detail').classList.add('hidden');
-    $('m-view-list').classList.remove('hidden');
+    showView('list');
     switchTab(tab);
     loadCounts();
   }
@@ -115,8 +137,11 @@
       tabs[i].classList.toggle('active', tabs[i].dataset.tab === name);
     }
     $('m-tab-dashboard').classList.toggle('hidden', name !== 'dashboard');
+    $('m-tab-orders').classList.toggle('hidden', name !== 'orders');
     $('m-tab-customers').classList.toggle('hidden', name !== 'customers');
-    if (name === 'dashboard') loadDashboard(); else loadCustomers();
+    if (name === 'dashboard') loadDashboard();
+    else if (name === 'orders') { if (MApp.loadOrders) MApp.loadOrders(); }
+    else loadCustomers();
   }
 
   // -------------------------------------------------------------------------
@@ -129,46 +154,78 @@
     }).catch(function (e) { say(e.message, true); });
   }
 
-  function dayLabel(iso, todayIso) {
+  var OVERDUE_KEY = 'overdue';
+
+  // Same naming as Tailoring: Today / Tomorrow / weekday, then the date.
+  function dayTitle(iso, todayIso) {
     var p = iso.split('-');
     var dt = new Date(+p[0], +p[1] - 1, +p[2]);
-    return {
-      name: iso === todayIso ? 'Today'
-        : dt.toLocaleDateString('en-IN', { weekday: 'short' }),
-      num: dt.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
-    };
+    var t = todayIso.split('-');
+    var tomorrow = new Date(+t[0], +t[1] - 1, +t[2] + 1);
+    var name = iso === todayIso ? 'Today'
+      : dt.getTime() === tomorrow.getTime() ? 'Tomorrow'
+      : dt.toLocaleDateString('en-IN', { weekday: 'short' });
+    return name + ' \u00b7 ' + fmtDate(iso);
   }
 
-  function garmentSummary(map) {
-    var parts = [];
-    Object.keys(map).forEach(function (k) { parts.push(map[k] + ' ' + k); });
-    return parts.join(', ');
-  }
-
-  function briefRow(b, extra) {
+  function briefRow(b) {
     var sub = [b.garment_label + (b.pieces > 1 ? ' x' + b.pieces : '')];
     if (b.trial_date) sub.push('Trial ' + fmtDate(b.trial_date));
     if (b.delivery_date) sub.push('Delivery ' + fmtDate(b.delivery_date));
-    return '<button type="button" class="m-brief" data-customer="' + b.customer_id + '">' +
-      '<span><span class="m-brief-name">' + esc(b.customer_name) + '</span> ' +
-      '<span class="m-brief-sub">' + esc(b.mobile) + '</span><br>' +
-      '<span class="m-brief-sub">' + esc(sub.join(' · ')) + '</span>' +
-      (extra ? ' <span class="m-brief-sub m-brief-late">' + esc(extra) + '</span>' : '') +
-      '</span>' +
-      '<span class="badge ' + (STATUS_BADGE[b.status] || 'badge-neutral') + '">' +
-      esc(b.status) + '</span></button>';
+    var ready = b.status === 'Trial Ready'
+      ? '<span class="m-ready"><svg class="ico" aria-hidden="true"><use href="#i-check-circle"/></svg> Ready</span>'
+      : '';
+    var notes = [];
+    if (ready) notes.push(ready);
+    if (b.days_late) notes.push('<span class="m-late">' + b.days_late + ' day' + (b.days_late > 1 ? 's' : '') + ' late</span>');
+    if (b.days_waiting) notes.push('<span class="m-late">waiting ' + b.days_waiting + ' day' + (b.days_waiting > 1 ? 's' : '') + '</span>');
+    if (b.order_label) sub.unshift(b.order_label);
+    var bal = '';
+    if (b.order_id) {
+      bal = b.balance > 0
+        ? '<span class="m-brief-bal due">Balance ' + esc(fmtMoney(b.balance)) + '</span>'
+        : '<span class="m-brief-bal">Paid</span>';
+    }
+    return '<button type="button" class="m-brief" data-customer="' + b.customer_id + '"' +
+      (b.order_id ? ' data-order="' + b.order_id + '"' : '') + '>' +
+      '<span class="m-brief-main">' +
+      '<span class="m-brief-name">' + esc(b.customer_name) + '</span>' +
+      '<span class="m-brief-cust"> &nbsp;' + esc(b.mobile) + '</span>' +
+      '<span class="m-brief-sub">' + esc(sub.join(' \u00b7 ')) + '</span></span>' +
+      '<span class="m-brief-meta">' +
+      '<span class="badge ' + (STATUS_BADGE[b.status] || 'badge-neutral') + '">' + esc(b.status) + '</span>' +
+      (notes.length ? '<span class="m-brief-line">' + notes.join(' · ') + '</span>' : '') +
+      bal +
+      '</span></button>';
   }
 
+  // Every section is always shown (with a message when empty), like Tailoring.
   function section(title, list, opts) {
-    if (!list.length) return '';
     opts = opts || {};
-    return '<div class="card m-section' + (opts.danger ? ' is-danger' : '') + '">' +
+    return '<div class="card m-section">' +
       '<div class="m-section-head">' + esc(title) +
-      ' <span class="badge ' + (opts.danger ? 'badge-danger' : 'badge-neutral') + '">' +
+      '<span class="m-count' + (opts.danger && list.length ? ' danger' : '') + '">' +
       list.length + '</span></div>' +
-      '<div class="m-brief-list">' + list.map(function (b) {
-        return briefRow(b, opts.late && b.days_late ? b.days_late + ' day(s) late' : '');
-      }).join('') + '</div></div>';
+      (list.length ? list.map(briefRow).join('') : '<div class="m-empty">' + esc(opts.empty) + '</div>') +
+      '</div>';
+  }
+
+  function dayCard(day, key, title, extraCls) {
+    var overdue = key === OVERDUE_KEY;
+    var lines = Object.keys(day.garments).map(function (g) {
+      return esc(g) + ' <span class="m-day-qty">' + day.garments[g] + '</span>';
+    }).join('<br>');
+    var count = day.orders
+      ? '<div class="m-day-count' + (overdue || day.orders >= 4 ? ' busy' : '') + '">' +
+        day.orders + ' order' + (day.orders > 1 ? 's' : '') + '</div>'
+      : '<div class="m-day-count free">Free</div>';
+    var trials = day.trials
+      ? '<div class="m-day-trials">' + day.trials + (overdue ? ' missed trial' : ' trial') +
+        (day.trials > 1 ? 's' : '') + '</div>' : '';
+    return '<button type="button" class="m-day' + (extraCls ? ' ' + extraCls : '') +
+      (key === selectedDay ? ' selected' : '') + '" data-day="' + key + '">' +
+      '<div class="m-day-name">' + esc(title) + '</div>' + count +
+      '<div class="m-day-garments">' + lines + '</div>' + trials + '</button>';
   }
 
   function renderDashboard() {
@@ -182,76 +239,41 @@
     });
     $('m-stats').innerHTML = chips;
 
-    // Day strip: overdue card first, then the next 15 days
+    // Day strip: an Overdue card first (only when something is overdue), then 15 days
     var strip = '';
-    if (d.overdue.length) {
-      strip += '<button type="button" class="m-day is-overdue' +
-        (selectedDay === 'overdue' ? ' selected' : '') + '" data-day="overdue">' +
-        '<div class="m-day-name">Overdue</div><div class="m-day-num">' + d.overdue.length +
-        '</div><div class="m-day-count">deliveries</div>' +
-        '<div class="m-day-garments">' + esc(garmentSummary(d.overdue_garments)) + '</div></button>';
+    if (d.overdue_day && d.overdue_day.orders) {
+      strip += dayCard(d.overdue_day, OVERDUE_KEY, 'Overdue', 'overdue');
     }
     d.days.forEach(function (day) {
-      var lbl = dayLabel(day.date, d.today);
-      strip += '<button type="button" class="m-day' + (day.date === d.today ? ' is-today' : '') +
-        (selectedDay === day.date ? ' selected' : '') + '" data-day="' + day.date + '">' +
-        '<div class="m-day-name">' + esc(lbl.name) + '</div>' +
-        '<div class="m-day-num">' + esc(lbl.num) + '</div>' +
-        '<div class="m-day-count' + (day.deliveries ? '' : ' is-zero') + '">' +
-        day.deliveries + ' due</div>' +
-        (day.trials ? '<div class="m-day-trial">' + day.trials + ' trial' +
-          (day.trials > 1 ? 's' : '') + '</div>' : '') +
-        (day.deliveries ? '<div class="m-day-garments">' +
-          esc(garmentSummary(day.garments)) + '</div>' : '') + '</button>';
+      strip += dayCard(day, day.date, dayTitle(day.date, d.today), day.date === d.today ? 'today' : '');
     });
     $('m-day-strip').innerHTML = strip;
     renderDayDetail();
 
-    // Sections
-    var html = '';
-    html += section('Overdue deliveries', d.overdue, { danger: true, late: true });
-    html += section('Missed trials', d.missed_trials, { danger: true });
-    html += section('Trials today', d.trials_today);
-    html += section('Deliveries today', d.deliveries_today);
-    html += section('Trials tomorrow', d.trials_tomorrow);
-    html += section('Deliveries tomorrow', d.deliveries_tomorrow);
-    if (!html) {
-      html = '<div class="card"><div class="m-empty">' + (d.open
-        ? 'Nothing due today or tomorrow.'
-        : 'No open measurements yet. Add a customer and take a measurement to see it here.') +
-        '</div></div>';
-    }
-    $('m-dash-sections').innerHTML = html;
+    $('m-dash-sections').innerHTML =
+      section('Overdue \u2014 stitching pending', d.overdue, { danger: true, empty: 'Nothing overdue.' }) +
+      section('Ready & waiting pickup \u2014 call the customer', d.ready_waiting,
+        { empty: 'No trial-ready garments waiting for pickup.' }) +
+      section('Deliveries today', d.deliveries_today, { empty: 'No deliveries due today.' }) +
+      section('Deliveries tomorrow', d.deliveries_tomorrow, { empty: 'No deliveries due tomorrow.' }) +
+      section('Trials today', d.trials_today, { empty: 'No trials due today.' }) +
+      section('Trials tomorrow', d.trials_tomorrow, { empty: 'No trials due tomorrow.' });
   }
 
   function renderDayDetail() {
     var box = $('m-day-detail');
-    if (!selectedDay || !dash) { box.classList.add('hidden'); return; }
-    var html = '';
-    if (selectedDay === 'overdue') {
-      html = '<h4>Overdue deliveries</h4><div class="m-brief-list">' +
-        dash.overdue.map(function (b) {
-          return briefRow(b, b.days_late + ' day(s) late');
-        }).join('') + '</div>';
-    } else {
-      var day = null;
-      dash.days.forEach(function (x) { if (x.date === selectedDay) day = x; });
-      if (!day) { box.classList.add('hidden'); return; }
-      if (day.delivery_list.length) {
-        html += '<h4>Deliveries due (' + day.delivery_list.length + ')</h4>' +
-          '<div class="m-brief-list">' + day.delivery_list.map(function (b) {
-            return briefRow(b);
-          }).join('') + '</div>';
-      }
-      if (day.trial_list.length) {
-        html += '<h4>Trials (' + day.trial_list.length + ')</h4>' +
-          '<div class="m-brief-list">' + day.trial_list.map(function (b) {
-            return briefRow(b);
-          }).join('') + '</div>';
-      }
-      if (!html) html = '<div class="m-empty">Nothing due on this day.</div>';
+    var overdue = selectedDay === OVERDUE_KEY;
+    var day = null;
+    if (selectedDay && dash) {
+      if (overdue) day = dash.overdue_day.orders ? dash.overdue_day : null;
+      else dash.days.forEach(function (x) { if (x.date === selectedDay) day = x; });
     }
-    box.innerHTML = html;
+    if (!day) { box.classList.add('hidden'); box.innerHTML = ''; return; }
+    box.innerHTML = '<div class="m-day-detail-title">' +
+      (overdue ? 'Overdue deliveries \u2014 stitching pending' : 'Deliveries on ' + fmtDate(day.date)) +
+      '</div>' +
+      (day.order_list.length ? day.order_list.map(briefRow).join('')
+        : '<div class="m-empty">' + (overdue ? 'Nothing overdue.' : 'No deliveries planned \u2014 good day to promise.') + '</div>');
     box.classList.remove('hidden');
   }
 
@@ -263,8 +285,7 @@
   function renderCustomer(c) {
     current = c;
     selectedDay = null;     // come back to a clean dashboard, not a stale open day
-    $('m-view-list').classList.add('hidden');
-    $('m-view-detail').classList.remove('hidden');
+    showView('detail');
     $('m-d-name').textContent = c.name;
     $('m-d-mobile').textContent = c.mobile;
     $('m-d-address').textContent = c.address || '';
@@ -303,6 +324,8 @@
         'style="font-weight:400;font-size:12px;color:var(--text-muted);">#' + m.id + '</span></div>' +
         '<div class="m-mcard-dates">' + esc(dates.join(' · ')) + '</div>' +
       '</div></div>' +
+      (m.order_id ? '<div class="m-mcard-bill">Billed ' + fmtMoney(m.amount) +
+        ' <span>(' + m.qty + ' x ' + fmtMoney(m.rate) + ')</span></div>' : '') +
       '<div class="m-mcard-values">' + (chips || '<span class="m-empty">No values entered</span>') + '</div>' +
       (m.notes ? '<div class="m-mcard-dates" style="margin-top:8px;">Notes: ' + esc(m.notes) + '</div>' : '') +
       (m.image_url ? '<div style="margin-top:8px;"><img src="' + esc(m.image_url) +
@@ -311,6 +334,9 @@
         '<label class="m-status-wrap">Status ' +
           '<select class="input m-status-select" data-id="' + m.id + '">' + statusOpts + '</select></label>' +
         '<div class="m-card-actions">' +
+          (m.order_id && view !== 'order'
+            ? '<button type="button" class="btn btn-secondary btn-sm" data-act="open-order" data-id="' +
+              m.id + '" data-order="' + m.order_id + '">Open order</button>' : '') +
           '<a class="btn btn-secondary btn-sm" href="/measurements/' + m.id + '/print" target="_blank" rel="noopener">' +
             '<svg class="ico" aria-hidden="true"><use href="#i-printer"/></svg> Print</a>' +
           '<button type="button" class="btn btn-secondary btn-sm" data-act="edit" data-id="' + m.id + '">' +
@@ -344,15 +370,21 @@
     var req = editingCustomerId
       ? api('PUT', '/api/measurements/customers/' + editingCustomerId, body)
       : api('POST', '/api/measurements/customers', body);
+    var hook = MApp.afterCustomerSave;
     req.then(function (c) {
+      var wasEdit = !!editingCustomerId;
+      MApp.afterCustomerSave = null;
       closeModal('m-customer-modal');
-      renderCustomer(c);
-      say(editingCustomerId ? 'Customer updated' : 'Customer added');
       loadCounts();
+      if (hook) { hook(c); say(wasEdit ? 'Customer updated' : 'Customer added'); return; }
+      renderCustomer(c);
+      say(wasEdit ? 'Customer updated' : 'Customer added');
     }).catch(function (e) {
       if (e.data && e.data.customer) {
         // Mobile already saved — jump to that customer instead of a dead end.
+        MApp.afterCustomerSave = null;
         closeModal('m-customer-modal');
+        if (hook) { hook(e.data.customer); say('This mobile is already saved — using the existing customer'); return; }
         openCustomer(e.data.customer.id);
         say('This mobile is already saved — opened the existing customer');
         return;
@@ -376,10 +408,8 @@
   // -------------------------------------------------------------------------
   // Measurement modal
   // -------------------------------------------------------------------------
-  function renderFields(type, values) {
-    var def = garmentDef(type);
-    $('m-garment-title').textContent = def ? '— ' + def.label : '';
-    $('m-fields').innerHTML = def ? def.fields.map(function (f) {
+  function fieldsHtml(def, values) {
+    return def ? def.fields.map(function (f) {
       var v = values[f.key] || '';
       var label = esc(f.label) + (f.kind === 'inch' ? ' (in)' : '');
       var control;
@@ -396,14 +426,29 @@
     }).join('') : '';
   }
 
-  function openMeasurementModal(measurement, garmentType) {
+  function renderFields(type, values) {
+    var def = garmentDef(type);
+    $('m-garment-title').textContent = def ? '— ' + def.label : '';
+    $('m-fields').innerHTML = fieldsHtml(def, values);
+  }
+
+  // orderCtx ({id, type, label}) is passed when a new garment is added to an order.
+  function openMeasurementModal(measurement, garmentType, orderCtx) {
     editingMeasurement = measurement || null;
+    addingToOrder = !measurement && orderCtx ? orderCtx : null;
     var type = measurement ? measurement.garment_type : garmentType;
     var values = measurement ? measurement.values : {};
     var def = garmentDef(type);
-    $('m-measurement-modal-title').textContent =
-      (measurement ? 'Edit ' : 'New ') + (def ? def.label : '') + ' Measurement';
+    $('m-measurement-modal-title').textContent = addingToOrder
+      ? 'Add ' + (def ? def.label : '') + ' to ' + addingToOrder.label
+      : (measurement ? 'Edit ' : 'New ') + (def ? def.label : '') + ' Measurement';
     $('m-measurement-modal').dataset.garment = type;
+    var billed = !!(measurement && measurement.order_id) || !!addingToOrder;
+    $('m-f-dates').classList.toggle('hidden', billed);     // an order's dates live on the order
+    $('m-f-rate-wrap').classList.toggle('hidden', !billed);
+    var rate = measurement ? measurement.rate
+      : (addingToOrder ? ((meta.rates || {})[addingToOrder.type] || {})[type] : '');
+    $('m-f-rate').value = billed ? (rate || '') : '';
     $('m-f-order').value = measurement ? measurement.order_date || '' : meta.today;
     $('m-f-trial').value = measurement ? measurement.trial_date || '' : '';
     $('m-f-delivery').value = measurement ? measurement.delivery_date || '' : '';
@@ -437,11 +482,20 @@
       trial_date: $('m-f-trial').value,
       delivery_date: $('m-f-delivery').value
     };
+    if (editingMeasurement && editingMeasurement.order_id) body.rate = $('m-f-rate').value.trim();
+    // A rate left blank means 0 for this garment, not "use the saved default".
+    if (addingToOrder) body.rate = $('m-f-rate').value.trim() || '0';
     var btn = $('m-f-save');
     btn.disabled = true;
-    var req = editingMeasurement
-      ? api('PUT', '/api/measurements/' + editingMeasurement.id, body)
-      : api('POST', '/api/measurements/customers/' + current.id + '/measurements', body);
+    var req;
+    if (editingMeasurement) {
+      req = api('PUT', '/api/measurements/' + editingMeasurement.id, body);
+    } else if (addingToOrder) {
+      req = api('POST', '/api/measurements/orders/' + addingToOrder.id + '/items', body)
+        .then(function (order) { return order.items[order.items.length - 1]; });
+    } else {
+      req = api('POST', '/api/measurements/customers/' + current.id + '/measurements', body);
+    }
 
     req.then(function (saved) {
       var file = $('m-f-photo').files[0];
@@ -460,12 +514,18 @@
       closeModal('m-measurement-modal');
       say(editingMeasurement ? 'Measurement updated' : 'Measurement saved');
       loadCounts();
-      return openCustomer(current.id);
+      return refreshAfterChange();
     }).catch(function (e) {
       showErr('m-f-error', e.message);
       // The measurement itself may have saved even if the photo failed.
-      if (current) openCustomer(current.id);
+      refreshAfterChange();
     }).then(function () { btn.disabled = false; });
+  }
+
+  // Re-read whichever screen the measurement belongs to.
+  function refreshAfterChange() {
+    if (view === 'order' && MApp.reloadOrder) return MApp.reloadOrder();
+    if (current) return openCustomer(current.id);
   }
 
   function findMeasurement(id) {
@@ -473,6 +533,42 @@
       if (current.measurements[i].id === id) return current.measurements[i];
     }
     return null;
+  }
+
+  // Edit / delete / status / open-order buttons on a list of measurement cards.
+  function bindMeasurementList(container, lookup) {
+    container.addEventListener('click', function (ev) {
+      var btn = ev.target.closest('button[data-act]');
+      if (!btn) return;
+      var id = parseInt(btn.dataset.id, 10);
+      if (btn.dataset.act === 'edit') {
+        var m = lookup(id);
+        if (m) openMeasurementModal(m);
+      } else if (btn.dataset.act === 'open-order') {
+        if (MApp.openOrder) MApp.openOrder(parseInt(btn.dataset.order, 10));
+      } else if (btn.dataset.act === 'delete') {
+        if (!window.confirm('Delete this measurement? This cannot be undone.')) return;
+        api('DELETE', '/api/measurements/' + id).then(function () {
+          say('Measurement deleted');
+          loadCounts();
+          return refreshAfterChange();
+        }).catch(function (e) { say(e.message, true); });
+      }
+    });
+    container.addEventListener('change', function (ev) {
+      var sel = ev.target.closest('.m-status-select');
+      if (!sel) return;
+      if (view === 'order' && MApp.beforeStatusChange && !MApp.beforeStatusChange(sel.value)) {
+        refreshAfterChange();     // put the dropdown back
+        return;
+      }
+      api('PATCH', '/api/measurements/' + sel.dataset.id + '/status', { status: sel.value })
+        .then(function () {
+          say('Status updated');
+          if (view === 'order') return refreshAfterChange();   // order status may have changed
+        })
+        .catch(function (e) { say(e.message, true); refreshAfterChange(); });
+    });
   }
 
   // -------------------------------------------------------------------------
@@ -502,7 +598,9 @@
     // Any "brief" row (dashboard sections or day detail) opens that customer.
     $('m-tab-dashboard').addEventListener('click', function (ev) {
       var row = ev.target.closest('.m-brief');
-      if (row) openCustomer(parseInt(row.dataset.customer, 10));
+      if (!row) return;
+      if (row.dataset.order && MApp.openOrder) MApp.openOrder(parseInt(row.dataset.order, 10));
+      else openCustomer(parseInt(row.dataset.customer, 10));
     });
 
     $('m-search').addEventListener('input', function () {
@@ -531,31 +629,21 @@
       if (closer) closeModal(closer.dataset.close);
     });
 
-    $('m-measurement-list').addEventListener('click', function (ev) {
-      var btn = ev.target.closest('button[data-act]');
-      if (!btn) return;
-      var id = parseInt(btn.dataset.id, 10);
-      if (btn.dataset.act === 'edit') {
-        var m = findMeasurement(id);
-        if (m) openMeasurementModal(m);
-      } else if (btn.dataset.act === 'delete') {
-        if (!window.confirm('Delete this measurement? This cannot be undone.')) return;
-        api('DELETE', '/api/measurements/' + id).then(function () {
-          say('Measurement deleted');
-          loadCounts();
-          return openCustomer(current.id);
-        }).catch(function (e) { say(e.message, true); });
-      }
-    });
-
-    $('m-measurement-list').addEventListener('change', function (ev) {
-      var sel = ev.target.closest('.m-status-select');
-      if (!sel) return;
-      api('PATCH', '/api/measurements/' + sel.dataset.id + '/status', { status: sel.value })
-        .then(function () { say('Status updated'); })
-        .catch(function (e) { say(e.message, true); openCustomer(current.id); });
-    });
+    bindMeasurementList($('m-measurement-list'), findMeasurement);
   }
+
+  MApp.$ = $; MApp.esc = esc; MApp.api = api; MApp.say = say; MApp.showErr = showErr;
+  MApp.openModal = openModal; MApp.closeModal = closeModal;
+  MApp.fmtDate = fmtDate; MApp.fmtMoney = fmtMoney;
+  MApp.getMeta = function () { return meta; };
+  MApp.garmentDef = garmentDef; MApp.fieldsHtml = fieldsHtml;
+  MApp.showView = showView; MApp.getView = function () { return view; };
+  MApp.showList = showList; MApp.switchTab = switchTab;
+  MApp.openCustomer = openCustomer; MApp.openCustomerModal = openCustomerModal;
+  MApp.getCurrent = function () { return current; };
+  MApp.openMeasurementModal = openMeasurementModal;
+  MApp.measurementCard = measurementCard; MApp.bindMeasurementList = bindMeasurementList;
+  MApp.loadCounts = loadCounts; MApp.STATUS_BADGE = STATUS_BADGE;
 
   init();
 })();

@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Receipt {{ o.label }} — {{ o.customer.name }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}?v={{ sv }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}?v={{ sv }}" />
+  <style>
+    body { background: var(--bg); color: var(--text); font-family: var(--font); margin: 0; }
+    .bar { max-width: 680px; margin: 16px auto 0; padding: 0 12px; display: flex; gap: 8px; }
+    .slip {
+      max-width: 680px; margin: 12px auto 24px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); overflow: hidden;
+    }
+    .s-head { padding: 14px 20px; border-bottom: 2px solid var(--tl-brand); }
+    .s-shop { font-size: 22px; font-weight: 800; letter-spacing: .04em; color: var(--tl-brand); }
+    .s-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+    .s-badge {
+      display: inline-block; margin-top: 8px; font-size: 12px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .06em;
+      padding: 2px 10px; border-radius: var(--radius-full);
+      background: var(--danger-bg); color: var(--danger-fg);
+    }
+    .s-info { display: grid; grid-template-columns: repeat(2, 1fr); border-bottom: 1px solid var(--border); }
+    .s-info > div { padding: 8px 20px; border-right: 1px solid var(--border); }
+    .s-info > div:nth-child(2n) { border-right: none; }
+    .s-label { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: var(--text-muted); }
+    .s-val { font-size: 15px; font-weight: 600; }
+    .s-sec { padding: 14px 20px 6px; }
+    .s-sec h3 {
+      margin: 0 0 8px; font-size: 11px; text-transform: uppercase; letter-spacing: .08em;
+      color: var(--text-muted); border-bottom: 1px dashed var(--border-strong); padding-bottom: 6px;
+    }
+    table.items { width: 100%; border-collapse: collapse; font-size: 14px; }
+    table.items th {
+      text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: .06em;
+      color: var(--text-muted); padding: 4px 0; border-bottom: 1px solid var(--border);
+    }
+    table.items td { padding: 6px 0; border-bottom: 1px solid var(--border); vertical-align: top; }
+    table.items .num { text-align: right; white-space: nowrap; }
+    .g-note { font-size: 11px; color: var(--text-muted); }
+    .totals { margin: 8px 20px 4px; font-size: 14px; }
+    .totals .row { display: flex; justify-content: space-between; padding: 4px 0; }
+    .totals .row.strong { font-weight: 700; font-size: 16px; border-top: 1px solid var(--border-strong); margin-top: 4px; padding-top: 8px; }
+    .totals .row.due { color: var(--danger-fg); font-weight: 700; }
+    .totals .row.paid { color: var(--success-fg); font-weight: 700; }
+    .pay { font-size: 13px; display: flex; justify-content: space-between; padding: 3px 0; }
+    .notes { margin: 10px 20px 14px; padding: 8px 12px; border-radius: var(--radius-sm);
+             background: var(--warning-bg); color: var(--warning-fg); border: 1px solid var(--warning-border); font-size: 14px; }
+    .foot { display: flex; justify-content: space-between; gap: 10px; padding: 8px 20px;
+            background: var(--bg); border-top: 1px solid var(--border); font-size: 11px; color: var(--text-muted); }
+
+    @media print {
+      body { background: #fff; color: #000; }
+      .bar { display: none; }
+      .slip { max-width: 100%; margin: 0; border: none; border-radius: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="bar">
+    <button type="button" class="btn btn-primary" onclick="window.print()">Print</button>
+    <button type="button" class="btn btn-secondary" onclick="window.close()">Close</button>
+  </div>
+
+  <div class="slip">
+    <div class="s-head">
+      <div class="s-shop">SHUBHAM NX</div>
+      <div class="s-sub">Krishna Chowk, New Sangvi, Pune &mdash; 411061</div>
+      <div class="s-badge">{% if o.order_type == 'suit' %}Suits {% endif %}order receipt &middot; trial</div>
+    </div>
+
+    <div class="s-info">
+      <div><span class="s-label">Customer</span><span class="s-val">{{ o.customer.name }}</span></div>
+      <div><span class="s-label">Mobile</span><span class="s-val">{{ o.customer.mobile }}</span></div>
+      <div><span class="s-label">Order #</span><span class="s-val">{{ o.label }}</span></div>
+      <div><span class="s-label">Order date</span><span class="s-val">{{ o.order_date|format_date }}</span></div>
+      {% if o.trial_date %}
+      <div><span class="s-label">Trial date</span><span class="s-val">{{ o.trial_date|format_date }}</span></div>
+      {% endif %}
+      {% if o.delivery_date %}
+      <div><span class="s-label">Delivery date</span><span class="s-val">{{ o.delivery_date|format_date }}</span></div>
+      {% endif %}
+    </div>
+
+    <div class="s-sec">
+      <h3>Garments</h3>
+      <table class="items">
+        <thead>
+          <tr><th>Garment</th><th class="num">Qty</th><th class="num">Rate</th><th class="num">Amount</th></tr>
+        </thead>
+        <tbody>
+          {% for i in o['items'] %}
+          <tr>
+            <td>{{ i.garment_label }}{% if i.notes %}<div class="g-note">{{ i.notes }}</div>{% endif %}</td>
+            <td class="num">{{ i.qty }}</td>
+            <td class="num">&#8377;{{ '{:,.2f}'.format(i.rate) }}</td>
+            <td class="num">&#8377;{{ '{:,.2f}'.format(i.amount) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="totals">
+      <div class="row"><span>Stitching total</span><span>&#8377;{{ '{:,.2f}'.format(o.total) }}</span></div>
+      {% if o.cloth_balance %}
+      <div class="row"><span>Cloth balance</span><span>&#8377;{{ '{:,.2f}'.format(o.cloth_balance) }}</span></div>
+      {% endif %}
+      <div class="row strong"><span>Final total</span><span>&#8377;{{ '{:,.2f}'.format(o.final_total) }}</span></div>
+      <div class="row"><span>Paid</span><span>&#8377;{{ '{:,.2f}'.format(o.advance) }}</span></div>
+      {% if o.balance > 0 %}
+      <div class="row due"><span>Balance due</span><span>&#8377;{{ '{:,.2f}'.format(o.balance) }}</span></div>
+      {% else %}
+      <div class="row paid"><span>Balance</span><span>Fully paid</span></div>
+      {% endif %}
+    </div>
+
+    {% if o.payments %}
+    <div class="s-sec">
+      <h3>Payments received</h3>
+      {% for p in o.payments %}
+      <div class="pay">
+        <span>{{ p.paid_at[:10]|format_date }}{% if p.mode %} &middot; {{ p.mode }}{% endif %}{% if p.note %} &middot; {{ p.note }}{% endif %}</span>
+        <span>&#8377;{{ '{:,.2f}'.format(p.amount) }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if o.notes %}
+    <div class="notes"><strong>Notes:</strong> {{ o.notes }}</div>
+    {% endif %}
+
+    <div class="foot">
+      <span>SHUBHAM NX &middot; trial receipt, not a tax invoice</span>
+      <span>Status: {{ o.status }} &middot; {{ o.label }}</span>
+    </div>
+  </div>
+</body>
+</html>

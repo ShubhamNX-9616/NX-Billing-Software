@@ -244,7 +244,8 @@ def test_dashboard_empty(admin):
     assert d["total"] == 0 and d["open"] == 0
     assert len(d["days"]) == 15
     assert d["days"][0]["date"] == _day(0)
-    assert d["overdue"] == [] and d["missed_trials"] == []
+    assert d["overdue"] == [] and d["ready_waiting"] == []
+    assert d["overdue_day"]["orders"] == 0
 
 
 def test_dashboard_status_counts_include_delivered(admin):
@@ -267,14 +268,15 @@ def test_dashboard_buckets_deliveries_and_trials_by_day(admin):
     d = admin.get("/api/measurements/dashboard").get_json()
 
     today = d["days"][0]
-    assert today["deliveries"] == 2
+    assert today["orders"] == 2
     assert today["garments"] == {"Shirt": 3, "Pant": 1}   # count field is honoured
     tomorrow = d["days"][1]
-    assert tomorrow["deliveries"] == 1 and tomorrow["trials"] == 1
+    assert tomorrow["orders"] == 1 and tomorrow["trials"] == 1
+    assert len(today["order_list"]) == 2
     assert {b["garment_label"] for b in d["deliveries_today"]} == {"Shirt", "Pant"}
     assert len(d["deliveries_tomorrow"]) == 1
     assert len(d["trials_tomorrow"]) == 1
-    assert sum(day["deliveries"] for day in d["days"]) == 3   # the +40 day one is not in it
+    assert sum(day["orders"] for day in d["days"]) == 3   # the +40 day one is not in it
 
 
 def test_dashboard_overdue_excludes_delivered(admin):
@@ -285,10 +287,28 @@ def test_dashboard_overdue_excludes_delivered(admin):
     d = admin.get("/api/measurements/dashboard").get_json()
     assert len(d["overdue"]) == 1
     assert d["overdue"][0]["days_late"] == 3
-    assert d["overdue_garments"] == {"Shirt": 1}
+    assert d["overdue_day"]["orders"] == 1
+    assert d["overdue_day"]["garments"] == {"Shirt": 1}
+    assert len(d["overdue_day"]["order_list"]) == 1
 
 
-def test_dashboard_missed_trials(admin):
+def test_dashboard_trial_ready_is_not_overdue_but_waits_for_pickup(admin):
+    # Same rule as Tailoring's "Full Stitched": once ready, a late pickup is on the
+    # customer, so it leaves Overdue and shows under Ready & waiting pickup.
+    cust = _add_customer(admin)
+    _item(admin, cust, delivery=_day(-2), status="Trial Ready")    # waiting 2 days
+    _item(admin, cust, delivery=None, status="Trial Ready")        # no date yet -> waiting
+    _item(admin, cust, delivery=_day(0), status="Trial Ready")     # due today -> waiting
+    _item(admin, cust, delivery=_day(5), status="Trial Ready")     # not due yet -> not waiting
+    _item(admin, cust, delivery=_day(-2), status="In Stitching")   # genuinely overdue
+    d = admin.get("/api/measurements/dashboard").get_json()
+    assert len(d["overdue"]) == 1 and d["overdue"][0]["status"] == "In Stitching"
+    assert len(d["ready_waiting"]) == 3
+    late = [b for b in d["ready_waiting"] if b.get("days_waiting")]
+    assert len(late) == 1 and late[0]["days_waiting"] == 2
+
+
+def test_dashboard_missed_trials_ride_on_the_overdue_card(admin):
     cust = _add_customer(admin)
     _item(admin, cust, trial=_day(-2))                          # Measured -> missed
     _item(admin, cust, trial=_day(-2), status="In Stitching")   # missed
@@ -296,8 +316,9 @@ def test_dashboard_missed_trials(admin):
     _item(admin, cust, trial=_day(-2), status="Delivered")      # done
     _item(admin, cust, trial=_day(0))                           # today is not missed
     d = admin.get("/api/measurements/dashboard").get_json()
-    assert len(d["missed_trials"]) == 2
+    assert d["overdue_day"]["trials"] == 2
     assert len(d["trials_today"]) == 1
+    assert d["days"][0]["trials"] == 1
 
 
 def test_dashboard_brief_carries_customer_link(admin):
