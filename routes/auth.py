@@ -4,7 +4,8 @@ import threading
 from flask import Blueprint, render_template, request, redirect, url_for, session, jsonify
 from db import get_db, IST_NOW
 from extensions import bcrypt
-from services.auth import api_admin_required, api_login_required
+from services.auth import api_admin_required, api_login_required, password_fingerprint
+from services.errors import server_error
 
 auth_routes = Blueprint('auth_routes', __name__)
 
@@ -17,11 +18,14 @@ _attempt_store   = {}  # ip -> {"count": int, "lockout_until": float | None}
 
 
 def _get_client_ip():
-    """Return the real client IP, honouring X-Forwarded-For from a trusted proxy."""
-    forwarded = request.headers.get("X-Forwarded-For")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
-    return request.remote_addr
+    """The client's address for the lockout counter.
+
+    Deliberately NOT read from the X-Forwarded-For header here: that header is
+    whatever the caller types, so trusting its first entry let an attacker change
+    "address" on every attempt and never get locked out. When the app is behind a
+    reverse proxy, app.py wraps it in ProxyFix (see services.security), which
+    takes the address our own proxy appended and puts it in request.remote_addr."""
+    return request.remote_addr or "unknown"
 
 
 @auth_routes.route('/login', methods=['GET'])
@@ -83,6 +87,7 @@ def login_post():
     session['user_id']  = user['id']
     session['username'] = user['username']
     session['role']     = user['role']
+    session['pwf']      = password_fingerprint(user['password_hash'])
 
     if user['role'] == 'admin':
         return redirect(url_for('pages.dashboard'))
@@ -91,9 +96,13 @@ def login_post():
     return redirect(url_for('pages.new_bill'))
 
 
-@auth_routes.route('/logout')
+@auth_routes.route('/logout', methods=['GET', 'POST'])
 def logout():
-    session.clear()
+    # Only a POST (the Logout button) ends the session. A plain GET - a bookmark, a
+    # link-preview fetch, or another website's hidden <img src="/logout"> - used to
+    # sign the user out; now it just goes to the login/home page.
+    if request.method == 'POST':
+        session.clear()
     return redirect(url_for('auth_routes.login'))
 
 
@@ -136,9 +145,12 @@ def change_own_password():
             (new_hash, session['user_id']),
         )
         db.commit()
+        # Other devices signed in with the old password are signed out by the
+        # session check; this one just changed it on purpose, so keep it signed in.
+        session['pwf'] = password_fingerprint(new_hash)
         return jsonify({"success": True})
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return server_error(e)
 
 
 # ---------------------------------------------------------------------------
@@ -154,7 +166,7 @@ def get_users():
         ).fetchall()
         return jsonify([dict(r) for r in rows])
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return server_error(e)
 
 
 # ---------------------------------------------------------------------------
@@ -202,7 +214,7 @@ def create_user():
         ).fetchone()
         return jsonify(dict(row)), 201
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return server_error(e)
 
 
 # ---------------------------------------------------------------------------
@@ -234,7 +246,7 @@ def change_password(user_id):
         db.commit()
         return jsonify({"success": True})
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return server_error(e)
 
 
 # ---------------------------------------------------------------------------
@@ -274,4 +286,4 @@ def toggle_user_status(user_id):
         ).fetchone()
         return jsonify(dict(updated))
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return server_error(e)

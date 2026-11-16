@@ -2,6 +2,7 @@ from flask import Blueprint, jsonify, request
 
 from db import get_db
 from services.auth import api_staff_or_admin_required, api_admin_required
+from services.errors import server_error
 
 salespersons_bp = Blueprint("salespersons", __name__)
 
@@ -20,7 +21,7 @@ def get_salespersons():
         ).fetchall()
         return jsonify([dict(r) for r in rows])
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return server_error(e)
 
 
 @salespersons_bp.route("/salespersons", methods=["POST"])
@@ -55,4 +56,4 @@ def add_salesperson():
         ).fetchone()
         return jsonify(dict(row)), 201
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return server_error(e)

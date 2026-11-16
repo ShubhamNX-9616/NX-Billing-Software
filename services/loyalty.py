@@ -1,6 +1,9 @@
 import sqlite3
 from datetime import date
 
+from db.connection import IST_NOW
+from utils import ist_today, r2
+
 TIERS = [
     ('silver',   10_000),
     ('gold',     20_000),
@@ -78,7 +81,8 @@ def _create_cycle(db, cycle_number, start):
     end = _add_years(start, 1)
     try:
         cur = db.execute(
-            "INSERT INTO loyalty_cycles (cycle_number, start_date, end_date) VALUES (?, ?, ?)",
+            f"INSERT INTO loyalty_cycles (cycle_number, start_date, end_date, created_at) "
+            f"VALUES (?, ?, ?, {IST_NOW})",
             (cycle_number, start.isoformat(), end.isoformat()),
         )
     except sqlite3.IntegrityError:
@@ -106,7 +110,7 @@ def get_current_cycle(db, today=None):
 
     May insert a new loyalty_cycles row as a side effect when a cycle
     rolls over or starts for the first time — callers must db.commit()."""
-    today = today or date.today()
+    today = today or ist_today()      # the shop's day, not the server's (see utils.ist_today)
 
     latest = db.execute(
         "SELECT * FROM loyalty_cycles ORDER BY start_date DESC LIMIT 1"
@@ -151,7 +155,7 @@ def get_cycle_spent(db, customer_id, cycle):
     given cycle's [start_date, end_date) window, keyed off bill_date."""
     row = db.execute(
         """
-        SELECT COALESCE(SUM(final_total), 0) AS total
+        SELECT ROUND(COALESCE(SUM(final_total), 0), 2) AS total
         FROM bills
         WHERE customer_id = ?
           AND status != 'cancelled'
@@ -160,7 +164,10 @@ def get_cycle_spent(db, customer_id, cycle):
         """,
         (customer_id, cycle["start_date"], cycle["end_date"]),
     ).fetchone()
-    return float(row["total"])
+    # Summing REAL money columns leaves float noise (bills adding up to exactly 10,000.00 can
+    # come back as 9999.999999999998). The tier thresholds are compared with >=, so that noise
+    # used to deny a customer a gift they had earned to the paisa.
+    return r2(row["total"])
 
 
 def check_and_unlock_gifts(db, customer_id, bill_id):
@@ -188,7 +195,8 @@ def check_and_unlock_gifts(db, customer_id, bill_id):
     for tier_name, threshold in TIERS:
         if spent >= threshold and tier_name not in existing:
             db.execute(
-                "INSERT INTO loyalty_gifts (customer_id, tier, cycle_id, bill_id) VALUES (?, ?, ?, ?)",
+                f"INSERT INTO loyalty_gifts (customer_id, tier, cycle_id, bill_id, created_at) "
+                f"VALUES (?, ?, ?, ?, {IST_NOW})",
                 (customer_id, tier_name, cycle["id"], bill_id),
             )
             newly_unlocked.append(tier_name)

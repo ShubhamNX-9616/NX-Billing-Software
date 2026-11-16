@@ -1,7 +1,37 @@
 from db import get_db
-from utils import r2, normalize_mobile, validate_indian_mobile
+from utils import finite_float, r2, normalize_mobile, validate_indian_mobile
 
 VALID_PAYMENT_METHODS = {"Cash", "Card", "UPI"}
+MAX_PIECES = 1_000_000
+
+
+def _amount_or_zero(raw, label):
+    """Lenient money parse used for optional fields (advance, round-off): blank or
+    unparseable text counts as 0, as it always has - but NaN / Infinity / absurdly
+    large values are an error, because they would otherwise be saved as the amount."""
+    try:
+        float(raw or 0)
+    except (TypeError, ValueError):
+        return 0.0
+    return finite_float(raw or 0, label)
+
+
+def validate_inst_payments(payments):
+    """Institution bills record payment rows exactly as sent; make sure each has a
+    method and a real amount before it reaches the database. Raises ValueError."""
+    if payments is None:
+        return
+    if not isinstance(payments, list):
+        raise ValueError("payments must be an array")
+    for p in payments:
+        if not isinstance(p, dict) or not str(p.get("payment_method") or "").strip():
+            raise ValueError("every payment needs a payment_method")
+        try:
+            amount = finite_float(p.get("amount"))
+        except ValueError:
+            raise ValueError("payment amount must be a number")
+        if amount < 0:
+            raise ValueError("payment amount cannot be negative")
 
 _UNIT_LABEL = {"Shirting": "m", "Suiting": "m"}
 
@@ -25,24 +55,24 @@ def validate_and_calculate_items(db, items):
         quality_number = (item.get("quality_number") or "").strip() or None
 
         try:
-            quantity = float(item["quantity"])
-        except (KeyError, TypeError, ValueError):
+            quantity = finite_float(item["quantity"])
+        except (KeyError, ValueError):
             raise ValueError(f"{prefix}: quantity must be a number")
         try:
-            mrp = float(item["mrp"])
-        except (KeyError, TypeError, ValueError):
+            mrp = finite_float(item["mrp"])
+        except (KeyError, ValueError):
             raise ValueError(f"{prefix}: mrp must be a number")
         try:
-            discount_percent = float(item.get("discount_percent", 0))
-        except (TypeError, ValueError):
+            discount_percent = finite_float(item.get("discount_percent", 0))
+        except ValueError:
             raise ValueError(f"{prefix}: discount_percent must be a number")
 
         raw_discount_amount = item.get("discount_amount")
         has_discount_amount = raw_discount_amount is not None
         if has_discount_amount:
             try:
-                discount_amount_per_unit = float(raw_discount_amount)
-            except (TypeError, ValueError):
+                discount_amount_per_unit = finite_float(raw_discount_amount)
+            except ValueError:
                 raise ValueError(f"{prefix}: discount_amount must be a number")
 
         if cloth_type not in valid_cloth_types:
@@ -95,10 +125,7 @@ def calculate_bill_totals(calculated_items, round_off_raw):
     total_discount    = r2(sum(i["discount_amount"] for i in calculated_items))
     gross_final_total = r2(sum(i["final_amount"]    for i in calculated_items))
 
-    try:
-        round_off = r2(float(round_off_raw or 0))
-    except (TypeError, ValueError):
-        round_off = 0.0
+    round_off = r2(_amount_or_zero(round_off_raw, "round_off"))
     if r2(gross_final_total - round_off) < 0:
         raise ValueError("round_off cannot exceed bill total")
 
@@ -129,10 +156,10 @@ def validate_payments(payments, final_total):
         if (p.get("payment_method") or "") not in VALID_PAYMENT_METHODS:
             raise ValueError(f"payment_method must be one of {sorted(VALID_PAYMENT_METHODS)}")
         try:
-            float(p["amount"])
-        except (KeyError, TypeError, ValueError):
+            finite_float(p["amount"])
+        except (KeyError, ValueError):
             raise ValueError("payment amount must be a number")
-    payments_sum = r2(sum(float(p["amount"]) for p in payments))
+    payments_sum = r2(sum(finite_float(p["amount"]) for p in payments))
     if abs(payments_sum - final_total) > 0.01:
         raise ValueError(
             f"Payments sum ({payments_sum}) does not match final_total ({final_total})"
@@ -142,10 +169,7 @@ def validate_payments(payments, final_total):
 def parse_advance(raw, final_total):
     """Parse advance_paid from raw input, validate, and return (advance_paid, remaining).
     Raises ValueError on invalid input."""
-    try:
-        advance_paid = r2(float(raw or 0))
-    except (TypeError, ValueError):
-        advance_paid = 0.0
+    advance_paid = r2(_amount_or_zero(raw, "advance_paid"))
     if advance_paid < 0:
         raise ValueError("advance_paid cannot be negative")
     if advance_paid > final_total:
@@ -207,20 +231,22 @@ def calculate_inst_items(items):
     for idx, item in enumerate(items):
         prefix = f"Item {idx + 1}"
         try:
-            qty_per_pc = r2(float(item.get("quantity_per_pc") or 0))
-        except (TypeError, ValueError):
+            qty_per_pc = r2(finite_float(item.get("quantity_per_pc") or 0))
+        except ValueError:
             raise ValueError(f"{prefix}: quantity_per_pc must be a number")
         try:
-            rate_per_m = r2(float(item.get("rate_per_m") or 0))
-        except (TypeError, ValueError):
+            rate_per_m = r2(finite_float(item.get("rate_per_m") or 0))
+        except ValueError:
             raise ValueError(f"{prefix}: rate_per_m must be a number")
         try:
             no_of_pcs = int(item.get("no_of_pcs") or 0)
-        except (TypeError, ValueError):
-            raise ValueError(f"{prefix}: no_of_pcs must be a number")
+            if abs(no_of_pcs) > MAX_PIECES:
+                raise ValueError("too many")
+        except (TypeError, ValueError, OverflowError):
+            raise ValueError(f"{prefix}: no_of_pcs must be a whole number")
         try:
-            stitching_per_unit = r2(float(item.get("stitching_per_unit") or 0))
-        except (TypeError, ValueError):
+            stitching_per_unit = r2(finite_float(item.get("stitching_per_unit") or 0))
+        except ValueError:
             raise ValueError(f"{prefix}: stitching_per_unit must be a number")
 
         total = r2((qty_per_pc * rate_per_m * no_of_pcs) + (no_of_pcs * stitching_per_unit))
@@ -271,10 +297,7 @@ def parse_inst_round_off(raw, subtotal):
     """Parse round_off for institution bills. Positive deducts from the subtotal,
     negative adds to it. Returns (round_off, final_total). Raises ValueError if
     the round-off would push the total below zero."""
-    try:
-        round_off = r2(float(raw or 0))
-    except (TypeError, ValueError):
-        round_off = 0.0
+    round_off = r2(_amount_or_zero(raw, "round_off"))
     final_total = r2(subtotal - round_off)
     if final_total < 0:
         raise ValueError("round_off cannot exceed bill total")
@@ -283,10 +306,7 @@ def parse_inst_round_off(raw, subtotal):
 
 def parse_inst_advance(raw, final_total):
     """Parse advance_paid for institution bills. Clips remaining to 0 if advance exceeds total."""
-    try:
-        advance_paid = r2(float(raw or 0))
-    except (TypeError, ValueError):
-        advance_paid = 0.0
+    advance_paid = r2(_amount_or_zero(raw, "advance_paid"))
     return advance_paid, r2(max(0.0, final_total - advance_paid))
 
 
@@ -294,8 +314,8 @@ def parse_inst_advance_percent(raw, default=70.0):
     """Parse the advance_percent note shown on institution proforma invoices.
     Clamped to 0-100; falls back to default on bad input."""
     try:
-        pct = float(raw)
-    except (TypeError, ValueError):
+        pct = finite_float(raw)
+    except ValueError:
         return default
     return min(100.0, max(0.0, pct))
 
@@ -305,8 +325,8 @@ def apply_payment(raw_remaining, raw_advance, raw_amount):
     Returns (remaining, amount, new_advance, new_remaining). Raises ValueError on bad input."""
     remaining = r2(float(raw_remaining or 0))
     try:
-        amount = r2(float(raw_amount or 0))
-    except (TypeError, ValueError):
+        amount = r2(finite_float(raw_amount or 0))
+    except ValueError:
         raise ValueError("amount must be a number")
     if amount <= 0:
         raise ValueError("amount must be greater than 0")

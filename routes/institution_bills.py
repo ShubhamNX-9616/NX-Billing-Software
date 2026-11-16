@@ -2,9 +2,13 @@
 from flask import Blueprint, jsonify, request
 from db import get_db, generate_inst_bill_number, current_fy, IST_NOW
 from services.auth import api_login_required, api_admin_required
+from services.errors import server_error
+from db.connection import begin_write
+from services.paging import page_args, page_sql, paged_json
+from utils import money_float, valid_iso_date
 from services.billing import (
     calculate_inst_items, parse_inst_advance, parse_inst_advance_percent,
-    parse_inst_round_off, apply_payment,
+    parse_inst_round_off, apply_payment, validate_inst_payments,
 )
 
 inst_bills_bp = Blueprint("institution_bills", __name__)
@@ -29,6 +33,8 @@ def create_institution_bill():
     errors = []
     if not company_name:    errors.append("company_name is required")
     if not bill_date:       errors.append("bill_date is required")
+    elif not valid_iso_date(bill_date):
+        errors.append("bill_date must be a real date (YYYY-MM-DD)")
     if not items:           errors.append("At least one item is required")
     if payment_mode_type and payment_mode_type not in VALID_INST_PAYMENT_MODES:
         errors.append("Invalid payment_mode_type")
@@ -36,18 +42,20 @@ def create_institution_bill():
         return jsonify({"error": "; ".join(errors)}), 400
 
     try:
+        validate_inst_payments(payments)
         calc_items, subtotal = calculate_inst_items(items)
         round_off, final_total = parse_inst_round_off(body.get("round_off"), subtotal)
+        advance_paid, remaining = parse_inst_advance(body.get("advance_paid"), final_total)
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
 
-    advance_paid, remaining = parse_inst_advance(body.get("advance_paid"), final_total)
     advance_percent = parse_inst_advance_percent(body.get("advance_percent"))
     stored_mode = payment_mode_type or "Pending"
 
     db = None
     try:
         db = get_db()
+        begin_write(db)
         bill_number = generate_inst_bill_number(db)
 
         cursor = db.execute(
@@ -79,7 +87,7 @@ def create_institution_bill():
         if payments:
             db.executemany(
                 "INSERT INTO institution_bill_payments (bill_id, payment_method, amount) VALUES (?, ?, ?)",
-                [(bill_id, p["payment_method"], float(p["amount"])) for p in payments],
+                [(bill_id, p["payment_method"], money_float(p["amount"], "Payment amount")) for p in payments],
             )
 
         db.commit()
@@ -99,7 +107,7 @@ def create_institution_bill():
             "advance_percent":       advance_percent,
             "payment_mode_type":     stored_mode,
             "items":                 calc_items,
-            "payments":              [{"payment_method": p["payment_method"], "amount": float(p["amount"])} for p in payments],
+            "payments":              [{"payment_method": p["payment_method"], "amount": money_float(p["amount"], "Payment amount")} for p in payments],
         }), 201
 
     except Exception as e:
@@ -108,21 +116,23 @@ def create_institution_bill():
                 db.rollback()
             except Exception:
                 pass
-        return jsonify({"error": str(e)}), 500
+        return server_error(e)
 
 
 @inst_bills_bp.route("/institution-bills", methods=["GET"])
 @api_login_required
 def list_institution_bills():
     db = get_db()
+    limit, offset = page_args()
+    total = db.execute("SELECT COUNT(*) FROM institution_bills").fetchone()[0]
     rows = db.execute("""
         SELECT ib.*, COUNT(ibi.id) AS item_count
         FROM institution_bills ib
         LEFT JOIN institution_bill_items ibi ON ibi.bill_id = ib.id
         GROUP BY ib.id
         ORDER BY ib.id DESC
-    """).fetchall()
-    return jsonify([dict(r) for r in rows])
+    """ + page_sql(limit, offset)).fetchall()
+    return paged_json(rows, total)
 
 
 @inst_bills_bp.route("/institution-bills/search", methods=["GET"])
@@ -162,6 +172,8 @@ def search_institution_bills():
         params.append(payment_mode)
 
     where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
+    limit, offset = page_args()
+    total = db.execute(f"SELECT COUNT(*) FROM institution_bills ib {where}", params).fetchone()[0]
     rows = db.execute(f"""
         SELECT ib.*, COUNT(ibi.id) AS item_count
         FROM institution_bills ib
@@ -169,8 +181,8 @@ def search_institution_bills():
         {where}
         GROUP BY ib.id
         ORDER BY ib.id DESC
-    """, params).fetchall()
-    return jsonify([dict(r) for r in rows])
+    """ + page_sql(limit, offset), params).fetchall()
+    return paged_json(rows, total)
 
 
 @inst_bills_bp.route("/institution-bills/<int:bill_id>", methods=["GET"])
@@ -206,6 +218,7 @@ def get_institution_bill(bill_id):
 @api_login_required
 def update_institution_bill(bill_id):
     db = get_db()
+    begin_write(db)
     existing = db.execute("SELECT id, status FROM institution_bills WHERE id = ?", (bill_id,)).fetchone()
     if not existing:
         return jsonify({"error": "Bill not found"}), 404
@@ -225,6 +238,8 @@ def update_institution_bill(bill_id):
     errors = []
     if not company_name:    errors.append("company_name is required")
     if not bill_date:       errors.append("bill_date is required")
+    elif not valid_iso_date(bill_date):
+        errors.append("bill_date must be a real date (YYYY-MM-DD)")
     if not items:           errors.append("At least one item is required")
     if payment_mode_type and payment_mode_type not in VALID_INST_PAYMENT_MODES:
         errors.append("Invalid payment_mode_type")
@@ -232,11 +247,12 @@ def update_institution_bill(bill_id):
         return jsonify({"error": "; ".join(errors)}), 400
 
     try:
+        validate_inst_payments(payments)
         calc_items, subtotal = calculate_inst_items(items)
         round_off, final_total = parse_inst_round_off(body.get("round_off"), subtotal)
+        advance_paid, remaining = parse_inst_advance(body.get("advance_paid"), final_total)
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
-    advance_paid, remaining = parse_inst_advance(body.get("advance_paid"), final_total)
     advance_percent = parse_inst_advance_percent(body.get("advance_percent"))
     stored_mode = payment_mode_type or "Pending"
 
@@ -269,13 +285,13 @@ def update_institution_bill(bill_id):
         if payments:
             db.executemany(
                 "INSERT INTO institution_bill_payments (bill_id, payment_method, amount) VALUES (?, ?, ?)",
-                [(bill_id, p["payment_method"], float(p["amount"])) for p in payments],
+                [(bill_id, p["payment_method"], money_float(p["amount"], "Payment amount")) for p in payments],
             )
         db.commit()
     except Exception as e:
         try: db.rollback()
         except Exception: pass
-        return jsonify({"error": str(e)}), 500
+        return server_error(e)
 
     bill = db.execute("SELECT * FROM institution_bills WHERE id = ?", (bill_id,)).fetchone()
     return jsonify({
@@ -287,7 +303,7 @@ def update_institution_bill(bill_id):
         "remaining":   remaining,
         "advance_percent": advance_percent,
         "items":       calc_items,
-        "payments":    [{"payment_method": p["payment_method"], "amount": float(p["amount"])} for p in payments],
+        "payments":    [{"payment_method": p["payment_method"], "amount": money_float(p["amount"], "Payment amount")} for p in payments],
     }), 200
 
 
@@ -299,6 +315,7 @@ def update_institution_bill(bill_id):
 def cancel_institution_bill(bill_id):
     try:
         db = get_db()
+        begin_write(db)
         bill = db.execute("SELECT id, status FROM institution_bills WHERE id = ?", (bill_id,)).fetchone()
         if not bill:
             return jsonify({"error": "Bill not found"}), 404
@@ -313,7 +330,7 @@ def cancel_institution_bill(bill_id):
     except Exception as e:
         try: db.rollback()
         except Exception: pass
-        return jsonify({"error": str(e)}), 500
+        return server_error(e)
 
 
 # ---------------------------------------------------------------------------
@@ -324,6 +341,7 @@ def cancel_institution_bill(bill_id):
 def restore_institution_bill(bill_id):
     try:
         db = get_db()
+        begin_write(db)
         bill = db.execute("SELECT id, status FROM institution_bills WHERE id = ?", (bill_id,)).fetchone()
         if not bill:
             return jsonify({"error": "Bill not found"}), 404
@@ -338,7 +356,7 @@ def restore_institution_bill(bill_id):
     except Exception as e:
         try: db.rollback()
         except Exception: pass
-        return jsonify({"error": str(e)}), 500
+        return server_error(e)
 
 
 # ---------------------------------------------------------------------------
@@ -349,6 +367,7 @@ def restore_institution_bill(bill_id):
 def delete_institution_bill(bill_id):
     try:
         db = get_db()
+        begin_write(db)
         bill = db.execute("SELECT bill_number FROM institution_bills WHERE id = ?", (bill_id,)).fetchone()
         if not bill:
             return jsonify({"error": "Bill not found"}), 404
@@ -394,7 +413,7 @@ def delete_institution_bill(bill_id):
     except Exception as e:
         try: db.rollback()
         except Exception: pass
-        return jsonify({"error": str(e)}), 500
+        return server_error(e)
 
 
 # ---------------------------------------------------------------------------
@@ -405,6 +424,7 @@ def delete_institution_bill(bill_id):
 def record_inst_payment(bill_id):
     try:
         db = get_db()
+        begin_write(db)
         bill = db.execute(
             "SELECT id, status, remaining, advance_paid FROM institution_bills WHERE id = ?",
             (bill_id,),
@@ -423,6 +443,8 @@ def record_inst_payment(bill_id):
             return jsonify({"error": "payment_method must be Cash, Card, UPI, Cheque, or NEFT"}), 400
 
         paid_date = (body.get("paid_date") or "").strip()
+        if paid_date and not valid_iso_date(paid_date):
+            return jsonify({"error": "paid_date must be a real date (YYYY-MM-DD)"}), 400
         if not paid_date:
             from datetime import datetime, timezone, timedelta
             paid_date = datetime.now(timezone(timedelta(hours=5, minutes=30))).strftime("%Y-%m-%d")
@@ -453,4 +475,4 @@ def record_inst_payment(bill_id):
             db.rollback()
         except Exception:
             pass
-        return jsonify({"error": str(e)}), 500
+        return server_error(e)

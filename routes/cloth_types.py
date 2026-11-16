@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify, request
 from db import get_db
 from services.auth import api_staff_or_admin_required
+from services.errors import server_error
 
 cloth_types_bp = Blueprint("cloth_types", __name__)
 
@@ -19,7 +20,7 @@ def get_cloth_types():
         ).fetchall()
         return jsonify([dict(r) for r in rows])
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return server_error(e)
 
 
 @cloth_types_bp.route("/cloth-types", methods=["POST"])
@@ -54,4 +55,4 @@ def add_cloth_type():
         ).fetchone()
         return jsonify(dict(new_row)), 201
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return server_error(e)

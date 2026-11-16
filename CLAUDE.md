@@ -67,7 +67,8 @@ next state change (this is exactly what happened to
 `new_institution_bill.html`'s save button between rounds 8 and 9).
 
 Exception: emoji inside a WhatsApp share-text string (the JS that builds
-`wa.me/?text=...`, e.g. `bill_detail.html`, `institution_bill_detail.html`,
+`wa.me/?text=...`, e.g. `bill-detail.js` (the Bill Detail script; it was inline in
+`bill_detail.html` before), `institution_bill_detail.html`,
 `tailoring_report.html`'s `waText()`) is chat text going into another app,
 not a control in this UI — the icon sprite can't reach it anyway. Leave
 those alone.
@@ -90,6 +91,27 @@ now the sprite's `x`). A button with a visible text label next to the
 glyph doesn't need this — the word is already the accessible name.
 
 <!-- code-review-graph MCP tools -->
+## Money
+
+Amounts are stored as SQLite `REAL`, rounded to 2 decimals (paise), not as integer
+paise. That is deliberate: converting every table, query and screen to integers is a
+large, risky change, and the rules below make REAL exact enough for a shop's ledger.
+They only hold if every change follows them:
+
+- **An amount** (advance, cloth balance, a payment, a total) is rounded to paise on the
+  way in: `utils.money_float()` for form input, `utils.r2()` for computed values. `r2`
+  rounds half-up; do not use Python's `round()` for money (`round(100.005, 2)` is 100.0).
+- **A rate or unit price** (tailoring `rate`, inventory `mrp` / `cost_price`, a bill item's
+  `mrp`) is NOT rounded: it is multiplied, and shops type 966.666 so that three pieces
+  come to exactly 2,900.00. Only the product is rounded (`round(qty * rate, 2)`).
+- **A SQL aggregate over money** is wrapped in `ROUND(..., 2)`. Summing REAL columns leaves
+  noise (bills adding up to exactly 10,000.00 can sum to 9999.999999999998), which once
+  made a `>=` loyalty-threshold comparison fail.
+- Compare money with a tolerance (or on rounded values), never `==` on raw sums.
+
+`python scripts/check_data.py` (read-only) reports bad dates, balances that do not add up,
+and amounts with fractions of a paisa. Run it after any change that touches stored money.
+
 ## MCP Tools: code-review-graph
 
 **IMPORTANT: This project has a knowledge graph. ALWAYS use the

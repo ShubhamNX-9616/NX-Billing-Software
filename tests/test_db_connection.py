@@ -52,10 +52,8 @@ def _with_inst_seq(next_val=None, fy=None):
 
 
 def _mock_today(year, month):
-    """Patch db.connection.date so date.today() returns the given year/month."""
-    mock_date = MagicMock()
-    mock_date.today.return_value = date(year, month, 15)
-    return patch("db.connection.date", mock_date)
+    """Patch db.connection.ist_today so "today" is the given year/month (15th)."""
+    return patch("db.connection.ist_today", return_value=date(year, month, 15))
 
 
 # ---------------------------------------------------------------------------

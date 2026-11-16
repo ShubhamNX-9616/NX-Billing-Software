@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify, request
 from db import get_db
 from services.auth import api_admin_required
+from services.errors import server_error
 
 invoices_bp = Blueprint("invoices", __name__)
 
@@ -22,7 +23,7 @@ def list_invoices():
         """).fetchall()
         return jsonify([dict(r) for r in rows])
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return server_error(e)
 
 
 @invoices_bp.route("/invoices", methods=["POST"])
@@ -54,7 +55,7 @@ def create_invoice():
         """, (cur.lastrowid,)).fetchone()
         return jsonify(dict(row)), 201
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return server_error(e)
 
 
 @invoices_bp.route("/invoices/<int:invoice_id>", methods=["PUT"])
@@ -96,4 +97,4 @@ def update_invoice(invoice_id):
         """, (invoice_id,)).fetchone()
         return jsonify(dict(row))
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return server_error(e)

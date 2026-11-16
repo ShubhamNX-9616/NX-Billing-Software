@@ -1,8 +1,11 @@
 ﻿import io
 import qrcode
 from flask import Blueprint, jsonify, request, send_file, session
+from utils import finite_float
 from db import get_db, IST_NOW
 from services.auth import api_login_required, api_admin_required
+from services.errors import server_error
+from db.connection import begin_write
 from services.inventory import compute_special_code, next_item_code, adjust_stock, find_item_by_code
 
 inventory_bp = Blueprint("inventory", __name__)
@@ -259,10 +262,10 @@ def create_inventory_item():
         company_name    = (body.get("company_name")    or "").strip()
         quality_number  = (body.get("quality_number")  or "").strip()
         unit_label      = (body.get("unit_label")      or "m").strip()
-        mrp             = float(body.get("mrp")        or 0)
-        cost_price      = float(body.get("cost_price") or 0)
-        opening_stock   = float(body.get("opening_stock") or 0)
-        min_stock_alert = float(body.get("min_stock_alert") or 2)
+        mrp             = finite_float(body.get("mrp")        or 0, "Mrp")
+        cost_price      = finite_float(body.get("cost_price") or 0, "Cost price")
+        opening_stock   = finite_float(body.get("opening_stock") or 0, "Opening stock")
+        min_stock_alert = finite_float(body.get("min_stock_alert") or 2, "Min stock alert")
         notes           = (body.get("notes") or "").strip() or None
         supplier_id_raw = body.get("supplier_id")
         supplier_id     = int(supplier_id_raw) if supplier_id_raw else None
@@ -328,8 +331,10 @@ def create_inventory_item():
         item = db.execute("SELECT * FROM inventory_items WHERE id = ?", (item_id,)).fetchone()
         return jsonify(dict(item)), 201
 
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return server_error(e)
 
 
 # ---------------------------------------------------------------------------
@@ -346,12 +351,12 @@ def update_inventory_item(item_id):
         if not item:
             return jsonify({"error": "Item not found"}), 404
 
-        mrp             = float(body.get("mrp",             item["mrp"]))
-        cost_price      = float(body.get("cost_price", item["cost_price"] or 0))
+        mrp             = finite_float(body.get("mrp",             item["mrp"]), "Mrp")
+        cost_price      = finite_float(body.get("cost_price", item["cost_price"] or 0), "Cost price")
         quality_number  = (body.get("quality_number") or "").strip()
         supplier_id_raw = body.get("supplier_id")
         supplier_id     = int(supplier_id_raw) if supplier_id_raw else None
-        min_stock_alert = float(body.get("min_stock_alert", item["min_stock_alert"]))
+        min_stock_alert = finite_float(body.get("min_stock_alert", item["min_stock_alert"]), "Min stock alert")
         notes           = (body.get("notes") or "").strip() or None
         item_name       = (body.get("item_name")    or "").strip() or None
         shade_number    = (body.get("shade_number") or "").strip() or None
@@ -387,8 +392,10 @@ def update_inventory_item(item_id):
         updated = db.execute("SELECT * FROM inventory_items WHERE id = ?", (item_id,)).fetchone()
         return jsonify(dict(updated))
 
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return server_error(e)
 
 
 # ---------------------------------------------------------------------------
@@ -438,10 +445,10 @@ def batch_create_inventory_items():
                 item_name      = (item.get("item_name")    or "").strip() or None
                 shade_number   = (item.get("shade_number") or "").strip() or None
                 quality_number = (item.get("quality_number") or "").strip()
-                cost_price     = float(item.get("cost_price")     or 0)
-                mrp            = float(item.get("mrp")            or 0)
-                opening_stock  = float(item.get("opening_stock")  or 0)
-                min_stock_alert = float(item.get("min_stock_alert") or 2)
+                cost_price     = finite_float(item.get("cost_price")     or 0, "Cost price")
+                mrp            = finite_float(item.get("mrp")            or 0, "Mrp")
+                opening_stock  = finite_float(item.get("opening_stock")  or 0, "Opening stock")
+                min_stock_alert = finite_float(item.get("min_stock_alert") or 2, "Min stock alert")
                 notes          = (item.get("notes") or "").strip() or None
                 unit_label     = (item.get("unit_label") or "m").strip()
                 special_code   = compute_special_code(cost_price, sup_name)
@@ -471,8 +478,10 @@ def batch_create_inventory_items():
         db.commit()
         return jsonify({"created": len(created), "ids": created}), 201
 
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return server_error(e)
 
 
 # ---------------------------------------------------------------------------
@@ -498,7 +507,7 @@ def delete_inventory_item(item_id):
         return jsonify({"success": True})
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return server_error(e)
 
 
 # ---------------------------------------------------------------------------
@@ -509,21 +518,24 @@ def delete_inventory_item(item_id):
 def adjust_item(item_id):
     try:
         body     = request.get_json(force=True, silent=True) or {}
-        quantity = float(body.get("quantity") or 0)
+        quantity = finite_float(body.get("quantity") or 0, "Quantity")
         notes    = (body.get("notes") or "").strip() or None
 
         if quantity == 0:
             return jsonify({"error": "quantity cannot be zero"}), 400
 
         db = get_db()
+        begin_write(db)
         new_stock = adjust_stock(db, item_id, quantity, notes, session.get("username"))
         if new_stock is None:
             return jsonify({"error": "Item not found"}), 404
         db.commit()
         return jsonify({"success": True, "new_stock": new_stock})
 
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return server_error(e)
 
 
 # ---------------------------------------------------------------------------
@@ -581,7 +593,7 @@ def get_inventory_qr(item_id):
             return jsonify({"error": "Item not found"}), 404
         return _generate_label_png(dict(item))
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return server_error(e)
 
 
 # ---------------------------------------------------------------------------
@@ -643,7 +655,7 @@ def scan_invoice_image():
             ]}],
         )
     except Exception as e:
-        return jsonify({"error": f"Scan failed: {str(e)}"}), 500
+        return server_error(e)
 
     raw_text = msg.content[0].text.strip()
 
@@ -689,8 +701,8 @@ def current_stock_qr():
         cloth_type     = (body.get("cloth_type")     or "").strip()
         company_name   = (body.get("company_name")   or "").strip()
         quality_number = (body.get("quality_number") or "").strip()
-        mrp            = float(body.get("mrp") or 0)
-        opening_stock  = float(body.get("opening_stock") or 0)
+        mrp            = finite_float(body.get("mrp") or 0, "Mrp")
+        opening_stock  = finite_float(body.get("opening_stock") or 0, "Opening stock")
         unit_label   = (body.get("unit_label")   or "m").strip()
         item_name    = (body.get("item_name")    or "").strip()
         shade_number = (body.get("shade_number") or "").strip()
@@ -736,5 +748,7 @@ def current_stock_qr():
         return _generate_cs_label_png(qr_text, cloth_type, company_name, quality_number,
                                       item_name, shade_number, mrp, unit_label)
 
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return server_error(e)

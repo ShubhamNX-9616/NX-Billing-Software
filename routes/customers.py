@@ -2,6 +2,7 @@ from flask import Blueprint, jsonify, request
 from db import get_db
 from db.tailoring import get_tailoring_db
 from services.auth import api_login_required, api_admin_required
+from services.errors import server_error
 from services.customer_lookup import order_customers
 from services.customers import get_customer_by_mobile, get_customer_stats
 from utils import normalize_mobile
@@ -35,7 +36,7 @@ def get_customers():
             rows = db.execute(base + " ORDER BY c.name").fetchall()
         return jsonify([dict(r) for r in rows])
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return server_error(e)
 
 
 @customers_bp.route("/customers/search", methods=["GET"])
@@ -58,7 +59,7 @@ def search_customer_by_mobile():
             }})
         return jsonify({"found": False})
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return server_error(e)
 
 
 @customers_bp.route("/customers/suggest", methods=["GET"])
@@ -90,7 +91,7 @@ def suggest_customers():
         matches.sort(key=lambda m: (m["name"] or "").lower())
         return jsonify(matches[:8])
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return server_error(e)
 
 
 @customers_bp.route("/customers/summary", methods=["GET"])
@@ -110,7 +111,7 @@ def customer_summary():
             "last_bill_number":  last["bill_number"] if last else None,
         })
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return server_error(e)
 
 
 @customers_bp.route("/customers/<int:customer_id>", methods=["GET"])
@@ -125,7 +126,7 @@ def get_customer(customer_id):
             return jsonify({"error": "Customer not found"}), 404
         return jsonify(dict(row))
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return server_error(e)
 
 
 @customers_bp.route("/customers/<int:customer_id>/bills", methods=["GET"])
@@ -150,4 +151,4 @@ def get_customer_bills(customer_id):
         ).fetchall()
         return jsonify([dict(r) for r in rows])
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return server_error(e)

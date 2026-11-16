@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify, request
 from db import get_db
 from services.auth import api_login_required, api_admin_required
+from services.errors import server_error
 
 suppliers_bp = Blueprint("suppliers", __name__)
 
@@ -36,4 +37,4 @@ def add_supplier():
         row = db.execute("SELECT * FROM suppliers WHERE id = ?", (cur.lastrowid,)).fetchone()
         return jsonify(dict(row)), 201
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return server_error(e)

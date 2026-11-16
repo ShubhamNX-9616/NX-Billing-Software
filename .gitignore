@@ -10,6 +10,7 @@ __pycache__/
 *.db-shm
 *.db-wal
 uploads/
+backups/
 .claude/
 .mcp.json
 .opencode.json
@@ -28,3 +29,5 @@ env/
 Thumbs.db
 # One-time Drive archive import batches (already imported into tailoring.db)
 drive-upload-batches/
+# Sample product-label document used when matching the label sheet (local only)
+Labels.docx

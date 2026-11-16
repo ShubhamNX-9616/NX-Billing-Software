@@ -4,6 +4,7 @@ _IST = timezone(timedelta(hours=5, minutes=30))
 from flask import Blueprint, jsonify, request
 from db import get_db
 from services.auth import api_admin_required
+from services.errors import server_error
 
 analytics_bp = Blueprint("analytics", __name__)
 
@@ -23,11 +24,11 @@ def analytics_summary():
         overall = db.execute("""
             SELECT
                 COUNT(DISTINCT b.id)                                                     AS total_bills,
-                COALESCE(SUM(b.final_total), 0)                                          AS total_sales,
+                ROUND(COALESCE(SUM(b.final_total), 0), 2)                                          AS total_sales,
                 COUNT(DISTINCT b.customer_id)                                            AS total_customers,
-                COALESCE(SUM(cp.cash), 0)                                                AS total_cash,
-                COALESCE(SUM(cp.card), 0)                                                AS total_card,
-                COALESCE(SUM(cp.upi), 0)                                                 AS total_upi
+                ROUND(COALESCE(SUM(cp.cash), 0), 2)                                                AS total_cash,
+                ROUND(COALESCE(SUM(cp.card), 0), 2)                                                AS total_card,
+                ROUND(COALESCE(SUM(cp.upi), 0), 2)                                                 AS total_upi
             FROM bills b
             LEFT JOIN (
                 SELECT bill_id,
@@ -42,10 +43,10 @@ def analytics_summary():
         today_row = db.execute("""
             SELECT
                 COUNT(b.id)                  AS cnt,
-                COALESCE(SUM(b.final_total), 0) AS sales,
-                COALESCE(SUM(cp.cash), 0)    AS cash,
-                COALESCE(SUM(cp.card), 0)    AS card,
-                COALESCE(SUM(cp.upi), 0)     AS upi
+                ROUND(COALESCE(SUM(b.final_total), 0), 2) AS sales,
+                ROUND(COALESCE(SUM(cp.cash), 0), 2)    AS cash,
+                ROUND(COALESCE(SUM(cp.card), 0), 2)    AS card,
+                ROUND(COALESCE(SUM(cp.upi), 0), 2)     AS upi
             FROM bills b
             LEFT JOIN (
                 SELECT bill_id,
@@ -59,10 +60,10 @@ def analytics_summary():
 
         month_row = db.execute("""
             SELECT
-                COALESCE(SUM(b.final_total), 0) AS sales,
-                COALESCE(SUM(cp.cash), 0)    AS cash,
-                COALESCE(SUM(cp.card), 0)    AS card,
-                COALESCE(SUM(cp.upi), 0)     AS upi
+                ROUND(COALESCE(SUM(b.final_total), 0), 2) AS sales,
+                ROUND(COALESCE(SUM(cp.cash), 0), 2)    AS cash,
+                ROUND(COALESCE(SUM(cp.card), 0), 2)    AS card,
+                ROUND(COALESCE(SUM(cp.upi), 0), 2)     AS upi
             FROM bills b
             LEFT JOIN (
                 SELECT bill_id,
@@ -92,7 +93,7 @@ def analytics_summary():
             "month_upi":         round(float(month_row["upi"]   or 0), 2),
         })
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return server_error(e)
 
 
 # ---------------------------------------------------------------------------
@@ -154,11 +155,11 @@ def get_analytics():
         rows = db.execute(f"""
             SELECT
                 {group_expr}                                                              AS bucket,
-                SUM(b.final_total)                                                        AS total_sales,
+                ROUND(SUM(b.final_total), 2)                                                        AS total_sales,
                 COUNT(b.id)                                                               AS bill_count,
-                COALESCE(SUM(cp.cash), 0)                                                AS cash,
-                COALESCE(SUM(cp.card), 0)                                                AS card,
-                COALESCE(SUM(cp.upi), 0)                                                 AS upi
+                ROUND(COALESCE(SUM(cp.cash), 0), 2)                                                AS cash,
+                ROUND(COALESCE(SUM(cp.card), 0), 2)                                                AS card,
+                ROUND(COALESCE(SUM(cp.upi), 0), 2)                                                 AS upi
             FROM bills b
             LEFT JOIN (
                 SELECT bill_id,
@@ -194,7 +195,7 @@ def get_analytics():
             })
         return jsonify(result)
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return server_error(e)
 
 
 # ---------------------------------------------------------------------------
@@ -247,7 +248,7 @@ def analytics_salespersons():
             SELECT
                 COALESCE(NULLIF(TRIM(b.salesperson_name), ''), 'Unassigned') AS salesperson_name,
                 COUNT(*) AS bill_count,
-                COALESCE(SUM(b.final_total), 0) AS total_sales
+                ROUND(COALESCE(SUM(b.final_total), 0), 2) AS total_sales
             FROM bills b
             WHERE b.status != 'cancelled'
               AND {where_sql}
@@ -265,4 +266,4 @@ def analytics_salespersons():
             for row in rows
         ])
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return server_error(e)

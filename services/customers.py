@@ -16,7 +16,7 @@ def get_customer_stats(db, raw_mobile):
     norm = normalize_mobile(raw_mobile)
     stats = db.execute("""
         SELECT COUNT(b.id)                        AS total_bills,
-               COALESCE(SUM(b.final_total), 0)    AS total_spent
+               ROUND(COALESCE(SUM(b.final_total), 0), 2)    AS total_spent
         FROM   customers c
         JOIN   bills b ON b.customer_id = c.id
         WHERE  c.normalized_mobile = ?

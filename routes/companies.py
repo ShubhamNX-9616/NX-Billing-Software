@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify, request
 from db import get_db
 from services.auth import api_staff_or_admin_required
+from services.errors import server_error
 
 companies_bp = Blueprint("companies", __name__)
 
@@ -24,7 +25,7 @@ def get_companies():
         ).fetchall()
         return jsonify([dict(r) for r in rows])
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return server_error(e)
 
 
 @companies_bp.route("/companies/<int:company_id>", methods=["DELETE"])
@@ -39,7 +40,7 @@ def delete_company(company_id):
         db.commit()
         return jsonify({"ok": True})
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return server_error(e)
 
 
 @companies_bp.route("/companies", methods=["POST"])
@@ -84,4 +85,4 @@ def add_company():
         ).fetchone()
         return jsonify(dict(new_row)), 201
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return server_error(e)

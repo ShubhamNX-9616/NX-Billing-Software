@@ -19,9 +19,10 @@ from flask import (Blueprint, jsonify, render_template, request,
 
 from db.measurements import IST_NOW, get_measurements_db
 from services.auth import api_staff_or_admin_required, staff_or_admin_required
+from db.connection import begin_write
 from services.measurement_billing import (ORDER_TYPES, PAYMENT_MODES, item_amount,
                                           order_label,
-                                          parse_money, payment_problem,
+                                          parse_rate, payment_problem,
                                           recompute_order, remember_rate,
                                           saved_rates, stitching_total,
                                           sync_delivered)
@@ -309,6 +310,7 @@ def get_measurement(measurement_id):
 @api_staff_or_admin_required
 def update_measurement(measurement_id):
     db = get_measurements_db()
+    begin_write(db)
     row = db.execute("SELECT * FROM m_measurements WHERE id = ?", (measurement_id,)).fetchone()
     if not row:
         return jsonify({"error": "Measurement not found"}), 404
@@ -324,7 +326,7 @@ def update_measurement(measurement_id):
         qty = piece_count(row["garment_type"], json.loads(fields["values_json"]))
         rate = row["rate"]
         if "rate" in data:
-            rate, err = parse_money(data.get("rate"), "Rate")
+            rate, err = parse_rate(data.get("rate"), "Rate")
             if err:
                 return jsonify({"error": err}), 400
         amount = item_amount(rate, qty)
@@ -377,6 +379,7 @@ def update_status(measurement_id):
 @api_staff_or_admin_required
 def delete_measurement(measurement_id):
     db = get_measurements_db()
+    begin_write(db)
     row = db.execute("SELECT image, order_id, amount FROM m_measurements WHERE id = ?",
                      (measurement_id,)).fetchone()
     if not row:

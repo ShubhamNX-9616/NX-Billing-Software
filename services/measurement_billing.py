@@ -16,6 +16,7 @@ import math
 
 from db.measurements import IST_NOW
 from services.measurement_fields import STATUSES
+from utils import MAX_AMOUNT, r2
 
 ORDER_TYPES = ("general", "suit")
 ORDER_PREFIX = {"general": "M-", "suit": "MS-"}
@@ -28,13 +29,36 @@ def parse_money(raw, label):
     if raw is None or (isinstance(raw, str) and not raw.strip()):
         return 0.0, None
     try:
-        value = round(float(raw), 2)
+        value = float(raw)
+    except (TypeError, ValueError):
+        return None, f"{label} must be a number"
+    if not math.isfinite(value) or abs(value) > MAX_AMOUNT:
+        return None, f"{label} must be a number" if not math.isfinite(value) else f"{label} is too large"
+    # Same half-up rounding as the rest of the app (utils.r2). Python's round() is
+    # based on the binary value, so round(100.005, 2) gives 100.0 while a bill would
+    # say 100.01.
+    value = r2(value)
+    if value < 0:
+        return None, f"{label} cannot be negative"
+    return value, None
+
+
+def parse_rate(raw, label="Rate"):
+    """A per-piece rate. Unlike an amount it is NOT rounded to paise: shops enter 966.666
+    so that three pieces come to exactly 2,900.00, and rounding the rate to 966.67 would
+    turn that into 2,900.01. Blank -> 0. Returns (value, error)."""
+    if raw is None or (isinstance(raw, str) and not raw.strip()):
+        return 0.0, None
+    try:
+        value = float(raw)
     except (TypeError, ValueError):
         return None, f"{label} must be a number"
     if not math.isfinite(value):
         return None, f"{label} must be a number"
     if value < 0:
         return None, f"{label} cannot be negative"
+    if value > 1e12:
+        return None, f"{label} is too large"
     return value, None
 
 

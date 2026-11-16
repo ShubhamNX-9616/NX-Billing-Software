@@ -1,5 +1,13 @@
+import glob
+import logging
+import os
+import sqlite3
+
+import db.connection as _conn
 from db.connection import _open_connection, current_fy
-from utils import cloth_type_prefix as _cloth_prefix
+from utils import cloth_type_prefix as _cloth_prefix, ist_now
+
+log = logging.getLogger(__name__)
 
 
 # ----------------------------------------------------------------
@@ -303,6 +311,8 @@ def _m14_drop_item_unique_constraint(conn):
     specs but different stock quantities can coexist as separate entries."""
     conn.execute("PRAGMA foreign_keys = OFF")
     conn.executescript("""
+        DROP TABLE IF EXISTS inventory_items_new;   -- left over if an earlier attempt stopped half way
+
         CREATE TABLE inventory_items_new (
             id              INTEGER PRIMARY KEY AUTOINCREMENT,
             cloth_type      TEXT NOT NULL,
@@ -396,15 +406,19 @@ def _m16_institution_bills(conn):
 
 
 def _m17_inst_item_stitching(conn):
-    conn.execute(
-        "ALTER TABLE institution_bill_items ADD COLUMN stitching_per_unit REAL NOT NULL DEFAULT 0"
-    )
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(institution_bill_items)").fetchall()}
+    if "stitching_per_unit" not in cols:
+        conn.execute(
+            "ALTER TABLE institution_bill_items ADD COLUMN stitching_per_unit REAL NOT NULL DEFAULT 0"
+        )
 
 
 def _m18_inst_company_address(conn):
-    conn.execute(
-        "ALTER TABLE institution_bills ADD COLUMN company_address TEXT NOT NULL DEFAULT ''"
-    )
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(institution_bills)").fetchall()}
+    if "company_address" not in cols:
+        conn.execute(
+            "ALTER TABLE institution_bills ADD COLUMN company_address TEXT NOT NULL DEFAULT ''"
+        )
 
 
 def _m28_inst_advance_percent(conn):
@@ -459,7 +473,7 @@ def _m21_loyalty_gifts(conn):
             bill_id     INTEGER REFERENCES bills(id),
             given_at    TEXT,
             given_by    TEXT,
-            created_at  TEXT DEFAULT (datetime('now','localtime')),
+            created_at  TEXT DEFAULT (datetime('now', '+5 hours', '+30 minutes')),
             UNIQUE(customer_id, tier, fy)
         )
     """)
@@ -487,7 +501,7 @@ def _m23_loyalty_cycles(conn):
             cycle_number INTEGER NOT NULL,
             start_date   TEXT NOT NULL,
             end_date     TEXT NOT NULL,
-            created_at   TEXT DEFAULT (datetime('now','localtime'))
+            created_at   TEXT DEFAULT (datetime('now', '+5 hours', '+30 minutes'))
         )
     """)
 
@@ -497,6 +511,7 @@ def _m23_loyalty_cycles(conn):
 
     gift_cols = {row[1] for row in conn.execute("PRAGMA table_info(loyalty_gifts)").fetchall()}
     if "cycle_id" not in gift_cols:
+        conn.execute("DROP TABLE IF EXISTS loyalty_gifts_new")
         conn.execute("""
             CREATE TABLE loyalty_gifts_new (
                 id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -507,7 +522,7 @@ def _m23_loyalty_cycles(conn):
                 bill_id     INTEGER REFERENCES bills(id),
                 given_at    TEXT,
                 given_by    TEXT,
-                created_at  TEXT DEFAULT (datetime('now','localtime')),
+                created_at  TEXT DEFAULT (datetime('now', '+5 hours', '+30 minutes')),
                 UNIQUE(customer_id, tier, cycle_id)
             )
         """)
@@ -578,10 +593,37 @@ def _m32_tryon_photos(conn):
             garment    TEXT NOT NULL,
             item_code  TEXT NOT NULL,
             storage    TEXT NOT NULL DEFAULT 'local',
-            created_at TEXT DEFAULT (datetime('now','localtime')),
+            created_at TEXT DEFAULT (datetime('now', '+5 hours', '+30 minutes')),
             UNIQUE(garment, item_code)
         )
     """)
+
+
+def _create_perf_indexes(conn):
+    """Indexes for the queries that scan whole tables as the data grows. All are
+    CREATE IF NOT EXISTS, so this is safe to run on every start.
+
+      bills.bill_date            date-range search, analytics, the Excel export
+      bills(customer_id, date)   loyalty: one customer's bills inside a cycle
+      institution_bills.bill_date  the same date filters on the institution list
+      inventory_transactions.item_id  an item's stock history, and the cascade when
+                                 an item is deleted (otherwise a full table scan)
+    """
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_bills_bill_date ON bills(bill_date)")
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_bills_customer_date ON bills(customer_id, bill_date)"
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_inst_bills_bill_date ON institution_bills(bill_date)"
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_inventory_transactions_item_id "
+        "ON inventory_transactions(item_id)"
+    )
+
+
+def _m33_performance_indexes(conn):
+    _create_perf_indexes(conn)
 
 
 MIGRATIONS = [
@@ -617,6 +659,7 @@ MIGRATIONS = [
     (30, _m30_inst_round_off),
     (31, _m31_inst_item_code),
     (32, _m32_tryon_photos),
+    (33, _m33_performance_indexes),
 ]
 
 
@@ -656,6 +699,59 @@ def _sync_bill_number_seq(conn):
 
 
 # ----------------------------------------------------------------
+# Running migrations safely
+# ----------------------------------------------------------------
+
+PRE_MIGRATION_BACKUPS_KEPT = 5
+
+
+def _backup_before_migrating(conn, first_pending):
+    """Copy billing.db aside before an upgrade changes its structure, so a bad
+    migration can always be undone by putting the copy back. Uses SQLite's own
+    backup (consistent even though the database is in WAL mode). A failure to back
+    up is logged but does not stop the app from starting. Only the newest few
+    copies are kept."""
+    try:
+        folder = os.path.join(os.path.dirname(os.path.abspath(_conn.DB_PATH)), "backups")
+        os.makedirs(folder, exist_ok=True)
+        stamp = ist_now().strftime("%Y%m%d-%H%M%S")
+        dest_path = os.path.join(folder, f"billing_before_migration_v{first_pending}_{stamp}.db")
+        dest = sqlite3.connect(dest_path)
+        try:
+            conn.backup(dest)
+        finally:
+            dest.close()
+        old = sorted(glob.glob(os.path.join(folder, "billing_before_migration_*.db")))
+        for path in old[:-PRE_MIGRATION_BACKUPS_KEPT]:
+            try:
+                os.remove(path)
+            except OSError:
+                pass
+        log.warning("Backed up billing.db to %s before applying migration %s", dest_path, first_pending)
+        return dest_path
+    except Exception:
+        log.exception("Could not back up billing.db before migrating - continuing without a copy")
+        return None
+
+
+def _apply_migration(conn, version, fn):
+    """Run one migration and record it as applied in a single transaction: either
+    both happen or neither does. Before this, a crash half way left some changes
+    in place but the migration unrecorded, so the next start tried again and died
+    on "duplicate column name" - the site would not come back up. (A migration that
+    uses executescript() commits as it goes, so those are written to be re-runnable.)"""
+    conn.commit()
+    conn.execute("BEGIN IMMEDIATE")
+    try:
+        fn(conn)
+        _mark_applied(conn, version)
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+
+
+# ----------------------------------------------------------------
 # init_db — called once at app startup
 # ----------------------------------------------------------------
 
@@ -673,15 +769,19 @@ def init_db():
             if bills_exists:
                 for version, _ in MIGRATIONS:
                     _mark_applied(conn, version)
+                _create_perf_indexes(conn)       # stamped as applied, so make sure they exist
                 _sync_bill_number_seq(conn)
                 conn.commit()
                 return
 
         applied = _applied_versions(conn)
-        for version, fn in MIGRATIONS:
-            if version not in applied:
-                fn(conn)
-                _mark_applied(conn, version)
+        pending = [(version, fn) for version, fn in MIGRATIONS if version not in applied]
+        if pending and applied:
+            # an existing database is about to be upgraded: keep a copy first
+            conn.commit()
+            _backup_before_migrating(conn, pending[0][0])
+        for version, fn in pending:
+            _apply_migration(conn, version, fn)
 
         _sync_bill_number_seq(conn)
         _sync_inst_bill_number_seq(conn)
@@ -695,8 +795,11 @@ def init_db():
 # ----------------------------------------------------------------
 
 def _seed_cloth_types(conn):
-    if conn.execute("SELECT COUNT(*) as cnt FROM cloth_types").fetchone()["cnt"] > 0:
-        return
+    # No "already has rows" shortcut: on a brand-new database migration 7 has
+    # already inserted Gift Sets and Accessories by the time this runs, so such a
+    # check made a fresh install end up with only those two types. INSERT OR
+    # IGNORE (normalized_name is UNIQUE) makes re-seeding harmless, and this only
+    # ever runs once per database (migration 9).
     conn.executemany(
         "INSERT OR IGNORE INTO cloth_types (type_name, normalized_name, is_default, has_company)"
         " VALUES (?, ?, ?, ?)",

@@ -5,6 +5,7 @@ _IST = timezone(timedelta(hours=5, minutes=30))
 from flask import Blueprint, jsonify, request, send_file
 from db import get_db
 from services.auth import api_admin_required
+from services.errors import server_error
 
 export_bp = Blueprint("export", __name__)
 
@@ -93,7 +94,7 @@ def export_bills():
                 FROM bill_payments GROUP BY bill_id
             ) bp ON bp.bill_id = b.id
             LEFT JOIN (
-                SELECT bill_id, SUM(final_amount) AS gross_total
+                SELECT bill_id, ROUND(SUM(final_amount), 2) AS gross_total
                 FROM bill_items GROUP BY bill_id
             ) bi ON bi.bill_id = b.id
             WHERE b.status != 'cancelled'
@@ -216,4 +217,4 @@ def export_bills():
             download_name=filename,
         )
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return server_error(e)

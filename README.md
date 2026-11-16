@@ -176,16 +176,19 @@ Double-click **`stop.bat`** — both the Flask server and the tunnel will stop c
 
 ## Login & User Management
 
-### Default credentials
+### First sign-in
 
-The app creates two accounts automatically on first run:
+The app creates two accounts automatically on first run: `admin` and `staff`. Their
+passwords are **not** fixed values:
 
-| Role  | Username | Password    |
-|-------|----------|-------------|
-| Admin | `admin`  | `Admin@1234` |
-| Staff | `staff`  | `Staff@1234` |
+- set `INITIAL_ADMIN_PASSWORD` and `INITIAL_STAFF_PASSWORD` in `.env` **before the first
+  start**, or
+- leave them unset, and the app generates random passwords and prints them **once** in the
+  console (or the server log on PythonAnywhere). Note them down.
 
-> **Change these passwords immediately after first login.** See instructions below.
+> **Change these passwords after first login** (My Profile). Installs created before this
+> change used the fixed passwords `Admin@1234` / `Staff@1234`; if yours is one of them and
+> you have never changed them, change them now - they were published in this repository.
 
 ---
 
@@ -235,7 +238,7 @@ Staff can only access the **New Bill** page — they can create bills, search cu
 
 ### Security warnings
 
-> ⚠️ **Change default passwords immediately** — `Admin@1234` and `Staff@1234` are public knowledge.
+> ⚠️ **Change the first-run passwords after first login**, and never reuse them elsewhere.
 
 > ⚠️ **Set a strong `SECRET_KEY`** before deploying online. Generate one with:
 > ```

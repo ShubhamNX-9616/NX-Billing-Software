@@ -34,9 +34,63 @@ function paymentBadge(mode) {
 }
 
 // ----------------------------------------------------------------
+// Paging: the lists load HISTORY_PAGE_SIZE bills at a time; "Show more" fetches the rest
+// ----------------------------------------------------------------
+const HISTORY_PAGE_SIZE = 200;
+let histPaging = null;   // { kind, url, params, title, loaded, total } while more may remain
+
+async function fetchHistoryPage(url, params, offset) {
+  const q = new URLSearchParams(params);
+  q.set('limit', HISTORY_PAGE_SIZE);
+  q.set('offset', offset);
+  const res = await fetch(`${url}?${q.toString()}`);
+  if (!res.ok) throw new Error('API error');
+  const rows  = await res.json();
+  const total = parseInt(res.headers.get('X-Total-Count') || '', 10);
+  return { rows, total: Number.isFinite(total) ? total : offset + rows.length };
+}
+
+function billCountText(opts, shown) {
+  const loaded = opts.loaded !== undefined ? opts.loaded : shown;
+  const total  = opts.total  !== undefined ? opts.total  : loaded;
+  if (!total) return '';
+  const word = total !== 1 ? 'bills' : 'bill';
+  return loaded < total ? `${loaded} of ${total} ${word}` : `${total} ${word}`;
+}
+
+function updateMoreButton(state) {
+  histPaging = state;
+  const box = document.getElementById('history-more');
+  if (box) box.style.display = state && state.loaded < state.total ? 'block' : 'none';
+}
+
+async function loadMoreHistory() {
+  const st = histPaging;
+  if (!st) return;
+  const btn = document.getElementById('history-more-btn');
+  const mySeq = searchSeq;           // a newer search/reload makes this page stale
+  btn.disabled = true;
+  try {
+    const { rows, total } = await fetchHistoryPage(st.url, st.params, st.loaded);
+    if (mySeq !== searchSeq || histPaging !== st) return;
+    st.loaded += rows.length;
+    st.total   = total;
+    const opts = { append: true, loaded: st.loaded, total };
+    if (st.kind === 'inst') renderInstTable(rows, st.title, opts);
+    else renderTable(rows, st.title, opts);
+    // a page that came back empty means the list is exhausted - stop offering more
+    updateMoreButton(rows.length ? st : null);
+  } catch (err) {
+    showToast('Could not load more bills: ' + err.message);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ----------------------------------------------------------------
 // Render
 // ----------------------------------------------------------------
-function renderTable(bills, titleText) {
+function renderTable(bills, titleText, opts = {}) {
   const loading  = document.getElementById('history-loading');
   const empty    = document.getElementById('history-empty');
   const emptyMsg = document.getElementById('history-empty-msg');
@@ -47,9 +101,9 @@ function renderTable(bills, titleText) {
 
   loading.style.display = 'none';
   title.textContent = titleText || 'All Bills';
-  countEl.textContent = bills.length ? `${bills.length} bill${bills.length !== 1 ? 's' : ''}` : '';
+  countEl.textContent = billCountText(opts, bills.length);
 
-  if (!bills.length) {
+  if (!bills.length && !opts.append) {
     empty.style.display = 'block';
     wrap.style.display  = 'none';
     emptyMsg.textContent = titleText === 'Search Results'
@@ -61,7 +115,7 @@ function renderTable(bills, titleText) {
   empty.style.display = 'none';
   wrap.style.display  = 'block';
 
-  tbody.innerHTML = bills.map(b => {
+  const rowsHtml = bills.map(b => {
     const cancelled  = b.status === 'cancelled';
     const itemCount  = b.item_count !== undefined ? b.item_count : '—';
     const remaining  = b.remaining || 0;
@@ -152,6 +206,8 @@ function renderTable(bills, titleText) {
       </tr>
     `;
   }).join('');
+  if (opts.append) tbody.insertAdjacentHTML('beforeend', rowsHtml);
+  else tbody.innerHTML = rowsHtml;
 }
 
 // ----------------------------------------------------------------
@@ -159,10 +215,11 @@ function renderTable(bills, titleText) {
 // ----------------------------------------------------------------
 async function loadAllBills() {
   try {
-    const res   = await fetch('/api/bills');
-    if (!res.ok) throw new Error('API error');
-    const bills = await res.json();
-    renderTable(bills, 'All Bills');
+    const params = new URLSearchParams();
+    const { rows, total } = await fetchHistoryPage('/api/bills', params, 0);
+    renderTable(rows, 'All Bills', { loaded: rows.length, total });
+    updateMoreButton({ kind: 'bills', url: '/api/bills', params, title: 'All Bills',
+                       loaded: rows.length, total });
   } catch (err) {
     document.getElementById('history-loading').innerHTML =
       `<span class="text-danger">Failed to load bills: ${err.message}</span>`;
@@ -210,11 +267,11 @@ async function doSearch() {
   const mySeq = ++searchSeq;
 
   try {
-    const res   = await fetch(`/api/bills/search?${params.toString()}`);
-    if (!res.ok) throw new Error('API error');
-    const bills = await res.json();
+    const { rows, total } = await fetchHistoryPage('/api/bills/search', params, 0);
     if (mySeq !== searchSeq) return;
-    renderTable(bills, 'Search Results');
+    renderTable(rows, 'Search Results', { loaded: rows.length, total });
+    updateMoreButton({ kind: 'bills', url: '/api/bills/search', params, title: 'Search Results',
+                       loaded: rows.length, total });
   } catch (err) {
     document.getElementById('history-loading').style.display = 'none';
     document.getElementById('history-empty').style.display   = 'block';
@@ -240,6 +297,7 @@ function clearSearch() {
 }
 
 function showLoading() {
+  updateMoreButton(null);
   document.getElementById('history-loading').style.display         = 'flex';
   document.getElementById('history-empty').style.display           = 'none';
   document.getElementById('history-table-wrap').style.display      = 'none';
@@ -528,10 +586,11 @@ function copyBillShareLink(billNumber) {
 // ----------------------------------------------------------------
 async function loadAllInstBills() {
   try {
-    const res  = await fetch('/api/institution-bills');
-    if (!res.ok) throw new Error('API error');
-    const bills = await res.json();
-    renderInstTable(bills, 'Institution Bills');
+    const params = new URLSearchParams();
+    const { rows, total } = await fetchHistoryPage('/api/institution-bills', params, 0);
+    renderInstTable(rows, 'Institution Bills', { loaded: rows.length, total });
+    updateMoreButton({ kind: 'inst', url: '/api/institution-bills', params,
+                       title: 'Institution Bills', loaded: rows.length, total });
   } catch (err) {
     document.getElementById('history-loading').innerHTML =
       `<span class="text-danger">Failed to load institution bills: ${err.message}</span>`;
@@ -552,11 +611,11 @@ async function doInstSearch() {
   const mySeq = ++searchSeq;
 
   try {
-    const res  = await fetch(`/api/institution-bills/search?${params.toString()}`);
-    if (!res.ok) throw new Error('API error');
-    const bills = await res.json();
+    const { rows, total } = await fetchHistoryPage('/api/institution-bills/search', params, 0);
     if (mySeq !== searchSeq) return;
-    renderInstTable(bills, 'Search Results');
+    renderInstTable(rows, 'Search Results', { loaded: rows.length, total });
+    updateMoreButton({ kind: 'inst', url: '/api/institution-bills/search', params,
+                       title: 'Search Results', loaded: rows.length, total });
   } catch (err) {
     document.getElementById('history-loading').style.display = 'none';
     document.getElementById('history-empty').style.display   = 'block';
@@ -564,7 +623,7 @@ async function doInstSearch() {
   }
 }
 
-function renderInstTable(bills, titleText) {
+function renderInstTable(bills, titleText, opts = {}) {
   const loading = document.getElementById('history-loading');
   const empty   = document.getElementById('history-empty');
   const wrap    = document.getElementById('inst-history-table-wrap');
@@ -575,9 +634,9 @@ function renderInstTable(bills, titleText) {
 
   loading.style.display = 'none';
   title.textContent  = titleText || 'Institution Bills';
-  countEl.textContent = bills.length ? `${bills.length} bill${bills.length !== 1 ? 's' : ''}` : '';
+  countEl.textContent = billCountText(opts, bills.length);
 
-  if (!bills.length) {
+  if (!bills.length && !opts.append) {
     empty.style.display = 'block';
     wrap.style.display  = 'none';
     document.getElementById('history-empty-msg').textContent =
@@ -593,7 +652,7 @@ function renderInstTable(bills, titleText) {
   const instPayBadgeMap = { Cash:'badge-success', Card:'badge-info', UPI:'badge-warning',
                              Cheque:'badge-neutral', NEFT:'badge-neutral', Combination:'badge-neutral', Pending:'badge-secondary' };
 
-  tbody.innerHTML = bills.map(b => {
+  const rowsHtml = bills.map(b => {
     const cancelled  = b.status === 'cancelled';
     const remaining  = b.remaining || 0;
 
@@ -664,6 +723,8 @@ function renderInstTable(bills, titleText) {
       </tr>
     `;
   }).join('');
+  if (opts.append) tbody.insertAdjacentHTML('beforeend', rowsHtml);
+  else tbody.innerHTML = rowsHtml;
 }
 
 // ---- Institution bill cancel ----

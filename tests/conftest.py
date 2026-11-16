@@ -1,5 +1,11 @@
+import os
 import sqlite3
 import pytest
+
+# Tests that seed the first-run users sign in with these fixed passwords; the app itself
+# generates random ones when these variables are not set (see db/seeds.py).
+os.environ.setdefault("INITIAL_ADMIN_PASSWORD", "Admin@1234")
+os.environ.setdefault("INITIAL_STAFF_PASSWORD", "Staff@1234")
 
 
 @pytest.fixture

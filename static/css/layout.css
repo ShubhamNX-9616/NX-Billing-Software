@@ -169,6 +169,21 @@
   text-decoration: underline;
 }
 
+/* Logout is a POST form button (a GET link could be triggered by any web page); the
+   button is reset so it looks exactly like the link it replaced. */
+.logout-form { display: contents; }
+
+button.sidebar-logout,
+button.topbar-icon-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+button.sidebar-logout { text-align: left; }
+
 .sidebar-logout {
   font-size: 12px;
   color: rgba(255,255,255,0.42);

@@ -4,7 +4,10 @@ from flask import Blueprint, current_app, jsonify, request, session
 from db import get_db, generate_bill_number, IST_NOW
 from db import current_fy
 from services.auth import api_admin_required, api_staff_or_admin_required
-from utils import normalize_mobile
+from services.errors import server_error
+from services.paging import page_args, page_sql, paged_json
+from db.connection import begin_write
+from utils import normalize_mobile, valid_iso_date, money_float
 from services.billing import (
     validate_and_calculate_items,
     calculate_bill_totals,
@@ -57,7 +60,7 @@ def get_next_bill_number():
             next_val = row["next_val"] + 1
         return jsonify({"next_number": f"SHN-{next_val:04d}/{fy}"})
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return server_error(e)
 
 
 # The new-bill form defaults its date field from the operator's own PC clock
@@ -80,13 +83,18 @@ def get_server_date():
 def get_bills():
     try:
         search = request.args.get("search", "").strip()
-        # Optional cap so screens that only show the latest few bills (the
-        # dashboard) don't download the whole table.
-        limit = request.args.get("limit", type=int)
-        limit_sql = f" LIMIT {limit}" if limit and limit > 0 else ""
+        # Optional ?limit=/?offset=: the dashboard only wants the latest few bills
+        # and the history page loads a page at a time (see services/paging.py).
+        limit, offset = page_args()
+        limit_sql = page_sql(limit, offset)
         db = get_db()
         if search:
             like = f"%{search}%"
+            total = db.execute(
+                "SELECT COUNT(*) FROM bills WHERE bill_number LIKE ? "
+                "OR customer_name_snapshot LIKE ? OR customer_mobile_snapshot LIKE ?",
+                (like, like, like),
+            ).fetchone()[0]
             rows = db.execute(
                 """
                 SELECT b.id, b.bill_number, b.customer_id, b.customer_name_snapshot,
@@ -101,11 +109,12 @@ def get_bills():
                    OR b.customer_name_snapshot LIKE ?
                    OR b.customer_mobile_snapshot LIKE ?
                 GROUP BY b.id
-                ORDER BY b.created_at DESC
+                ORDER BY b.created_at DESC, b.id DESC
                 """ + limit_sql,
                 (like, like, like),
             ).fetchall()
         else:
+            total = db.execute("SELECT COUNT(*) FROM bills").fetchone()[0]
             rows = db.execute(
                 """
                 SELECT b.id, b.bill_number, b.customer_id, b.customer_name_snapshot,
@@ -117,12 +126,12 @@ def get_bills():
                 FROM bills b
                 LEFT JOIN bill_items bi ON bi.bill_id = b.id
                 GROUP BY b.id
-                ORDER BY b.created_at DESC
+                ORDER BY b.created_at DESC, b.id DESC
                 """ + limit_sql
             ).fetchall()
-        return jsonify([dict(r) for r in rows])
+        return paged_json(rows, total)
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return server_error(e)
 
 
 # ---------------------------------------------------------------------------
@@ -169,6 +178,8 @@ def search_bills():
             params.append(payment_mode)
 
         where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
+        limit, offset = page_args()
+        total = db.execute(f"SELECT COUNT(*) FROM bills {where}", params).fetchone()[0]
         rows = db.execute(
             f"""
             SELECT b.id, b.bill_number, b.customer_name_snapshot,
@@ -181,13 +192,13 @@ def search_bills():
             LEFT JOIN bill_items bi ON bi.bill_id = b.id
             {where}
             GROUP BY b.id
-            ORDER BY b.created_at DESC
-            """,
+            ORDER BY b.created_at DESC, b.id DESC
+            """ + page_sql(limit, offset),
             params,
         ).fetchall()
-        return jsonify([dict(r) for r in rows])
+        return paged_json(rows, total)
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return server_error(e)
 
 
 # ---------------------------------------------------------------------------
@@ -231,7 +242,7 @@ def get_bill(bill_id):
         result["payments"] = [dict(p) for p in payments]
         return jsonify(result)
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return server_error(e)
 
 
 # ---------------------------------------------------------------------------
@@ -256,6 +267,8 @@ def create_bill():
         if not customer_name:    errors.append("customer_name is required")
         if not customer_mobile:  errors.append("customer_mobile is required")
         if not bill_date:        errors.append("bill_date is required")
+        elif not valid_iso_date(bill_date):
+            errors.append("bill_date must be a real date (YYYY-MM-DD)")
         if not salesperson_name: errors.append("salesperson_name is required")
         if payment_mode_type and payment_mode_type not in VALID_PAYMENT_MODES:
             errors.append(f"payment_mode_type must be one of {sorted(VALID_PAYMENT_MODES)}")
@@ -268,6 +281,7 @@ def create_bill():
             return jsonify({"error": str(e)}), 400
 
         db = get_db()
+        begin_write(db)
 
         salesperson = db.execute(
             "SELECT name FROM salespersons WHERE lower(name) = lower(?)", (salesperson_name,)
@@ -333,7 +347,7 @@ def create_bill():
         if payments:
             db.executemany(
                 "INSERT INTO bill_payments (bill_id, payment_method, amount) VALUES (?, ?, ?)",
-                [(bill_id, p["payment_method"], float(p["amount"])) for p in payments],
+                [(bill_id, p["payment_method"], money_float(p["amount"], "Payment amount")) for p in payments],
             )
 
         # Deduct inventory stock for linked items (soft warn — never blocks)
@@ -377,7 +391,7 @@ def create_bill():
                 db.rollback()
             except Exception:
                 pass
-        return jsonify({"error": str(e)}), 500
+        return server_error(e)
 
 
 # ---------------------------------------------------------------------------
@@ -402,6 +416,8 @@ def update_bill(bill_id):
         if not customer_name:    errors.append("customer_name is required")
         if not customer_mobile:  errors.append("customer_mobile is required")
         if not bill_date:        errors.append("bill_date is required")
+        elif not valid_iso_date(bill_date):
+            errors.append("bill_date must be a real date (YYYY-MM-DD)")
         if not salesperson_name: errors.append("salesperson_name is required")
         if payment_mode_type and payment_mode_type not in VALID_PAYMENT_MODES:
             errors.append(f"payment_mode_type must be one of {sorted(VALID_PAYMENT_MODES)}")
@@ -414,6 +430,7 @@ def update_bill(bill_id):
             return jsonify({"error": str(e)}), 400
 
         db = get_db()
+        begin_write(db)
 
         salesperson = db.execute(
             "SELECT name FROM salespersons WHERE lower(name) = lower(?)", (salesperson_name,)
@@ -506,11 +523,15 @@ def update_bill(bill_id):
         if payments:
             db.executemany(
                 "INSERT INTO bill_payments (bill_id, payment_method, amount) VALUES (?, ?, ?)",
-                [(bill_id, p["payment_method"], float(p["amount"])) for p in payments],
+                [(bill_id, p["payment_method"], money_float(p["amount"], "Payment amount")) for p in payments],
             )
 
-        # Apply only the net change per inventory item
-        apply_inventory_diff(db, old_qty_map, new_qty_map, bill_id, username)
+        # Apply only the net change per inventory item. A cancelled bill has already
+        # handed its stock back, so editing it must not move stock again: doing so
+        # inflated (or drained) inventory by the size of every edit. Restoring the
+        # bill later deducts whatever quantities it holds at that point.
+        if existing_bill["status"] != "cancelled":
+            apply_inventory_diff(db, old_qty_map, new_qty_map, bill_id, username)
 
         db.commit()
 
@@ -549,7 +570,7 @@ def update_bill(bill_id):
                 db.rollback()
             except Exception:
                 pass
-        return jsonify({"error": str(e)}), 500
+        return server_error(e)
 
 
 def _renumber_bills_after_delete(db, deleted_num, bill_fy):
@@ -599,6 +620,7 @@ def _renumber_bills_after_delete(db, deleted_num, bill_fy):
 def delete_bill(bill_id):
     try:
         db = get_db()
+        begin_write(db)
 
         bill = db.execute(
             "SELECT bill_number FROM bills WHERE id = ?", (bill_id,)
@@ -619,6 +641,12 @@ def delete_bill(bill_id):
         ).fetchall()
         for inv in inv_items:
             restore_stock(db, inv["inventory_item_id"], inv["quantity"], bill_id, session.get("username"))
+
+        # A loyalty gift remembers which bill unlocked it (foreign key). Deleting
+        # that bill used to fail with "FOREIGN KEY constraint failed". The gift
+        # itself must stay - it may already have been handed to the customer - so
+        # only the link to the deleted bill is cleared.
+        db.execute("UPDATE loyalty_gifts SET bill_id = NULL WHERE bill_id = ?", (bill_id,))
 
         db.execute("DELETE FROM bill_items    WHERE bill_id = ?", (bill_id,))
         db.execute("DELETE FROM bill_payments WHERE bill_id = ?", (bill_id,))
@@ -647,7 +675,7 @@ def delete_bill(bill_id):
             db.rollback()
         except Exception:
             pass
-        return jsonify({"error": str(e)}), 500
+        return server_error(e)
 
 
 # ---------------------------------------------------------------------------
@@ -658,6 +686,7 @@ def delete_bill(bill_id):
 def cancel_bill(bill_id):
     try:
         db = get_db()
+        begin_write(db)
         bill = db.execute("SELECT id, status FROM bills WHERE id = ?", (bill_id,)).fetchone()
         if not bill:
             return jsonify({"error": "Bill not found"}), 404
@@ -683,7 +712,7 @@ def cancel_bill(bill_id):
             db.rollback()
         except Exception:
             pass
-        return jsonify({"error": str(e)}), 500
+        return server_error(e)
 
 
 # ---------------------------------------------------------------------------
@@ -694,6 +723,7 @@ def cancel_bill(bill_id):
 def restore_bill(bill_id):
     try:
         db = get_db()
+        begin_write(db)
         bill = db.execute("SELECT id, status FROM bills WHERE id = ?", (bill_id,)).fetchone()
         if not bill:
             return jsonify({"error": "Bill not found"}), 404
@@ -719,7 +749,7 @@ def restore_bill(bill_id):
             db.rollback()
         except Exception:
             pass
-        return jsonify({"error": str(e)}), 500
+        return server_error(e)
 
 
 # ---------------------------------------------------------------------------
@@ -730,6 +760,7 @@ def restore_bill(bill_id):
 def record_payment(bill_id):
     try:
         db   = get_db()
+        begin_write(db)
         bill = db.execute(
             "SELECT id, status, remaining, advance_paid FROM bills WHERE id = ?",
             (bill_id,),
@@ -748,6 +779,8 @@ def record_payment(bill_id):
             return jsonify({"error": "payment_method must be Cash, Card, or UPI"}), 400
 
         paid_date = (body.get("paid_date") or "").strip()
+        if paid_date and not valid_iso_date(paid_date):
+            return jsonify({"error": "paid_date must be a real date (YYYY-MM-DD)"}), 400
         if not paid_date:
             from datetime import datetime, timezone, timedelta
             paid_date = datetime.now(timezone(timedelta(hours=5, minutes=30))).strftime("%Y-%m-%d")
@@ -777,4 +810,4 @@ def record_payment(bill_id):
             db.rollback()
         except Exception:
             pass
-        return jsonify({"error": str(e)}), 500
+        return server_error(e)

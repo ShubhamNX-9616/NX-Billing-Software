@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify, request, session
-from db import get_db
+from db import get_db, IST_NOW
 from services.auth import api_admin_required
 from services.loyalty import (
     TIERS, get_tier_for_amount,
@@ -95,7 +95,7 @@ def mark_gift_given(gift_id):
         return jsonify({"error": "Gift already marked as given"}), 400
 
     db.execute(
-        "UPDATE loyalty_gifts SET given_at = datetime('now','localtime'), given_by = ? WHERE id = ?",
+        f"UPDATE loyalty_gifts SET given_at = {IST_NOW}, given_by = ? WHERE id = ?",
         (session.get("username"), gift_id),
     )
     db.commit()

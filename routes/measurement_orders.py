@@ -18,10 +18,11 @@ from routes.measurements import (_clean_date, _customer_dict, _measurement_dict,
                                  _remove_photo_file, _today_ist,
                                  measurements_api_bp, measurements_pages_bp)
 from services.auth import api_staff_or_admin_required, staff_or_admin_required
+from db.connection import begin_write
 from services.measurement_billing import (ORDER_TYPES, default_rate, final_total,
                                           item_amount, next_order_number,
                                           order_label, order_status,
-                                          parse_money, payment_problem,
+                                          parse_money, parse_rate, payment_problem,
                                           recompute_order, remember_rate,
                                           sync_item_dates)
 from services.measurement_fields import DEFAULT_STATUS, GARMENTS, clean_values, piece_count
@@ -85,7 +86,7 @@ def _parse_item(db, order_type, data):
     if raw_rate is None or (isinstance(raw_rate, str) and not raw_rate.strip()):
         rate = default_rate(db, order_type, garment_type)     # blank -> saved default
     else:
-        rate, err = parse_money(raw_rate, "Rate")
+        rate, err = parse_rate(raw_rate, "Rate")
         if err:
             return None, err
     qty = piece_count(garment_type, values)
@@ -281,6 +282,7 @@ def get_order(order_id):
 def update_order(order_id):
     """Partial update of the order header: dates, notes, payment mode, cloth balance."""
     db = get_measurements_db()
+    begin_write(db)
     order = _get_order(db, order_id)
     if not order:
         return jsonify({"error": "Order not found"}), 404
@@ -334,6 +336,7 @@ def delete_order(order_id):
 def add_order_item(order_id):
     """Add another garment (with its measurement and rate) to an existing order."""
     db = get_measurements_db()
+    begin_write(db)
     order = _get_order(db, order_id)
     if not order:
         return jsonify({"error": "Order not found"}), 404
@@ -353,6 +356,7 @@ def add_order_item(order_id):
 @api_staff_or_admin_required
 def record_payment(order_id):
     db = get_measurements_db()
+    begin_write(db)
     order = _get_order(db, order_id)
     if not order:
         return jsonify({"error": "Order not found"}), 404
@@ -387,6 +391,7 @@ def record_payment(order_id):
 def delete_payment(payment_id):
     """Undo a wrongly entered payment."""
     db = get_measurements_db()
+    begin_write(db)
     p = db.execute("SELECT * FROM m_payments WHERE id = ?", (payment_id,)).fetchone()
     if not p:
         return jsonify({"error": "Payment not found"}), 404

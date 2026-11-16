@@ -552,5 +552,11 @@
 {% endblock %}
 
 {% block extra_js %}
+<!-- The page script is split into parts that share one global scope: inventory.js (state, list,
+     modals) must load first. -->
 <script src="{{ url_for('static', filename='js/inventory.js') }}?v={{ sv }}"></script>
+<script src="{{ url_for('static', filename='js/inventory-selects.js') }}?v={{ sv }}"></script>
+<script src="{{ url_for('static', filename='js/inventory-add.js') }}?v={{ sv }}"></script>
+<script src="{{ url_for('static', filename='js/inventory-qr.js') }}?v={{ sv }}"></script>
+<script src="{{ url_for('static', filename='js/inventory-scan.js') }}?v={{ sv }}"></script>
 {% endblock %}

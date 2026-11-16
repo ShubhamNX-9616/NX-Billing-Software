@@ -58,19 +58,20 @@ def compute_special_code(cost_price, supplier_name=''):
 def next_item_code(db, cloth_type):
     """Generate the next sequential item code for a given cloth type."""
     prefix = cloth_type_prefix(cloth_type)
-    row = db.execute(
-        "SELECT item_code FROM inventory_items WHERE item_code LIKE ? ORDER BY item_code DESC LIMIT 1",
+    rows = db.execute(
+        "SELECT item_code FROM inventory_items WHERE item_code LIKE ?",
         (f"{prefix}-%",)
-    ).fetchone()
-    if row:
+    ).fetchall()
+    # Compare the numbers, not the text: as text "SUT-999" sorts after "SUT-1000",
+    # so once a prefix passed 999 the old "highest code" lookup kept returning
+    # SUT-999 and handed out SUT-1000 again (a duplicate - the column is UNIQUE).
+    last_num = 0
+    for row in rows:
         try:
-            last_num = int(row['item_code'].split('-')[1])
+            last_num = max(last_num, int(row['item_code'].split('-')[1]))
         except (IndexError, ValueError):
-            last_num = 0
-        next_num = last_num + 1
-    else:
-        next_num = 1
-    return f"{prefix}-{next_num:03d}"
+            continue
+    return f"{prefix}-{last_num + 1:03d}"
 
 
 def adjust_stock(db, item_id, quantity, notes, username):

@@ -9,7 +9,11 @@ try:
 except ImportError:
     pass
 from extensions import bcrypt
+from services.auth import check_session_valid
 from services.compression import init_compression
+from services.errors import install_error_handlers
+from services.security import (DEFAULT_UPLOAD_MB, env_int, install_proxy_fix,
+                               install_request_limits, install_security_headers)
 from db import init_db, seed_default_users, close_db
 from routes.customers import customers_bp
 from routes.companies import companies_bp
@@ -104,6 +108,21 @@ bcrypt.init_app(app)
 
 init_compression(app)
 
+# How many reverse proxies sit in front of the app (PythonAnywhere and a Cloudflare
+# tunnel are one each). Needed so the login lockout sees the real client address and
+# cannot be dodged with a forged X-Forwarded-For header. Set to 0 for plain LAN use.
+install_proxy_fix(app, env_int('TRUSTED_PROXY_COUNT', 1))
+
+# Largest request body accepted, in MB (photo uploads, invoice scans). Bigger ones are
+# refused with a clear message before they are read into memory.
+install_request_limits(app, env_int('MAX_UPLOAD_MB', DEFAULT_UPLOAD_MB))
+
+# Unexpected errors are logged and answered with a safe message (never a traceback).
+install_error_handlers(app)
+
+# Standard browser protections (no framing, no type-sniffing, no caching of private pages).
+install_security_headers(app)
+
 # Close the per-request DB connections after each request/appcontext teardown
 app.teardown_appcontext(close_db)
 app.teardown_appcontext(close_tailoring_db)
@@ -161,6 +180,10 @@ def reject_cross_origin_writes():
         origin = request.headers.get("Origin")
         if origin and urlparse(origin).netloc != request.host:
             return jsonify({"error": "Cross-origin request rejected"}), 403
+
+
+# Ends the session of a user who was deactivated or whose password changed.
+app.before_request(check_session_valid)
 
 
 @app.route("/health")

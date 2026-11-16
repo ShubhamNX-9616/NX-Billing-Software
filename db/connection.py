@@ -1,11 +1,26 @@
 import sqlite3
 import os
-from datetime import date
 from flask import g, has_app_context
+from utils import ist_today
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "..", "billing.db")
 
 IST_NOW = "datetime('now', '+5 hours', '+30 minutes')"
+
+
+def begin_write(conn):
+    """Take SQLite's write lock now (BEGIN IMMEDIATE) instead of at the first write.
+
+    Handlers that read a balance / stock level / counter and then write a value
+    derived from it must call this BEFORE the read. Otherwise two requests at the
+    same moment both read the same old value and both pass the check: two payments
+    of the full balance, or two sales of the last piece, would both succeed. With
+    the lock taken first, the second request waits (see busy_timeout) until the
+    first has committed and then reads the updated figures. Works on any of the
+    app's SQLite connections; the transaction ends at commit() / rollback(), or when
+    the connection closes at the end of the request."""
+    if not conn.in_transaction:
+        conn.execute("BEGIN IMMEDIATE")
 
 
 def _open_connection():
@@ -38,8 +53,11 @@ def close_db(e=None):
 
 
 def current_fy():
-    """Return the current Indian financial year suffix, e.g. '26-27' for FY 2026-27."""
-    today = date.today()
+    """Return the current Indian financial year suffix, e.g. '26-27' for FY 2026-27.
+    Uses today's date in IST, not the server's clock: on a UTC server the year would
+    otherwise roll over 5.5 hours late, and bills in that window would carry the old
+    financial year in their number."""
+    today = ist_today()
     start = today.year if today.month >= 4 else today.year - 1
     return f"{str(start)[2:]}-{str(start + 1)[2:]}"
 
