@@ -95,13 +95,21 @@ def _open():
     return conn_mod._open_connection()
 
 
-def test_the_noisy_combination_really_is_noisy_in_sqlite():
-    """Guards the premise of the next tests: without ROUND the SQL sum is below 10,000."""
+def test_the_noisy_combination_is_noisy_and_rounding_fixes_it():
+    """Premise of the next tests, independent of the SQLite version.
+
+    Plain float addition of these amounts gives 9999.999999999998 (IEEE arithmetic, the same
+    everywhere). Older SQLite builds (e.g. 3.40, as on some servers) sum REAL columns exactly
+    like that; newer ones (3.43+) use compensated summation and happen to return exactly
+    10000.0. The app must be right on both, so it rounds: ROUND(SUM(x), 2) is 10000.0 either way."""
     import sqlite3
+    acc = 0.0
+    for x in NOISY:
+        acc += x
+    assert acc < 10000 and round(acc, 2) == 10000.0
     c = sqlite3.connect(":memory:")
     c.execute("create table t (x real)")
     c.executemany("insert into t values (?)", [(x,) for x in NOISY])
-    assert c.execute("select sum(x) from t").fetchone()[0] < 10000
     assert c.execute("select round(sum(x), 2) from t").fetchone()[0] == 10000.0
 
 
