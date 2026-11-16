@@ -102,10 +102,12 @@ def customer_summary():
         if not raw:
             return jsonify({"error": "mobile required"}), 400
         db = get_db()
-        _, stats, last = get_customer_stats(db, raw)
+        _, stats, last = get_customer_stats(db, raw, request.args.get("exclude_bill_id", type=int))
         return jsonify({
             "total_bills":       int(stats["total_bills"]  or 0),
             "total_spent":       round(float(stats["total_spent"] or 0), 2),
+            "total_due":         round(float(stats["total_due"] or 0), 2),
+            "due_bills":         int(stats["due_bills"] or 0),
             "last_bill_amount":  round(float(last["final_total"]), 2) if last else None,
             "last_bill_date":    last["bill_date"]   if last else None,
             "last_bill_number":  last["bill_number"] if last else None,

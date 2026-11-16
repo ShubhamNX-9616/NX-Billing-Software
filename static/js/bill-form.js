@@ -33,7 +33,9 @@ async function fetchAndShowCustomerSummary(mobile) {
   const el = document.getElementById('customer-summary');
   if (!el || !mobile) return;
   try {
-    const res  = await fetch(`/api/customers/summary?mobile=${encodeURIComponent(mobile)}`);
+    // When editing an existing bill, its own balance is not a "previous" due.
+    const exclude = EDIT_MODE ? `&exclude_bill_id=${encodeURIComponent(BILL_ID)}` : '';
+    const res  = await fetch(`/api/customers/summary?mobile=${encodeURIComponent(mobile)}${exclude}`);
     const data = await res.json();
     if (!res.ok || !data.total_bills) { el.style.display = 'none'; return; }
 
@@ -41,6 +43,13 @@ async function fetchAndShowCustomerSummary(mobile) {
       ? `<span style="font-weight:700;color:var(--text);">${fmtINR(data.last_bill_amount)}</span>
          <span style="color:var(--text-muted);font-size:11px;margin-left:4px;">${data.last_bill_date || ''}</span>`
       : '<span style="color:var(--text-muted);">—</span>';
+
+    // Unpaid balance left on this customer's earlier bills, so it is seen before billing.
+    const due = Number(data.total_due || 0);
+    const duePart = due > 0
+      ? `<span style="font-weight:700;font-size:16px;color:var(--danger);">${fmtINR(due)}</span>
+         <span style="color:var(--text-muted);font-size:11px;margin-left:4px;">on ${data.due_bills} bill${data.due_bills === 1 ? '' : 's'}</span>`
+      : '<span style="color:var(--text-muted);">No dues</span>';
 
     el.innerHTML = `
       <div style="display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start;">
@@ -55,6 +64,10 @@ async function fetchAndShowCustomerSummary(mobile) {
         <div>
           <div style="color:var(--text-muted);font-size:11px;text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px;">Last Bill</div>
           <div style="font-size:14px;">${lastPart}</div>
+        </div>
+        <div id="customer-summary-due">
+          <div style="color:var(--text-muted);font-size:11px;text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px;">Previous Due</div>
+          <div style="font-size:14px;">${duePart}</div>
         </div>
       </div>`;
     el.style.display = '';
