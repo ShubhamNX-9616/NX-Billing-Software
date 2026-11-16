@@ -421,6 +421,14 @@ label {
     -webkit-overflow-scrolling: touch;
   }
 
+  /* Scrolling sideways makes the wrapper the scroll container that a sticky header sticks
+     to. The wrapper never scrolls vertically, so a sticky <th> with top: var(--topbar-h)
+     was simply pushed that far down inside it and sat on top of the first bill. On a phone
+     the header cannot stick to the screen from in there anyway, so it scrolls with the table. */
+  .table-scroll-wrapper .table th {
+    position: static;
+  }
+
   .modal-box {
     width: 95vw;
     max-width: 95vw;
