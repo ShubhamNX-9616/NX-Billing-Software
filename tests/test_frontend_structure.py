@@ -107,6 +107,18 @@ def test_bill_detail_script_parses():
     assert done.returncode == 0, done.stderr
 
 
+REVIEW_LINK = "https://g.page/r/CUuXe9zuqBnwEBM/review"      # opens Google's review form for the shop directly
+
+
+def test_whatsapp_bill_message_links_straight_to_the_review_form():
+    """The bill message is built in two places (the new-bill screen and the Bill Detail
+    share button); both must carry the same direct review link, not the Maps page."""
+    for name in ("bill-share.js", "bill-detail.js"):
+        text = _read("static", "js", name)
+        assert f"'⭐ Review: {REVIEW_LINK}'" in text, name
+        assert "maps.app.goo.gl" not in text, name
+
+
 def test_no_static_script_contains_template_syntax():
     for path in glob.glob(os.path.join(JS, "*.js")):
         text = open(path, encoding="utf-8-sig").read()

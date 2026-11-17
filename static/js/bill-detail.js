@@ -71,7 +71,7 @@ const BILL_ID = parseInt(document.getElementById('bill-detail-root').dataset.bil
     lines.push(amountLine);
     lines.push('');
     lines.push('📄 Bill: ' + shareLink);
-    lines.push('⭐ Review: https://maps.app.goo.gl/YjTCZZNLWwbjWZDH8');
+    lines.push('⭐ Review: https://g.page/r/CUuXe9zuqBnwEBM/review');
     lines.push('📸 Follow: https://www.instagram.com/shubham_nx_2016/');
     lines.push('');
     lines.push('📍 ' + shopAddress + '  |  📞 ' + shopPhone);
