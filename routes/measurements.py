@@ -491,8 +491,12 @@ def _brief(r):
 
 
 def _garment_totals(briefs):
+    """Pieces still left to stitch: Trial Ready and Delivered garments are
+    already stitched, so the day cards leave them out."""
     totals = {}
     for b in briefs:
+        if b["status"] in (READY_STATUS, "Delivered"):
+            continue
         totals[b["garment_label"]] = totals.get(b["garment_label"], 0) + b["pieces"]
     return totals
 
