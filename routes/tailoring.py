@@ -302,7 +302,9 @@ def _build_weekly_report_data(week_start):
     pending_garments = 0
     for o in open_orders:
         pending_stages[o["stage"]] = pending_stages.get(o["stage"], 0) + 1
-        pending_garments += sum(i["qty"] for i in o["items"] if i["stage"] != "Delivered")
+        # Left to stitch — same rule as the dashboard day cards.
+        pending_garments += sum(i["qty"] for i in o["items"]
+                                if i["stage"] not in ("Full Stitched", "Delivered"))
 
     overdue = sorted(
         (brief(o, days_late=(today - date.fromisoformat(o["delivery_date"])).days)
