@@ -580,7 +580,9 @@ class OrderBook:
         open_orders = [o for o in orders if o["stage"] != "Delivered"]
 
         # Delivery load per day for the next 15 days (today included):
-        # order count plus pending-garment breakdown, e.g. {"Shirt": 5, "Trouser": 6}
+        # order count plus the garments still left to stitch, e.g. {"Shirt": 5, "Trouser": 6}.
+        # Full Stitched / Delivered pieces are excluded so the card shows remaining work.
+        _STITCHED_STAGES = ("Full Stitched", "Delivered")
         days = []
         for n in range(15):
             ds = (today + timedelta(days=n)).isoformat()
@@ -588,7 +590,7 @@ class OrderBook:
             garments = {}
             for o in due:
                 for i in o["items"]:
-                    if i["stage"] != "Delivered":
+                    if i["stage"] not in _STITCHED_STAGES:
                         garments[i["garment_type"]] = garments.get(i["garment_type"], 0) + i["qty"]
             days.append({
                 "date": ds,
@@ -611,7 +613,7 @@ class OrderBook:
         overdue_garments = {}
         for o in overdue_orders:
             for i in o["items"]:
-                if i["stage"] != "Delivered":
+                if i["stage"] not in _STITCHED_STAGES:
                     overdue_garments[i["garment_type"]] = \
                         overdue_garments.get(i["garment_type"], 0) + i["qty"]
         overdue_day = {
