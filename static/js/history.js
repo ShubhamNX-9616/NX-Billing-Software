@@ -197,7 +197,7 @@ function renderTable(bills, titleText, opts = {}) {
           ${amountHtml}
           <span style="display:block;margin-top:2px;">${paymentBadgeHtml}</span>
         </td>
-        <td class="col-payment">${paymentBadge(b.payment_mode_type)}</td>
+        <td class="col-payment">${(!cancelled && remaining > 0 && !(b.advance_paid > 0)) ? '' : paymentBadge(b.payment_mode_type)}</td>
         <td style="text-align:center;">
           <div style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap;" onclick="event.stopPropagation()">
             ${actionBtns}
@@ -714,7 +714,7 @@ function renderInstTable(bills, titleText, opts = {}) {
           <span class="fw-600"${cancelled ? ' style="text-decoration:line-through;color:var(--text-muted);"' : ''}>${fmt(b.final_total)}</span>
           <span style="display:block;margin-top:2px;">${statusBadge}</span>
         </td>
-        <td class="col-payment">${payBadge}</td>
+        <td class="col-payment">${(!cancelled && remaining > 0 && !(b.advance_paid > 0)) ? '' : payBadge}</td>
         <td style="text-align:center;">
           <div style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap;" onclick="event.stopPropagation()">
             ${actionBtns}
