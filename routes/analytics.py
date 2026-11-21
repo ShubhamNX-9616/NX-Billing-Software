@@ -58,6 +58,17 @@ def analytics_summary():
             WHERE b.status != 'cancelled' AND b.bill_date = ?
         """, (today_str,)).fetchone()
 
+        # Dues collected today on bills from an earlier day. These never reach
+        # today_row (that one is keyed on bill_date), so list them separately.
+        due_rows = db.execute("""
+            SELECT b.id AS bill_id, b.bill_number, b.customer_name_snapshot AS customer,
+                   bp.payment_method AS method, ROUND(bp.amount, 2) AS amount
+            FROM bill_payments bp
+            JOIN bills b ON b.id = bp.bill_id
+            WHERE bp.paid_at = ? AND b.bill_date < ? AND b.status != 'cancelled'
+            ORDER BY bp.id DESC
+        """, (today_str, today_str)).fetchall()
+
         month_row = db.execute("""
             SELECT
                 ROUND(COALESCE(SUM(b.final_total), 0), 2) AS sales,
@@ -87,6 +98,7 @@ def analytics_summary():
             "today_cash":        round(float(today_row["cash"]  or 0), 2),
             "today_card":        round(float(today_row["card"]  or 0), 2),
             "today_upi":         round(float(today_row["upi"]   or 0), 2),
+            "today_due_payments": [dict(r) for r in due_rows],
             "this_month_sales":  round(float(month_row["sales"] or 0), 2),
             "month_cash":        round(float(month_row["cash"]  or 0), 2),
             "month_card":        round(float(month_row["card"]  or 0), 2),

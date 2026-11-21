@@ -50,6 +50,23 @@ function renderPaymentSplit(containerId, cash, card, upi) {
   );
 }
 
+// Dues collected today on earlier bills: first 3 rows, "+N more" for the rest,
+// so the Today's Sales card keeps its size.
+function renderTodayDues(list) {
+  const el = document.getElementById('val-today-dues');
+  if (!el) return;
+  list = list || [];
+  if (!list.length) { el.innerHTML = ''; return; }
+  const rows = list.slice(0, 3).map(p => `
+    <div style="display:flex;justify-content:space-between;gap:8px;white-space:nowrap;">
+      <span style="overflow:hidden;text-overflow:ellipsis;">${escapeHtml(p.customer || p.bill_number)} <span style="color:var(--text-muted);">${escapeHtml(p.bill_number)}</span></span>
+      <span style="font-weight:600;">${fmtCurrency(p.amount)} <span style="color:var(--text-muted);font-weight:400;">${escapeHtml(p.method)}</span></span>
+    </div>`).join('');
+  const more = list.length > 3
+    ? `<div style="color:var(--text-muted);">+${list.length - 3} more</div>` : '';
+  el.innerHTML = `<div style="color:var(--text-muted);margin-bottom:2px;">Dues received today</div>${rows}${more}`;
+}
+
 function renderSummary(data) {
   ['val-total-bills', 'val-total-customers', 'val-today-sales', 'val-month-sales'].forEach(removeSkeleton);
   document.getElementById('val-total-bills').textContent      = data.total_bills ?? '—';
@@ -60,6 +77,7 @@ function renderSummary(data) {
   document.getElementById('val-month-sales').textContent      = fmtCurrency(data.this_month_sales);
   renderPaymentSplit('val-today-split', data.today_cash, data.today_card, data.today_upi);
   renderPaymentSplit('val-month-split', data.month_cash, data.month_card, data.month_upi);
+  renderTodayDues(data.today_due_payments);
 }
 
 // ---- Section 2 & 3: Period Tabs + Chart ----
