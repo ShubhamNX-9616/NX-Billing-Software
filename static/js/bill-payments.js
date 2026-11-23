@@ -24,7 +24,7 @@ function updateSummary() {
   if (mrpTotalEl) mrpTotalEl.textContent = fmt(mrpTotal);
 
   // R/O = gross - nearest rupee, so a positive value is deducted and a negative one added.
-  // Auto-fills until the user types a value; clearing the box hands control back to auto.
+  // Auto-fills until the user types in the box; clearing it leaves it empty (0).
   const roEl = document.getElementById('sum-roundoff');
   if (roEl && !roundOffUserModified) {
     const auto = round2(grossFinal - Math.round(grossFinal));

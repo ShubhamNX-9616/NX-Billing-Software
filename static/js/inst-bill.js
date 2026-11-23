@@ -380,7 +380,7 @@ function instFinalTotal() {
 }
 
 function onInstRoundOffInput() {
-  instRoundOffModified = document.getElementById('inst-roundoff').value.trim() !== '';
+  instRoundOffModified = true;   // stays set even if the box is cleared
   updateInstSummary();
 }
 
@@ -388,7 +388,7 @@ function updateInstSummary() {
   const gross = instGrossTotal();
   document.getElementById('inst-sum-total').textContent = fmt(gross);
 
-  // Auto-fill R/O to the nearest rupee until the user types a value; clearing the box re-enables auto.
+  // Auto-fill R/O to the nearest rupee until the user types in the box; clearing it leaves it empty (0).
   const roEl = document.getElementById('inst-roundoff');
   if (roEl && !instRoundOffModified) {
     const auto = r2(gross - Math.round(gross));
