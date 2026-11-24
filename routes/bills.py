@@ -14,6 +14,7 @@ from services.billing import (
     validate_payments,
     parse_advance,
     find_or_create_customer,
+    remove_customer_if_unused,
     normalize_and_validate_mobile,
     apply_payment,
     compute_bill_display_fields,
@@ -532,6 +533,11 @@ def update_bill(bill_id):
         # bill later deducts whatever quantities it holds at that point.
         if existing_bill["status"] != "cancelled":
             apply_inventory_diff(db, old_qty_map, new_qty_map, bill_id, username)
+
+        # The edit may have moved this bill off a customer (corrected a mistyped
+        # mobile). Drop that customer if it is now empty so it doesn't linger.
+        if existing_bill["customer_id"] != customer_id:
+            remove_customer_if_unused(db, existing_bill["customer_id"])
 
         db.commit()
 

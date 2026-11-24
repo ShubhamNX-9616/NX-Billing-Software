@@ -76,7 +76,7 @@ def suggest_customers():
             SELECT name, mobile FROM customers
             WHERE name LIKE ?
             ORDER BY name
-            LIMIT 8
+            LIMIT 20
             """,
             (like,),
         ).fetchall()
@@ -89,7 +89,7 @@ def suggest_customers():
                     and ql in (c["customer_name"] or "").lower()):
                 matches.append({"name": c["customer_name"], "mobile": c["mobile"]})
         matches.sort(key=lambda m: (m["name"] or "").lower())
-        return jsonify(matches[:8])
+        return jsonify(matches[:20])
     except Exception as e:
         return server_error(e)
 
