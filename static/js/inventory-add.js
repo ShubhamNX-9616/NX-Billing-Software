@@ -24,9 +24,10 @@ function closeBatchModal() {
 
 function openNewInvoiceFromBatch() {
   document.getElementById('batch-add-modal').classList.add('hidden');
-  openNewInvoiceModal(function(inv) {
-    loadInvoicesForSelect(inv.id);
-    loadInvoicesForBatchSelect(inv.id);
+  openNewInvoiceModal(async function(inv) {
+    // Wait for the lists: onBaInvoiceChange reads the new invoice's option.
+    await loadInvoicesForSelect(inv.id);
+    await loadInvoicesForBatchSelect(inv.id);
     document.getElementById('ba-invoice').value = inv.id;
     onBaInvoiceChange();
     document.getElementById('batch-add-modal').classList.remove('hidden');
@@ -635,3 +636,50 @@ document.getElementById('edit-item-modal').addEventListener('click', function(e)
   if (e.target === this) closeEditItemModal();
 });
 
+
+// ----------------------------------------------------------------
+// Enter moves to the next field (Batch Add, Add Item, Edit Item)
+// ----------------------------------------------------------------
+// Entering a run of items is mostly typing, so Enter should do what Tab does
+// instead of nothing. In Batch Add the last field of a row goes to the next
+// row, and a new row opens after the last one. On the last field of Add / Edit
+// Item, Enter does nothing: saving stays a deliberate click on Save.
+function _enterNextFocusables(modal) {
+  return [...modal.querySelectorAll('input, select')].filter(el =>
+    el.type !== 'hidden' && !el.disabled && el.offsetParent !== null &&
+    !el.closest('[id*="-add-row"]'));          // inline "new supplier / company" boxes keep their own buttons
+}
+
+function _onModalEnter(e) {
+  if (e.key !== 'Enter' || e.shiftKey || e.ctrlKey || e.altKey || e.isComposing) return;
+  const el = e.target;
+  if (!(el.tagName === 'INPUT' || el.tagName === 'SELECT')) return;
+  if (el.closest('[id*="-add-row"]')) return;
+  if (['file', 'checkbox', 'radio', 'button', 'submit'].includes(el.type)) return;
+
+  const modal = e.currentTarget;
+  e.preventDefault();
+
+  // Batch Add: last input of a row -> next row, or a fresh row.
+  const tr = el.closest('tr[id^="ba-row-"]');
+  if (tr) {
+    const rowInputs = tr.querySelectorAll('input');
+    if (el === rowInputs[rowInputs.length - 1]) {
+      const nextRow = tr.nextElementSibling;
+      if (nextRow) nextRow.querySelector('input').focus();
+      else addBaRow(tr.id.split('-')[2]);       // addBaRow focuses the new row's first field
+      return;
+    }
+  }
+
+  const fields = _enterNextFocusables(modal);
+  const next = fields[fields.indexOf(el) + 1];
+  if (next) {
+    next.focus();
+    if (next.select && next.tagName === 'INPUT') next.select();
+    return;
+  }
+}
+
+['batch-add-modal', 'add-item-modal', 'edit-item-modal'].forEach(id =>
+  document.getElementById(id).addEventListener('keydown', _onModalEnter));

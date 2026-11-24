@@ -167,6 +167,21 @@ async function loadSuppliersForSelect(restoreId) {
       opt.textContent = s.name;
       eiSel.appendChild(opt);
     });
+
+    // Supplier pickers on the invoice edit fields (Add Item + Batch Add).
+    // Keep whatever invoice supplier is currently shown.
+    ['ai-invoice-supplier-edit', 'ba-invoice-supplier'].forEach(id => {
+      const invSupSel = document.getElementById(id);
+      const keep      = invSupSel.value;
+      invSupSel.innerHTML = '<option value="">— None —</option>';
+      list.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.id;
+        opt.textContent = s.name;
+        invSupSel.appendChild(opt);
+      });
+      invSupSel.value = keep;
+    });
   } catch (_) {}
 }
 
@@ -285,6 +300,7 @@ function onAiInvoiceChange() {
   if (sel.value) {
     document.getElementById('ai-invoice-number-edit').value = opt.dataset.invoiceNumber || '';
     document.getElementById('ai-invoice-date-edit').value   = opt.dataset.invoiceDate   || '';
+    document.getElementById('ai-invoice-supplier-edit').value = opt.dataset.supplierId || '';
     editFields.style.display = 'grid';
   } else {
     editFields.style.display = 'none';
@@ -309,11 +325,17 @@ async function saveAiInvoiceEdits() {
     const res  = await fetch(`/api/invoices/${invoiceId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ invoice_number: invNum, invoice_date: invDate }),
+      body: JSON.stringify({
+        invoice_number: invNum,
+        invoice_date:   invDate,
+        supplier_id:    document.getElementById('ai-invoice-supplier-edit').value || null,
+      }),
     });
     const data = await res.json();
     if (!res.ok) { statusEl.textContent = data.error || 'Save failed.'; statusEl.className = 'text-danger'; return; }
     await loadInvoicesForSelect(invoiceId);
+    await loadInvoicesForBatchSelect(document.getElementById('ba-invoice').value);
+    onAiInvoiceChange();            // refresh the "Supplier: …" line and special code
     statusEl.textContent = 'Invoice updated.';
     statusEl.className = 'text-success';
   } catch (e) {
@@ -332,7 +354,10 @@ async function loadInvoicesForBatchSelect(restoreId) {
       const opt = document.createElement('option');
       opt.value = inv.id;
       opt.textContent = `${inv.invoice_number} (${inv.invoice_date})${inv.supplier_name ? ' — ' + inv.supplier_name : ''}`;
-      opt.dataset.supplierName = inv.supplier_name || '';
+      opt.dataset.supplierName  = inv.supplier_name  || '';
+      opt.dataset.supplierId    = inv.supplier_id    || '';
+      opt.dataset.invoiceNumber = inv.invoice_number || '';
+      opt.dataset.invoiceDate   = inv.invoice_date   || '';
       sel.appendChild(opt);
     });
     if (restoreId) sel.value = restoreId;
@@ -343,11 +368,53 @@ function onBaInvoiceChange() {
   const sel    = document.getElementById('ba-invoice');
   const infoEl = document.getElementById('ba-invoice-info');
   const opt    = sel.options[sel.selectedIndex];
+  document.getElementById('ba-invoice-supplier-status').textContent = '';
   if (sel.value && opt && opt.dataset.supplierName) {
     infoEl.textContent = `Supplier: ${opt.dataset.supplierName}`;
     infoEl.style.display = '';
   } else {
     infoEl.style.display = 'none';
+  }
+  // Let the supplier be set or corrected on an invoice that is already saved.
+  const row = document.getElementById('ba-invoice-supplier-row');
+  if (sel.value && opt) {
+    document.getElementById('ba-invoice-supplier').value = opt.dataset.supplierId || '';
+    row.style.display = '';
+  } else {
+    row.style.display = 'none';
+  }
+}
+
+async function saveBaInvoiceSupplier() {
+  const sel      = document.getElementById('ba-invoice');
+  const invoiceId = sel.value;
+  const opt      = sel.options[sel.selectedIndex];
+  const statusEl = document.getElementById('ba-invoice-supplier-status');
+  if (!invoiceId || !opt) return;
+
+  statusEl.textContent = 'Saving…';
+  statusEl.className = '';
+  try {
+    // The update call needs the number and date too; send them unchanged.
+    const res  = await fetch(`/api/invoices/${invoiceId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        invoice_number: opt.dataset.invoiceNumber,
+        invoice_date:   opt.dataset.invoiceDate,
+        supplier_id:    document.getElementById('ba-invoice-supplier').value || null,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) { statusEl.textContent = data.error || 'Save failed.'; statusEl.className = 'text-danger'; return; }
+    await loadInvoicesForBatchSelect(invoiceId);
+    await loadInvoicesForSelect();
+    onBaInvoiceChange();
+    statusEl.textContent = 'Supplier saved.';
+    statusEl.className = 'text-success';
+  } catch (e) {
+    statusEl.textContent = 'Network error: ' + e.message;
+    statusEl.className = 'text-danger';
   }
 }
 
