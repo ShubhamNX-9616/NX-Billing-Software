@@ -180,3 +180,88 @@ def test_update_missing_bill_is_404(client):
                    "discount_percent": 0}],
     })
     assert res.status_code == 404
+
+
+def _edit_body(**overrides):
+    body = {
+        "customer_name": "Test Cust",
+        "customer_mobile": "9876543210",
+        "bill_date": "2026-08-06",
+        "salesperson_name": "Self",
+        "payment_mode_type": "Cash",
+        "advance_paid": 0,
+        "items": [{"cloth_type": "Shirting", "company_name": "ACME",
+                   "quantity": 1, "unit_label": "m", "mrp": 500,
+                   "discount_percent": 0}],
+    }
+    body.update(overrides)
+    return body
+
+
+def _customer_mobiles(client):
+    from db import get_db
+    with client.application.app_context():
+        return sorted(r["normalized_mobile"] for r in
+                      get_db().execute("SELECT normalized_mobile FROM customers"))
+
+
+def test_fixing_a_mistyped_mobile_drops_the_empty_customer(client):
+    created = _make_bill(client, customer_mobile="9876500000").get_json()
+    assert _customer_mobiles(client) == ["9876500000"]
+
+    res = client.put(f"/api/bills/{created['id']}",
+                     json=_edit_body(customer_mobile="9812345678"))
+    assert res.status_code == 200
+    assert _customer_mobiles(client) == ["9812345678"]   # wrong number gone
+
+
+def test_old_customer_with_other_bills_is_kept(client):
+    first = _make_bill(client, customer_mobile="9876500000").get_json()
+    _make_bill(client, customer_mobile="9876500000")      # second bill, same customer
+
+    client.put(f"/api/bills/{first['id']}",
+               json=_edit_body(customer_mobile="9812345678"))
+    assert _customer_mobiles(client) == ["9812345678", "9876500000"]
+
+
+def test_old_customer_with_a_cancelled_bill_is_kept(client):
+    from db import get_db
+    first = _make_bill(client, customer_mobile="9876500000").get_json()
+    other = _make_bill(client, customer_mobile="9876500000").get_json()
+    with client.application.app_context():
+        d = get_db()
+        d.execute("UPDATE bills SET status = 'cancelled' WHERE id = ?", (other["id"],))
+        d.commit()
+
+    client.put(f"/api/bills/{first['id']}",
+               json=_edit_body(customer_mobile="9812345678"))
+    assert "9876500000" in _customer_mobiles(client)
+
+
+def test_existing_zero_bill_customers_are_not_touched(client):
+    from db import get_db
+    with client.application.app_context():
+        d = get_db()
+        d.execute("INSERT INTO customers (name, mobile, normalized_mobile) "
+                  "VALUES ('Old Stray', '9000000001', '9000000001')")
+        d.commit()
+    created = _make_bill(client).get_json()
+
+    client.put(f"/api/bills/{created['id']}", json=_edit_body(advance_paid=500))
+    assert "9000000001" in _customer_mobiles(client)
+
+
+def test_old_customer_with_a_loyalty_gift_is_kept(client):
+    from db import get_db
+    created = _make_bill(client, customer_mobile="9876500000").get_json()
+    with client.application.app_context():
+        d = get_db()
+        cid = d.execute("SELECT customer_id FROM bills WHERE id = ?",
+                        (created["id"],)).fetchone()[0]
+        d.execute("INSERT INTO loyalty_gifts (customer_id, tier, cycle_id) "
+                  "VALUES (?, 'silver', NULL)", (cid,))
+        d.commit()
+
+    client.put(f"/api/bills/{created['id']}",
+               json=_edit_body(customer_mobile="9812345678"))
+    assert "9876500000" in _customer_mobiles(client)

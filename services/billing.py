@@ -284,6 +284,24 @@ def find_or_create_customer(db, customer_name, norm_mobile):
     return cursor.lastrowid
 
 
+def remove_customer_if_unused(db, customer_id):
+    """Delete a customer left behind when a bill edit moved its only bill to
+    another mobile number (a mistyped number would otherwise stay in the
+    customers list for good). Only deletes when nothing references the row:
+    no bills of any status and no loyalty gifts. Returns True if deleted."""
+    if not customer_id:
+        return False
+    in_use = db.execute(
+        """SELECT EXISTS(SELECT 1 FROM bills WHERE customer_id = ?)
+               OR EXISTS(SELECT 1 FROM loyalty_gifts WHERE customer_id = ?)""",
+        (customer_id, customer_id),
+    ).fetchone()[0]
+    if in_use:
+        return False
+    db.execute("DELETE FROM customers WHERE id = ?", (customer_id,))
+    return True
+
+
 def normalize_and_validate_mobile(raw):
     """Normalize raw mobile and validate it's a valid Indian number.
     Raises ValueError if invalid."""
