@@ -315,6 +315,19 @@ restock.
   the billing database, the tailoring database, and — if photos are stored
   locally rather than on Cloudflare R2 — the folder containing all
   uploaded photos. A backup of only one of these leaves data behind.
+- **`backup.bat` does all of this in one step**: it saves both databases
+  (safe while the app is running, and each copy is checked) plus the local
+  photos into one dated zip, and keeps the newest 14. Photos stored on
+  Cloudflare R2 are not in the zip — R2 keeps those.
+  - By default zips go in a `backups` folder inside the project. That does
+    not protect against the disk failing, so set `BACKUP_DIR` in `.env`
+    (e.g. `BACKUP_DIR=D:\OneDrive\shubham-backups`) to save to another
+    drive or a synced folder.
+  - To run it daily, create a Task Scheduler task:
+    `schtasks /Create /SC DAILY /ST 22:00 /TN "Shubham NX Backup" /TR "D:\shubham-nx-billing\backup.bat"`
+  - **Restore:** stop the app, unzip the backup, copy `billing.db` and
+    `tailoring.db` over the live ones (delete any `*.db-wal` / `*.db-shm`
+    files next to them first), and copy the `uploads` folder back.
 
 ---
 ---
