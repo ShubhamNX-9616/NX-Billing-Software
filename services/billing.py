@@ -284,6 +284,68 @@ def find_or_create_customer(db, customer_name, norm_mobile):
     return cursor.lastrowid
 
 
+_PAYMENT_TABLES = {"bill_payments", "institution_bill_payments"}
+
+
+def sync_bill_payments(db, table, bill_id, payments):
+    """Make a bill's payment rows match `payments` without losing the dates of
+    payments that did not change.
+
+    Every dues payment is its own row with its own paid_at (30% one day, 40%
+    another...), but the edit form only knows one amount per method. Deleting
+    and re-inserting from the form therefore merged the rows and dropped the
+    dates. Instead, per method, compare the submitted total with the stored
+    rows (oldest first):
+      - same total      -> rows untouched, every date kept
+      - smaller total   -> newest payments trimmed/removed first
+      - larger total    -> rows kept, the difference added as a new undated row
+      - method removed  -> its rows deleted
+    A method with no stored rows is inserted as submitted, as before."""
+    if table not in _PAYMENT_TABLES:
+        raise ValueError(f"unknown payments table: {table}")
+
+    submitted = {}
+    for p in payments or []:
+        submitted.setdefault(p["payment_method"], []).append(
+            r2(finite_float(p["amount"])))
+
+    old = {}
+    for row in db.execute(
+            f"SELECT id, payment_method, amount FROM {table} "
+            f"WHERE bill_id = ? ORDER BY id", (bill_id,)).fetchall():
+        old.setdefault(row["payment_method"], []).append(row)
+
+    insert_sql = (f"INSERT INTO {table} (bill_id, payment_method, amount) "
+                  f"VALUES (?, ?, ?)")
+
+    for method in old:
+        if method not in submitted:
+            db.execute(f"DELETE FROM {table} WHERE bill_id = ? AND payment_method = ?",
+                       (bill_id, method))
+
+    for method, amounts in submitted.items():
+        rows = old.get(method)
+        if not rows:
+            for amount in amounts:
+                db.execute(insert_sql, (bill_id, method, amount))
+            continue
+
+        target = r2(sum(amounts))
+        remaining = target
+        for row in rows:
+            stored = r2(row["amount"])
+            if remaining >= stored:           # row fits whole: keep as is
+                remaining = r2(remaining - stored)
+            elif remaining > 0:               # row straddles the new total: shrink it
+                db.execute(f"UPDATE {table} SET amount = ? WHERE id = ?",
+                           (remaining, row["id"]))
+                remaining = 0
+            else:                             # new total already reached
+                db.execute(f"DELETE FROM {table} WHERE id = ?", (row["id"],))
+        if remaining > 0:                     # total grew: the extra has no date yet
+            db.execute(insert_sql, (bill_id, method, remaining))
+
+
 def remove_customer_if_unused(db, customer_id):
     """Delete a customer left behind when a bill edit moved its only bill to
     another mobile number (a mistyped number would otherwise stay in the

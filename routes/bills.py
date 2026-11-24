@@ -15,6 +15,7 @@ from services.billing import (
     parse_advance,
     find_or_create_customer,
     remove_customer_if_unused,
+    sync_bill_payments,
     normalize_and_validate_mobile,
     apply_payment,
     compute_bill_display_fields,
@@ -473,7 +474,6 @@ def update_bill(bill_id):
                 new_qty_map[new_item["inventory_item_id"]] += float(new_item["quantity"])
 
         db.execute("DELETE FROM bill_items    WHERE bill_id = ?", (bill_id,))
-        db.execute("DELETE FROM bill_payments WHERE bill_id = ?", (bill_id,))
 
         db.execute(f"""
             UPDATE bills SET
@@ -521,11 +521,9 @@ def update_bill(bill_id):
                 for i in calculated_items
             ],
         )
-        if payments:
-            db.executemany(
-                "INSERT INTO bill_payments (bill_id, payment_method, amount) VALUES (?, ?, ?)",
-                [(bill_id, p["payment_method"], money_float(p["amount"], "Payment amount")) for p in payments],
-            )
+        # Reconcile rather than delete + re-insert, so payments received on
+        # different days keep their own dates through an edit.
+        sync_bill_payments(db, "bill_payments", bill_id, payments)
 
         # Apply only the net change per inventory item. A cancelled bill has already
         # handed its stock back, so editing it must not move stock again: doing so

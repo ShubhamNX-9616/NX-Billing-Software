@@ -9,6 +9,7 @@ from utils import money_float, valid_iso_date
 from services.billing import (
     calculate_inst_items, parse_inst_advance, parse_inst_advance_percent,
     parse_inst_round_off, apply_payment, validate_inst_payments,
+    sync_bill_payments,
 )
 
 inst_bills_bp = Blueprint("institution_bills", __name__)
@@ -271,7 +272,6 @@ def update_institution_bill(bill_id):
              advance_paid, remaining, advance_percent, stored_mode, bill_id),
         )
         db.execute("DELETE FROM institution_bill_items    WHERE bill_id = ?", (bill_id,))
-        db.execute("DELETE FROM institution_bill_payments WHERE bill_id = ?", (bill_id,))
 
         db.executemany(
             """INSERT INTO institution_bill_items
@@ -282,11 +282,9 @@ def update_institution_bill(bill_id):
               i["quantity_per_pc"], i["rate_per_m"], i["no_of_pcs"], i["stitching_per_unit"], i["total"])
              for i in calc_items],
         )
-        if payments:
-            db.executemany(
-                "INSERT INTO institution_bill_payments (bill_id, payment_method, amount) VALUES (?, ?, ?)",
-                [(bill_id, p["payment_method"], money_float(p["amount"], "Payment amount")) for p in payments],
-            )
+        # Reconcile rather than delete + re-insert, so payments received on
+        # different days keep their own dates through an edit.
+        sync_bill_payments(db, "institution_bill_payments", bill_id, payments)
         db.commit()
     except Exception as e:
         try: db.rollback()
